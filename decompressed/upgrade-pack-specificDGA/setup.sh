@@ -81,13 +81,17 @@ if [ -z "${kernel_ver##3.4*}" ]; then
     rm -f /tmp/ripdrv.ko
   fi
 
-elif [ -z "${kernel_ver##4.1.38*}" ]; then
+elif [ -z "${kernel_ver##4.1.*}" ] || [ -z "${kernel_ver##4.*}" ]; then
 
   #Install telnet, openssl-util and update openssl (for security reason)
-  [ -d /tmp/upgrade-pack-specificDGA/tmp/4.1.38_ipk ] && opkg install /tmp/upgrade-pack-specificDGA/tmp/4.1.38_ipk/*
+  if [ -d /tmp/upgrade-pack-specificDGA/tmp/4.1.38_ipk ]; then
+    for pkg in /tmp/upgrade-pack-specificDGA/tmp/4.1.38_ipk/*.ipk; do
+      [ -f "$pkg" ] && opkg install --force-overwrite "$pkg"
+    done
+  fi
   rm -rf /tmp/upgrade-pack-specificDGA
 
-else #unsupported kernels (ie 19.x using 4.1.52)
+else #unsupported kernels (ie other unknown kernels)
 
   rm -rf /tmp/upgrade-pack-specificDGA
   echo "No packages to install for kernel: $kernel_ver"

@@ -13,15 +13,22 @@ local cputype = proxy.get("rpc.system.modgui.CPUtype")[1].value
 
 local extension_supported = 0
 
-if marketing_version then
-	marketing_version = tonumber(marketing_version[1].value:sub(1,4))
+local m_ver = 0
+if marketing_version and marketing_version[1] and marketing_version[1].value then
+	local v_str = marketing_version[1].value
+	local maj, min = v_str:match("^(%d+)%.(%d+)")
+	if maj and min then
+		m_ver = tonumber(maj .. "." .. min) or 0
+	else
+		m_ver = tonumber(v_str:match("^(%d+)")) or 0
+	end
 end
 
 local mapParams = {
 	telstra_webui = "uci.modgui.app.telstra_webui"
 }
 
-if marketing_version >= 16.3 then
+if m_ver >= 16.3 or (m_ver >= 2.0 and m_ver < 10.0) then
 	mapParams.luci_webui = "uci.modgui.app.luci_webui"
 	mapParams.blacklist_application = "uci.modgui.app.blacklist_app"
 end
@@ -32,7 +39,7 @@ if cputype:match("mips") then
 end
 mapParams.aria2_webui = "uci.modgui.app.aria2_webui"
 mapParams.transmission_webui = "uci.modgui.app.transmission_webui"
-if marketing_version >= 17.3 then
+if m_ver >= 17.3 or (m_ver >= 2.0 and m_ver < 10.0) then
 	mapParams.xupnp_application = "uci.modgui.app.xupnp_app"
 end
 
