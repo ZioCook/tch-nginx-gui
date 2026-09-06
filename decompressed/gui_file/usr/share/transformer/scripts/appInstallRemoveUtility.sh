@@ -18,7 +18,8 @@ install_from_github() {
       fi
       curl -sLk "https://raw.githubusercontent.com/$1/$2.tar.bz2" --output "/tmp/$2.tar.bz2"
     fi
-    if [ ! -f "/tmp/$2.tar.bz2" ]; then
+    if [ ! -f "/tmp/$2.tar.bz2" ] || [ ! -s "/tmp/$2.tar.bz2" ] || grep -q "404: Not Found" "/tmp/$2.tar.bz2" 2>/dev/null; then
+      rm -f "/tmp/$2.tar.bz2"
       echo "Error installing App: Cannot find/download  $2.tar.bz2"
       return 1
     fi
@@ -537,7 +538,8 @@ app_xupnp() {
 install_specific_files() {
 
   install() {
-    install_from_github Ansuel/gui-dev-build-auto/master/modular "upgrade-pack-specific$1" specificapp
+    install_from_github ZioCook/tch-nginx-gui/master/modular "upgrade-pack-specific$1" specificapp ||
+      install_from_github Ansuel/gui-dev-build-auto/master/modular "upgrade-pack-specific$1" specificapp
     uci set modgui.app.specific_app=1
     uci commit modgui
   }

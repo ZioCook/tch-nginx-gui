@@ -62,6 +62,8 @@ for index in "${modular_dir[@]}"; do
 		echo "Changes detected in modular package $index, updating..."
 		[ -d "$HOME/gui-dev-build-auto/modular" ] && cp tar_tmp/$index.tar.bz2 "$HOME/gui-dev-build-auto/modular/"
 	fi
+	mkdir -p modular
+	cp tar_tmp/$index.tar.bz2 modular/
 done
 
 echo "Creating GUI dir"
