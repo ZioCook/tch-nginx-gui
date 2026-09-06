@@ -52,8 +52,10 @@ check_tmp_permission() {
 reapply_gui_after_reset() {
 	if [ -f /root/GUI.tar.bz2 ] && [ -s /root/GUI.tar.bz2 ]; then
 		logecho "Resetting /www dir due to firmware upgrade..."
-		rm -r /www
+		rm -rf /www
 		bzcat /root/GUI.tar.bz2 | tar -C / -xf - www
+	elif [ -d /www/docroot ]; then
+		logecho "GUI already present in /www, skipping reset..."
 	else
 		logecho "No GUI package found to restore!"
 	fi
@@ -62,12 +64,12 @@ reapply_gui_after_reset() {
 check_free_RAM() {
   logecho "Checking Free RAM..."
   MEMFREE=$(awk '/(MemFree|Buffers)/ {free+=$2} END {print free}' /proc/meminfo)
-  if [ $MEMFREE -lt 4096 ]; then
+  if [ -n "$MEMFREE" ] && [ "$MEMFREE" -lt 4096 ] 2>/dev/null; then
     logecho "Free RAM <4MB freeing up..."
     # Having the kernel reclaim pagecache, dentries and inodes and check again
     echo 3 >/proc/sys/vm/drop_caches
     MEMFREE=$(awk '/(MemFree|Buffers)/ {free+=$2} END {print free}' /proc/meminfo)
-    if [ $MEMFREE -lt 4096 ]; then
+    if [ -n "$MEMFREE" ] && [ "$MEMFREE" -lt 4096 ] 2>/dev/null; then
       logecho "Update is continuing with Free RAM <4MB!"
     fi
   fi
@@ -86,7 +88,18 @@ if [ -f /root/.reapply_due_to_upgrade ]; then
 fi
 
 if [ -f /tmp/GUI.tar.bz2 ] || [ -f /tmp/GUI_dev.tar.bz2 ]; then
-  logecho "Saving GUI package to /root..."
-  [ -f /tmp/GUI.tar.bz2 ] && safe_mv /tmp/GUI.tar.bz2 /root/GUI.tar.bz2
-  [ -f /tmp/GUI_dev.tar.bz2 ] && safe_mv /tmp/GUI_dev.tar.bz2 /root/GUI.tar.bz2
+  overlay_total=$(df -P /overlay 2>/dev/null | awk 'NR==2 {print $2}')
+  overlay_free=$(df -P /overlay 2>/dev/null | awk 'NR==2 {print $4}')
+  [ -z "$overlay_total" ] && overlay_total=999999
+  [ -z "$overlay_free" ] && overlay_free=999999
+  if [ "$overlay_total" -lt 33000 ] || [ "$overlay_free" -lt 18000 ]; then
+    logecho "Low flash space detected (total: ${overlay_total}KB, free: ${overlay_free}KB). Removing temporary archive to prevent overlay exhaustion..."
+    [ -f /tmp/GUI.tar.bz2 ] && md5sum /tmp/GUI.tar.bz2 > /root/gui_orig.md5sum 2>/dev/null
+    [ -f /tmp/GUI_dev.tar.bz2 ] && md5sum /tmp/GUI_dev.tar.bz2 > /root/gui_orig.md5sum 2>/dev/null
+    rm -f /tmp/GUI.tar.bz2 /tmp/GUI_dev.tar.bz2
+  else
+    logecho "Saving GUI package to /root..."
+    [ -f /tmp/GUI.tar.bz2 ] && safe_mv /tmp/GUI.tar.bz2 /root/GUI.tar.bz2
+    [ -f /tmp/GUI_dev.tar.bz2 ] && safe_mv /tmp/GUI_dev.tar.bz2 /root/GUI.tar.bz2
+  fi
 fi

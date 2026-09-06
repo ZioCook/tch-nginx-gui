@@ -66,7 +66,7 @@ kecho() {
 }
 
 logecho() {
-  if [ "$debug" -eq 1 ]; then
+  if [ "$debug" = "1" ]; then
     logger -t "Root Script" "$@"
     echo "Root Script" "$@"
   fi
@@ -166,7 +166,7 @@ check_and_apply_root() {
         else
           logecho "Incompatible password saved in config, resetting password to root!"
           kecho "Incompatible password saved in config, resetting password to root!"
-          echo -e "root\nroot" | passwd >/dev/null
+          printf "root\nroot\n" | passwd >/dev/null
         fi
       else
         logecho "Shadow contains different pass than saved one. Save it!"
@@ -181,7 +181,7 @@ check_and_apply_root() {
     logecho "Resetting password to root..."
     kecho "Resetting password to root..."
     #Set the password to root as we have an unknown password
-    echo -e "root\nroot" | passwd >/dev/null
+    printf "root\nroot\n" | passwd >/dev/null
     store_pass_in_uci
   fi
 
@@ -231,8 +231,8 @@ check_and_apply_root() {
 
 install_gui() {
 
-  [[ -z "$log_progress" ]] && log_progress=0
-  [[ -z "$restart_dnsmasq" ]] && restart_dnsmasq=0
+  [ -z "$log_progress" ] && log_progress=0
+  [ -z "$restart_dnsmasq" ] && restart_dnsmasq=0
 
   logecho_always "Installing in progress..."
 
@@ -266,16 +266,34 @@ get_bank_mtd() {
 }
 
 safe_mv() { # <src file path> <dest file path>
+  [ ! -f "$1" ] && return 1
   # if destination file exist will be forcely removed before the free space check
-  [ -f "$2" ] && rm "$2"
-  # mv will be skipped if not enought space!
-  [ "$(df -P "$(dirname "$2")" | awk 'NR==2 {print $4}')" -gt "$(($(wc -c <"$1") / 1024))" ] && mv "$1" "$2" || echo "ERROR: No space left for mv $1 $2"
+  [ -f "$2" ] && rm -f "$2"
+  # mv will be skipped if not enough space!
+  dest_free=$(df -P "$(dirname "$2")" 2>/dev/null | awk 'NR==2 {print $4}')
+  src_size=$(($(wc -c <"$1" 2>/dev/null) / 1024))
+  if [ -n "$dest_free" ] && [ -n "$src_size" ] && [ "$dest_free" -gt "$src_size" ] 2>/dev/null; then
+    mv "$1" "$2"
+  else
+    echo "ERROR: No space left for mv $1 $2"
+    return 1
+  fi
 }
 
 erase_bank1_reboot() { # <bootedbank>
-  #make sure we have an updated package in root
-  [ -f /tmp/GUI.tar.bz2 ] && safe_mv /tmp/GUI.tar.bz2 /root/GUI.tar.bz2
-  [ -f /tmp/GUI_dev.tar.bz2 ] && safe_mv /tmp/GUI_dev.tar.bz2 /root/GUI.tar.bz2
+  overlay_space=$(df -P /overlay 2>/dev/null | awk 'NR==2 {print $2}')
+  [ -z "$overlay_space" ] && overlay_space=999999
+  if [ "$overlay_space" -lt 33000 ]; then
+    logecho "Detected low flash space device ($overlay_space KB), avoiding copying GUI package to /root to prevent overlay exhaustion"
+    kecho "Detected low flash space device ($overlay_space KB), avoiding copying GUI package to /root to prevent overlay exhaustion"
+    [ -f /tmp/GUI.tar.bz2 ] && md5sum /tmp/GUI.tar.bz2 | awk '{print $1}' >/root/gui_orig.md5sum
+    [ -f /tmp/GUI_dev.tar.bz2 ] && md5sum /tmp/GUI_dev.tar.bz2 | cut -d' ' -f1 >/root/gui_dev.md5sum
+    rm -f /tmp/GUI.tar.bz2 /tmp/GUI_dev.tar.bz2
+  else
+    #make sure we have an updated package in root
+    [ -f /tmp/GUI.tar.bz2 ] && safe_mv /tmp/GUI.tar.bz2 /root/GUI.tar.bz2
+    [ -f /tmp/GUI_dev.tar.bz2 ] && safe_mv /tmp/GUI_dev.tar.bz2 /root/GUI.tar.bz2
+  fi
   if [ ! "$(uci -q get modgui.gui.gui_hash)" ]; then
     logecho "Seems first install from $1 saving GUI to root and setting install flags..."
     kecho "Seems first install from $1 saving GUI to root  and setting install flags..."
@@ -283,7 +301,7 @@ erase_bank1_reboot() { # <bootedbank>
     touch /root/.install_gui
   fi
   # Moving running overlay to bank2 if we are on bank1
-  [ "$1" == "bank_1" ] && {
+  [ "$1" = "bank_1" ] && {
     logecho "Moving /overlay/bank_1 to /overlay/bank_2..."
     kecho "Moving /overlay/bank_1 to /overlay/bank_2..."
     mv /overlay/bank_1 /overlay/bank_2
@@ -350,12 +368,12 @@ check_and_apply_obp() {
     kecho "OBP sanity check succeeded."
   else
     #OBP not OK, check if was an user choice otherwise automatically apply (this should be the case called also on first install)
-    if [ "$(uci -q get modgui.var.check_obp)" == "0" ]; then
+    if [ "$(uci -q get modgui.var.check_obp)" = "0" ]; then
       logecho "OBP sanity check FAILED but check_obp set to 0... Not acting"
       kecho "OBP sanity check FAILED but check_obp set to 0... Not acting"
     else
 
-      if [ "$(cat /proc/$PPID/comm)" == "upgradegui" ]; then
+      if [ "$(cat /proc/$PPID/comm)" = "upgradegui" ]; then
         logecho "OBP sanity check FAILED but upgrading, postpone planning on next boot..."
         kecho "OBP sanity check FAILED but upgrading, postpone planning on next boot..."
         uci set modgui.var.reboot_reason_msg="apply OBP planning"
@@ -368,7 +386,7 @@ check_and_apply_obp() {
       logecho "OBP sanity check FAILED start autoplanning..."
       kecho "OBP sanity check FAILED start autoplanning..."
 
-      if [ "$bootedbank" == "bank_2" ]; then
+      if [ "$bootedbank" = "bank_2" ]; then
         # Force erase of bank_1 to have a clean modoverlay
         logecho "Erasing bank_1 firmware to prepare modoverlay..."
         kecho "Erasing bank_1 firmware to prepare modoverlay...."
@@ -382,7 +400,7 @@ check_and_apply_obp() {
         mtd write "$bank1_mtd" "$bank2_mtd"
         md5_bank_1=$(md5sum "$bank1_mtd" | awk '{ print $1 }')
         md5_bank_2=$(md5sum "$bank2_mtd" | awk '{ print $1 }')
-        if [ "$md5_bank_1" == "$md5_bank_2" ]; then
+        if [ "$md5_bank_1" = "$md5_bank_2" ]; then
           logecho "Cloning complete, moving to bank_2 overlay..."
           kecho "Cloning complete, moving to bank_2 overlay..."
           # Clean any existing overlay for bank_2 firmware
@@ -399,22 +417,25 @@ check_and_apply_obp() {
 }
 
 check_full_overlay() {
-  overlay_percent=$(df /overlay | sed -n 2p | awk '{print $5}' | sed 's|%||')
-  overlay_mtdblock=$(df /overlay | sed -n 2p | awk '{print $1}')
-  bootedbank=$(cat /proc/banktable/booted)
-  #Reset if rootfs more than 97% full
-  if [ "$overlay_percent" -gt 96 ]; then
+  overlay_percent=$(df -P /overlay 2>/dev/null | awk 'NR==2 {print $5}' | tr -d '%')
+  overlay_mtdblock=$(df -P /overlay 2>/dev/null | awk 'NR==2 {print $1}')
+  bootedbank=""
+  [ -f /proc/banktable/booted ] && bootedbank=$(cat /proc/banktable/booted)
+  #Reset if rootfs more than 96% full
+  if [ -n "$overlay_percent" ] && [ "$overlay_percent" -gt 96 ] 2>/dev/null; then
     logecho "DETECTED FULL ROOTFS... TRYING TO RESTORE..."
     kecho "  DETECTED FULL ROOTFS... TRYING TO RESTORE..."
-    for dir in /overlay/"$bootedbank"/*; do
-      if [ ! "$dir" == "/overlay/$bootedbank/etc" ]; then
+    target_dir="/overlay"
+    [ -n "$bootedbank" ] && [ -d "/overlay/$bootedbank" ] && target_dir="/overlay/$bootedbank"
+    for dir in "$target_dir"/*; do
+      if [ "$dir" != "$target_dir/etc" ]; then
         logecho "TRYING TO SAVE ROOT BY REMOVING EVERY DIR EXCEPT /etc"
         kecho "TRYING TO SAVE ROOT BY REMOVING EVERY DIR EXCEPT /etc"
         rm -rf "$dir"
       fi
     done
     #Verify if rm did actually remove the files/folders (using /root as check) if not ERASE...
-    if [ -d "/overlay/$bootedbank/root" ]; then
+    if [ -d "$target_dir/root" ]; then
       logecho "CAN'T REMOVE FILES... INITIALISING FULL ROOTFS ERASE"
       kecho "  CAN'T REMOVE FILES... INITIALISING FULL ROOTFS ERASE"
       logecho "THIS WILL RESTORE THE MODEM TO FACTORY SETTINGS"
@@ -458,18 +479,21 @@ boot() {
   [ -z "$force" ] && force=0
 
   if [ -f /root/.reapply_due_to_upgrade ]; then
-    logecho "Upgrade just done Extracting GUI.tar.bz2..."
-    kecho "Upgrade just done Extracting GUI.tar.bz2..."
     if [ -f /root/GUI.tar.bz2 ]; then
+      logecho "Upgrade just done Extracting GUI.tar.bz2..."
+      kecho "Upgrade just done Extracting GUI.tar.bz2..."
       bzcat /root/GUI.tar.bz2 | tar -C / -xvf -
       sync
+    elif [ -d /www/docroot ]; then
+      logecho "Upgrade just done: GUI already present in /www, skipping archive re-extraction."
+      kecho "Upgrade just done: GUI already present in /www, skipping archive re-extraction."
     else
       logecho "Extraction FAILED GUI.tar.bz2 NOT FOUND!"
       kecho "Extraction FAILED GUI.tar.bz2 NOT FOUND!"
     fi
   fi
 
-  if [ $force -eq 1 ] || [ -f /root/.install_gui ]; then
+  if [ "$force" = "1" ] || [ -f /root/.install_gui ]; then
     logecho "Force/install flag detected! Reinstalling..."
     kecho "force/install flag detected! Reinstalling..."
     install_gui
