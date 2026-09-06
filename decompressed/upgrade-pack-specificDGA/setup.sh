@@ -86,7 +86,7 @@ elif [ -z "${kernel_ver##4.1.*}" ] || [ -z "${kernel_ver##4.*}" ]; then
   #Install telnet, openssl-util and update openssl (for security reason)
   if [ -d /tmp/upgrade-pack-specificDGA/tmp/4.1.38_ipk ]; then
     for pkg in /tmp/upgrade-pack-specificDGA/tmp/4.1.38_ipk/*.ipk; do
-      [ -f "$pkg" ] && opkg install --force-overwrite "$pkg"
+      [ -f "$pkg" ] && opkg install --force-overwrite --force-depends "$pkg"
     done
   fi
   rm -rf /tmp/upgrade-pack-specificDGA

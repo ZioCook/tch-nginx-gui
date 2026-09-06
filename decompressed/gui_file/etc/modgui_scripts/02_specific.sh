@@ -60,6 +60,7 @@ apply_right_opkg_repo() {
   if [ "$cpu_type" = "armv7l" ]; then
     case $marketing_version in
     "19."* | "2."*)
+      [ ! -e /usr/lib/libjson-c.so.2 ] && [ -f /usr/lib/libjson-c.so.4 ] && ln -sf /usr/lib/libjson-c.so.4 /usr/lib/libjson-c.so.2
       sed -i '/homeware\/18\/brcm63xx-tch/d' /etc/opkg.conf #remove old setted feeds
       sed -i '/Ansuel\/GUI_ipk\/kernel-4.1/d' /etc/opkg.conf #remove old setted feeds
       sed -i '/repository\.macoers\.com\/homeware\/19\/brcm6xxx-tch/d' /etc/opkg.conf #remove broken 19 macoers feeds
