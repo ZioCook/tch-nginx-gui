@@ -3,7 +3,7 @@
 restart_dnsmasq=0
 
 logecho() {
-  if [ "$debug" -eq 1 ]; then
+  if [ "$debug" = "1" ]; then
     logger -t "IspConfigHelper" "$1"
     echo "IspConfigHelper" "$1"
   fi
@@ -288,7 +288,7 @@ setup_ISP() {
     ;;
   esac
   logecho "Restarting dnsmasq if needed..."
-  if [ $restart_dnsmasq -eq 1 ]; then
+  if [ "$restart_dnsmasq" = "1" ]; then
     uci commit
     killall dnsmasq
     /etc/init.d/dnsmasq restart

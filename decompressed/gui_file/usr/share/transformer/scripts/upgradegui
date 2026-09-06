@@ -59,7 +59,7 @@ logecho() {
 }
 
 if [ "$1" ]; then
-  if [ "$1" == "SetTime" ]; then
+  if [ "$1" = "SetTime" ]; then
     time="$(uci get modgui.gui.autoupgrade_hour)"
     hour="$(echo $time | sed "s|:.*||")"
     minute="$(echo $time | sed "s|.*:||")"
@@ -67,15 +67,15 @@ if [ "$1" ]; then
     if [ "$(cat /etc/crontabs/root | grep upgradegui)" ]; then
       sed -i '/upgradegui/d' /etc/crontabs/root
     fi
-    if [ "$autoupgrade" == "1" ]; then
+    if [ "$autoupgrade" = "1" ]; then
       echo "$minute $hour * * * /usr/share/transformer/scripts/upgradegui AutoUpgrade >/dev/null 2>&1" >>/etc/crontabs/root
     fi
     exit 0
   fi
 
-  if [ "$1" == "AutoUpgrade" ]; then
+  if [ "$1" = "AutoUpgrade" ]; then
     /usr/share/transformer/scripts/checkver
-    if [ "$(uci get modgui.gui.outdated_ver)" == "0" ]; then
+    if [ "$(uci get modgui.gui.outdated_ver)" = "0" ]; then
       logecho "Already at latest version. Aborting upgrade."
       exit 0
     fi
@@ -93,9 +93,9 @@ fi
 URL_BASE="https://raw.githubusercontent.com/Ansuel/gui-dev-build-auto/master"
 
 # Check update_branch
-if [ ! "$(uci get -q modgui.gui.update_branch)" ] || [ "$(uci get modgui.gui.update_branch)" == "stable" ]; then
+if [ ! "$(uci get -q modgui.gui.update_branch)" ] || [ "$(uci get modgui.gui.update_branch)" = "stable" ]; then
   update_branch=""
-elif [ "$(uci get modgui.gui.update_branch)" == "preview" ]; then
+elif [ "$(uci get modgui.gui.update_branch)" = "preview" ]; then
   update_branch="_preview"
 else
   update_branch="_dev"
@@ -182,7 +182,7 @@ if [ ! -f $WORKING_DIR/$FILE_NAME ]; then #Check if file exist as offline upload
   logecho "Downloaded GUI with hash: $downloaded_md5"
 
   if [ "$update_branch" ]; then
-    if [ "$update_branch" == "_dev" ] || [ "$update_branch" == "_preview" ]; then
+    if [ "$update_branch" = "_dev" ] || [ "$update_branch" = "_preview" ]; then
 
       logecho "Dev branch detected... Checking for newer version in stable..."
 
@@ -233,17 +233,17 @@ if [ ! -f $WORKING_DIR/$FILE_NAME ]; then #Check if file exist as offline upload
         FORCE_SAVE_GUI=1
       else
 
-        if [ -f $PERMANENT_STORE_DIR/$FILE_NAME ]; then
-          saved_stable_md5=$(md5sum $PERMANENT_STORE_DIR/$FILE_NAME | cut -d' ' -f1)
+        if [ -f "$PERMANENT_STORE_DIR/$FILE_NAME" ]; then
+          saved_stable_md5=$(md5sum "$PERMANENT_STORE_DIR/$FILE_NAME" | cut -d' ' -f1)
 
-          if [ $saved_stable_md5 != $stable_md5 ]; then
+          if [ "$saved_stable_md5" != "$stable_md5" ]; then
             logecho "Permanent package md5 is not same of latest Stable GUI. Replacing..."
-            rm "$PERMANENT_STORE_DIR/$FILE_NAME"
-            cp $WORKING_DIR/$STABLE_FILE_NAME $PERMANENT_STORE_DIR/
+            rm -f "$PERMANENT_STORE_DIR/$FILE_NAME"
+            cp "$WORKING_DIR/$STABLE_FILE_NAME" "$PERMANENT_STORE_DIR/"
           fi
         fi
 
-        rm "$WORKING_DIR/$STABLE_FILE_NAME"
+        rm -f "$WORKING_DIR/$STABLE_FILE_NAME"
       fi
     fi
   fi
@@ -300,23 +300,35 @@ bzcat "$WORKING_DIR/$FILE_NAME" |
 #Remove deprecated GUI packages if found in /root
 if [ -f /root/GUI_dev.tar.bz2 ]; then
   logecho "Deleting /root/GUI_dev.tar.bz2..."
-  rm /root/GUI_dev.tar.bz2
+  rm -f /root/GUI_dev.tar.bz2
 fi
 if [ -f /root/GUI.tar.gz ]; then
   logecho "Deleting GUI.tar.gz..."
-  rm /root/GUI.tar.gz
+  rm -f /root/GUI.tar.gz
 fi
 
-if [ -z "$update_branch" ] || [ $FORCE_SAVE_GUI == 1 ]; then
-  logecho "Copying file to permanent dir..."
-  #Copy GUI file to permanent dir
-  if [ -f "$PERMANENT_STORE_DIR/$FILE_NAME" ]; then
-    rm "$PERMANENT_STORE_DIR/$FILE_NAME"
+overlay_space=$(df -P /overlay 2>/dev/null | awk 'NR==2 {print $2}')
+[ -z "$overlay_space" ] && overlay_space=999999
+if [ "$overlay_space" -lt 33000 ]; then
+  logecho "Detected low flash space device ($overlay_space KB), skipping saving GUI package to /root to avoid flash exhaustion"
+  if [ -f /root/GUI.tar.bz2 ]; then
+    rm -f /root/GUI.tar.bz2
   fi
-  cp "$WORKING_DIR/$FILE_NAME" "$PERMANENT_STORE_DIR/$STABLE_FILE_NAME"
+  if [ -f "$WORKING_DIR/$FILE_NAME" ]; then
+    md5sum "$WORKING_DIR/$FILE_NAME" | awk '{print $1}' >/root/gui_orig.md5sum
+  fi
+else
+  if [ -z "$update_branch" ] || [ "$FORCE_SAVE_GUI" = "1" ]; then
+    logecho "Copying file to permanent dir..."
+    #Copy GUI file to permanent dir
+    if [ -f "$PERMANENT_STORE_DIR/$FILE_NAME" ]; then
+      rm -f "$PERMANENT_STORE_DIR/$FILE_NAME"
+    fi
+    cp "$WORKING_DIR/$FILE_NAME" "$PERMANENT_STORE_DIR/$STABLE_FILE_NAME"
+  fi
 fi
 
-if [ "$update_branch" == "_dev" ] || [ "$update_branch" == "_preview" ]; then
+if [ "$update_branch" = "_dev" ] || [ "$update_branch" = "_preview" ]; then
   logecho "Saving md5sum of dev gui to /root ..."
   md5sum "$WORKING_DIR/$FILE_NAME" | cut -d' ' -f1 >/root/gui_dev.md5sum
 fi
@@ -330,10 +342,10 @@ set_transformer "rpc.system.modgui.executeCommand.state" "In Progress"
 /etc/init.d/do_migrate_overlay preserve_files
 
 if [ -f "$WORKING_DIR/$FILE_NAME" ]; then
-  rm "$WORKING_DIR/$FILE_NAME"
+  rm -f "$WORKING_DIR/$FILE_NAME"
 fi
 if [ -f "$WORKING_DIR/$CHECKSUM_FILE" ]; then
-  rm "$WORKING_DIR/$CHECKSUM_FILE"
+  rm -f "$WORKING_DIR/$CHECKSUM_FILE"
 fi
 
 ubus send fwupgrade '{"state":"done"}'

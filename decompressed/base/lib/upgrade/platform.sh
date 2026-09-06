@@ -3,7 +3,7 @@
 . /rom/lib/upgrade/platform.sh
 
 overlay_dir=/modoverlay/bank_mod
-booted_bank=$(cat /proc/banktable/booted)
+booted_bank=$(cat /proc/banktable/booted 2>/dev/null)
 
 base_file_dir=/tmp/rootfile/emergency
 root_tmp_dir=/tmp/rootfile
@@ -206,7 +206,7 @@ if ! type 'kill_remaining' >/dev/null 2>/dev/null; then
         name="${name#(}"; name="${name%)}"
 
         # Skip PID1, our parent, ourself and our children
-        [ $pid -ne 1 -a $pid -ne $proc_ppid -a $pid -ne $$ -a $ppid -ne $$ ] || continue
+        [ "$pid" -ne 1 ] && [ "$pid" -ne "$proc_ppid" ] && [ "$pid" -ne "$$" ] && [ "$ppid" -ne "$$" ] || continue
 
         local cmdline
         read cmdline < /proc/$pid/cmdline
@@ -215,8 +215,8 @@ if ! type 'kill_remaining' >/dev/null 2>/dev/null; then
         [ -n "$cmdline" ] || continue
 
         # Skip wpa_supplicant
-        [ $name != "wpa_supplicant" ] || continue
-        [ $name != "wpa_supplicant_" ] || continue
+        [ "$name" != "wpa_supplicant" ] || continue
+        [ "$name" != "wpa_supplicant_" ] || continue
 
         echo -n "$name "
         kill -$sig $pid 2>/dev/null
@@ -224,7 +224,7 @@ if ! type 'kill_remaining' >/dev/null 2>/dev/null; then
         [ $loop -eq 1 ] && run=true
       done
 
-      let loop_limit--
+      loop_limit=$((loop_limit - 1))
       [ $loop_limit -eq 0 ] && {
         echo
         echo "Failed to kill all processes."

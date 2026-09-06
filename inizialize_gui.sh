@@ -17,18 +17,18 @@ declare -a modular_dir=(
 	"ledfw_support-specificDGA4131"
 )
 
-if [ "$1" == "dev" ]; then
+if [ "$1" = "dev" ]; then
 	echo "Dev build detected"
 	type="_dev"
 fi
 
-if [ "$CI" == "true" ]; then
+if [ "$CI" = "true" ]; then
 	TYPE="$(cat $HOME/gui_build/data/type)"
-	if [ $TYPE == "PREVIEW" ]; then
+	if [ "$TYPE" = "PREVIEW" ]; then
 		type="_preview"
-	elif [ $TYPE == "DEV" ]; then
+	elif [ "$TYPE" = "DEV" ]; then
 		type="_dev"
-	elif [ $TYPE != "STABLE" ]; then
+	elif [ "$TYPE" != "STABLE" ]; then
 		type="_"$TYPE
 	fi
 fi
@@ -37,21 +37,23 @@ mkdir tar_tmp
 
 for index in "${modular_dir[@]}"; do
 
-	if [ "$CI" == "true" ] && [ -f $HOME/gui-dev-build-auto/modular/$index.tar.bz2 ]; then
+	if [ "$CI" = "true" ] && [ -f $HOME/gui-dev-build-auto/modular/$index.tar.bz2 ]; then
 		old_md5=$(md5sum <(bzcat $HOME/gui-dev-build-auto/modular/$index.tar.bz2) | awk '{print $1}')
 	fi
 
 	cd decompressed/$index
 
 	#Creating md5sum file for status led eventing
-	if [[ $index == "gui_file" ]]; then
+	if [ "$index" = "gui_file" ]; then
 		md5sum tmp/status-led-eventing.lua_new > tmp/status-led-eventing.md5sum
 	fi
 
 	#Creating md5sum for every ledfw_support modular dir
-	if [[ $index == *"ledfw_support"* ]]; then
-		md5sum etc/ledfw/stateMachines.lua > stateMachines.md5sum
-	fi
+	case "$index" in
+		*ledfw_support*)
+			md5sum etc/ledfw/stateMachines.lua > stateMachines.md5sum
+			;;
+	esac
 
 	BZIP2=-9 tar --mtime='2018-01-01' -cjf ../../tar_tmp/$index.tar.bz2 * --owner=0 --group=0
 	cd ../../
@@ -84,7 +86,7 @@ fi
 
 for index in "${modular_dir[@]}"; do
 
-	if [ $index == "base" ] || [ $index == "gui_file" ] || [ $index == "traffic_mon" ]; then
+	if [ "$index" = "base" ] || [ "$index" = "gui_file" ] || [ "$index" = "traffic_mon" ]; then
 		echo "Copying file from "$index" to GUI dir"
 		cp -dr decompressed/$index/* total
 	elif [ -z "$(echo $index | grep upgrade-pack-)" ]; then

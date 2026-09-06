@@ -23,7 +23,7 @@ elif [ "$(echo $xdsl_status | grep Started)" ]; then
 fi
 
 if [ "$xdsl_statuscode" -gt 0 ]; then
-    if [ "$xdsl_statuscode" == 5 ]; then #cause we cannot go directly in showtime send a fake "Started"
+    if [ "$xdsl_statuscode" = "5" ]; then #cause we cannot go directly in showtime send a fake "Started"
         ubus send xdsl "{\"status\":\"G.993 Started\",\"statuscode\":6,\"line1\":{\"status\":\"G.993 Started\",\"statuscode\":6}}"
     fi
     ubus send xdsl "{\"status\":\"$xdsl_status\",\"statuscode\":$xdsl_statuscode,\"line1\":{\"status\":\"$xdsl_status\",\"statuscode\":$xdsl_statuscode}}"
@@ -65,7 +65,7 @@ do
         radio_security="disabled"
     fi
 
-	if [ $i == 0 ]; then
+	if [ "$i" = "0" ]; then
 	    connected_devices=$connected_wl0
 	else
 	    connected_devices=$connected_wl1

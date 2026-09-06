@@ -45,11 +45,14 @@ log "Gathering device info..."
   echo "--------------pwrctl--------------"
   pwrctl show
   echo "--------------banktable---------------"
-  for f in /proc/banktable/*; do
-    echo -n "$f "
-    cat "$f"
-    echo
-  done
+  if [ -d /proc/banktable ]; then
+    for f in /proc/banktable/*; do
+      [ -f "$f" ] || continue
+      echo -n "$f "
+      cat "$f"
+      echo
+    done
+  fi
   echo "--------------USB---------------"
   lsusb
   dmesg |grep usb
@@ -71,9 +74,9 @@ log "Scanning for log errors..."
 
 log "XDSL stats..."
 {
-  echo "__________________________________LOG_________________________________________"
-  logread |grep daemon.err
-}> ./error.log
+  echo "__________________________________XDSL STATS_________________________________________"
+  xdslctl info --stats 2>&1
+}> ./xdsl_stats.txt
 
 ###########################################################################################################################################################
 

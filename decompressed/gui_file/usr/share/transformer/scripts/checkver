@@ -46,7 +46,7 @@ else
 fi
 
 if [ "$1" ]; then
-	if [ "$1" == "Schedule" ]; then
+	if [ "$1" = "Schedule" ]; then
 		RANDOM=$(awk -v min=1 -v max=3600 'BEGIN{srand(); print int(min+rand()*(max-min+1))}')
 		sleep "$RANDOM"
 	fi
@@ -68,11 +68,11 @@ enum() {
 	echo "$(echo "$1" | sed -e 's/\.//g')"
 }
 
-if [ $connectivity == "yes" ]; then
-	if [ ! "$(uci get -q modgui.gui.update_branch)" ] || [ "$(uci get modgui.gui.update_branch)" == "stable" ]; then
+if [ "$connectivity" = "yes" ]; then
+	if [ ! "$(uci get -q modgui.gui.update_branch)" ] || [ "$(uci get modgui.gui.update_branch)" = "stable" ]; then
 		update_branch="stable"
 		version_link=$BASE_DIR/$STABLE_VERSION
-	elif [ "$(uci get modgui.gui.update_branch)" == "preview" ]; then
+	elif [ "$(uci get modgui.gui.update_branch)" = "preview" ]; then
 		update_branch="preview"
 		version_link=$BASE_DIR/$PREVIEW_VERSION
 	else 
@@ -87,7 +87,7 @@ if [ $connectivity == "yes" ]; then
 
     logger -s -t "CheckVer Script" "Online version: $new_version"
 
-    if [ "$update_branch" == "dev" ] || [ "$update_branch" == "preview" ]; then #just makes sure there is no newer stable
+    if [ "$update_branch" = "dev" ] || [ "$update_branch" = "preview" ]; then #just makes sure there is no newer stable
         stable_version_link=$BASE_DIR/$STABLE_VERSION
         stable_version="$(curl -k -s "$stable_version_link")"
 
@@ -104,7 +104,7 @@ if [ $connectivity == "yes" ]; then
 
     current_version_norm="$(normalize "$CURRENT_VERSION")"
 
-    if [ "$( enum "$new_version_norm" )" -gt "$( enum "$current_version_norm" )" ] || [ "$newer_stable" -eq 1 ]; then
+    if [ "$( enum "$new_version_norm" )" -gt "$( enum "$current_version_norm" )" ] || [ "$newer_stable" = "1" ]; then
         logger -s -t "CheckVer Script" "Online version selected: $new_version"
         logger -s -t "CheckVer Script" "Setting outdate version bit!"
         uci set modgui.gui.outdated_ver=1

@@ -2,6 +2,8 @@
 
 . /etc/init.d/rootdevice
 
+[ -z "$restart_dnsmasq" ] && restart_dnsmasq=0
+
 add_ipoe() {
   if [ ! "$(uci -q get network.ipoe)" ]; then
     logecho "Adding ipoe in network config..."
@@ -193,7 +195,7 @@ clean_cups_block_rule() {
     uci del "$ret"
     firewall_change=1
   done
-  if [ $firewall_change -eq 1 ]; then
+  if [ "$firewall_change" = "1" ]; then
     logecho "Restarting firewall..."
     uci commit firewall
     /etc/init.d/firewall restart 2>/dev/null
@@ -216,13 +218,10 @@ disable_tcp_Sack() {
   logecho "Apply CVE 2019-11477 workaround"
   if grep -q 'net.ipv4.tcp_sack' /etc/sysctl.conf; then
     sed -i 's/\(net.ipv4.tcp_sack=\)1/\10/g' /etc/sysctl.conf
-    sysctl -p 2>/dev/null 1>/dev/null
-  elif ! grep -q 'net.ipv4.tcp_sack=0' /etc/sysctl.conf; then
-    echo -e "\n" >>/etc/sysctl.conf
-    echo "# disable tcp_sack for CVE 2019-11477" >>/etc/sysctl.conf
-    echo "net.ipv4.tcp_sack=0" >>/etc/sysctl.conf
-    sysctl -p 2>/dev/null 1>/dev/null
+  else
+    printf "\n# disable tcp_sack for CVE 2019-11477\nnet.ipv4.tcp_sack=0\n" >>/etc/sysctl.conf
   fi
+  sysctl -p >/dev/null 2>&1
 }
 
 check_xtm_atmwan() {
@@ -255,13 +254,13 @@ check_dnsmasq_name   #check dnsmasq name in uci to avoid issue in guid hardcoded
 update_dhcp_config   #DHCP sync
 wan_sensing_clean    #Wansensing clean utility
 clean_cups_block_rule
-[ "$device_type" = "MediaAccess TG789vac v2" ] && unlock_ssh_wan_tiscali
+[ -z "${device_type##*TG789vac v2*}" ] && unlock_ssh_wan_tiscali
 disable_tcp_Sack
 check_xtm_atmwan #needed for UNO firmware
 
 logecho "Restarting dnsmasq if needed..."
-if [ "$restart_dnsmasq" -eq 1 ]; then
-  uci commit
-  killall dnsmasq
+if [ "$restart_dnsmasq" = "1" ]; then
+  uci commit dhcp
+  killall dnsmasq 2>/dev/null
   /etc/init.d/dnsmasq restart
 fi

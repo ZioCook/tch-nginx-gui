@@ -4,34 +4,34 @@ isEnabled=`uci get mmpbx.voipdiagnostics.enabled`
 currState=`uci get mmpbx.voipdiagnostics.action`
 filePath=`uci get mmpbx.voipdiagnostics.path`
 fileName=`uci get mmpbx.voipdiagnostics.filename`
-if [[ ! -z "$fileName" ]] && [[ ! -z "$filePath" ]] && [[ "$filePath" != "uci: Entry not found" ]] && [[ "$fileName" != "uci: Entry not found" ]];
+if [ -n "$fileName" ] && [ -n "$filePath" ] && [ "$filePath" != "uci: Entry not found" ] && [ "$fileName" != "uci: Entry not found" ];
 then
 	logfile=$filePath/$fileName
-elif [[ ! -z "$fileName" ]] && [[ "$filePath" != "uci: Entry not found" ]];
+elif [ -n "$fileName" ] && [ "$filePath" != "uci: Entry not found" ];
 then
 	logfile="/tmp/$fileName"
 
-elif [[ ! -z "$filePath" ]] && [[ "$fileName" != "uci: Entry not found" ]];
+elif [ -n "$filePath" ] && [ "$fileName" != "uci: Entry not found" ];
 then
 	logfile="$filePath/voip_diagnostics.txt"
 else
 	logfile="/tmp/voip_diagnostics.txt"
 fi
-if [ $currState == "idle" ];
+if [ "$currState" = "idle" ];
 then
-	if [ -f $logfile ];
+	if [ -f "$logfile" ];
 	then
-	rm $logfile
+	rm "$logfile"
 	fi
 	exit
 fi
 
-if [[ $isEnabled == 1 ]] && [[ $currState == "request" ]];
+if [ "$isEnabled" = "1" ] && [ "$currState" = "request" ];
 then
 	uci set mmpbx.voipdiagnostics.action="processing"
 	uci commit mmpbx
 	maskedUri=\"+NUM\"
-	TAB=$'\t'
+	TAB="$(printf '\t')"
 	rootPath=`grep -F '^InternetGatewayDevice%.' /etc/config/transformer`
 	if [ -n "$rootPath" ];
 	then
@@ -66,7 +66,7 @@ then
 	for i in `awk '/config profile/{print $NF}' /etc/config/mmpbxrvsipnet`;
 	do
 		profileStatus=$(ubus call mmpbx.profile get "{'profile':$i}")
-		if [[ -z "$profileStatus" ]];
+		if [ -z "$profileStatus" ];
 		then
                     echo -e "Unable to fetch details as voice daemon may not be running \n" >> $logfile
 			break
@@ -79,7 +79,7 @@ then
 	for i in `awk '/config device/{print $NF}' /etc/config/mmpbxbrcmfxsdev`;
 	do
 		lineStatus=$(ubus call mmpbxbrcmfxs.state get "{'device':$i}")
-		if [[ -z "$lineStatus" ]];
+		if [ -z "$lineStatus" ];
 		then
 			echo -e "Unable to fetch details as voice daemon may not be running \n" >> $logfile
 			break
@@ -89,7 +89,7 @@ then
 
 
 	callStatus=$(ubus call mmpbx.call get)
-	if [[ -z "$callStatus" ]];
+	if [ -z "$callStatus" ];
 	then
 		echo -e "Unable to fetch details as voice daemon may not be running \n" >> $logfile
 	fi
@@ -101,20 +101,21 @@ then
 		for i in `awk '/config profile/{print $NF}' /etc/config/mmpbxrvsipnet`;
 		do
 			profileCallID=$(ubus call mmpbxrvsipnet.profile.call get "{'profile':$i}")
-			if [[ -z "$profileCallID" ]];
+			if [ -z "$profileCallID" ];
 			then
 	                        echo -e "Unable to fetch details as voice daemon may not be running \n" >> $logfile
 	                        break
                         fi
-			if [[ !"${profileCallID/call-Id}"="$profileCallID" ]];
-			then
-			echo "$profileCallID" >> $logfile
-			fi
+			case "$profileCallID" in
+				*call-Id*)
+					echo "$profileCallID" >> $logfile
+					;;
+			esac
 		done
 
 		echo  -e "=================== RTP DETAILS OF ONGOING CALL ====================================       \n" >> $logfile
 		rtpStats=$(ubus call mmpbx.rtp.session list '{ "rtcp" : "1"}')
-		if [[ -z "$rtpStats" ]];
+		if [ -z "$rtpStats" ];
 		then
 			echo -e "Unable to fetch details as voice daemon may not be running \n" >> $logfile
 		else

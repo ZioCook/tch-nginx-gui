@@ -5,7 +5,7 @@
 check_new_dlnad() {
   logecho "Enable DLNAd"
 	#This function will check to see which dlna server daemon is installed
-	if [ -f /etc/init.d/dland ] && [ ! -f /etc/rc.d/S98dlnad ] && [ -f /etc/init.d/minidlna ]; then
+	if [ -f /etc/init.d/dlnad ] && [ ! -f /etc/rc.d/S98dlnad ] && [ -f /etc/init.d/minidlna ]; then
 		if [ "$(pgrep "minidlna")" ] ; then
 			/etc/init.d/minidlna stop
 		fi
@@ -15,14 +15,14 @@ check_new_dlnad() {
 			/etc/init.d/dlnad start
 		fi
 	fi
-	if [ -f /rom/usr/bin/dlnad ]; then
-		if [ "$(md5sum /rom/usr/bin/dlnad | awk '{print $1}')" !=  "$(md5sum /usr/bin/dlnad | awk '{print $1}')" ]; then
+	if [ -f /rom/usr/bin/dlnad ] && [ -f /usr/bin/dlnad ]; then
+		if [ "$(md5sum /rom/usr/bin/dlnad 2>/dev/null | awk '{print $1}')" !=  "$(md5sum /usr/bin/dlnad 2>/dev/null | awk '{print $1}')" ]; then
 			if [ "$(pgrep "dlnad")" ] ; then
 				/etc/init.d/dlnad stop
 			fi
-			rm /usr/bin/dlnad
+			rm -f /usr/bin/dlnad
 			cp /rom/usr/bin/dlnad /usr/bin/dlnad
-			cp /rom/etc/init.d/dlnad /etc/init.d/dlnad
+			[ -f /rom/etc/init.d/dlnad ] && cp /rom/etc/init.d/dlnad /etc/init.d/dlnad
 			/etc/init.d/dlnad start
 		fi
 	fi
@@ -76,7 +76,7 @@ telstra_support_check() {
 		if [ "$(uci get -q modgui.app.telstra_webui)" = "1" ]; then
 			bzcat /tmp/telstra_gui.tar.bz2 | tar -C / -xf -
 		fi
-		rm /tmp/telstra_gui.tar.bz2
+		rm -f /tmp/telstra_gui.tar.bz2
 	fi
 }
 

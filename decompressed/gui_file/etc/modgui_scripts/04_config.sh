@@ -5,10 +5,10 @@
 check_webui_config() {
   if [ -f /tmp/web_unlock ]; then
     if [ ! "$(uci get -q web.changelog)" ] || [ ! "$(uci get -q web.mmpbxstatisticsmodal)" ]; then
-      mv /etc/config/web /etc/config/web_back #backup of the stock web config
+      [ ! -f /etc/config/web_back ] && [ -f /etc/config/web ] && mv /etc/config/web /etc/config/web_back #backup of the stock web config
       mv /tmp/web_unlock /etc/config/web      #apply unlocked universal config
     else
-      rm /tmp/web_unlock
+      rm -f /tmp/web_unlock
     fi
   fi
   if [ "$(uci get -q wireless.global.wifi_analyzer_disable)" ]; then
@@ -36,13 +36,13 @@ check_webui_config() {
 check_variant_friendly_name() {
   #Get variant friendly name and save
   if [ ! "$(uci get -q env.var.variant_friendly_name)" ]; then
-    variant=$(uci get env.var.prod_friendly_name)
+    variant=$(uci get -q env.var.prod_friendly_name)
     case "$variant" in
 
-    DGA4130)
+    *DGA4130*)
       variant=AGTEF
       ;;
-    DGA4132)
+    *DGA4132*)
       variant=AGTHP
       ;;
     Technicolor*)
@@ -97,7 +97,7 @@ dropbear_config_check() {
   uci set dropbear.wan.RootPasswordAuth='on' #dropbear root related
   uci set dropbear.wan.PasswordAuth='on'
 
-  if [ "$(uci changes)" ]; then
+  if [ "$(uci changes dropbear)" ]; then
     logecho "Restarting Dropbear SSH Server..."
     uci commit dropbear
     /etc/init.d/dropbear enable
@@ -225,13 +225,21 @@ suppress_excessive_logging() {
 real_ver_entitied() {
   if [ -f /rom/etc/uci-defaults/tch_5000_versioncusto ] && [ -f /etc/config/versioncusto ]; then
     bank_version="activeversion"
-    if [ "$(cat /proc/banktable/booted)" != "$(cat /proc/banktable/active)" ]; then
-      bank_version="passiveversion"
+    if [ -f /proc/banktable/booted ] && [ -f /proc/banktable/active ]; then
+      if [ "$(cat /proc/banktable/booted)" != "$(cat /proc/banktable/active)" ]; then
+        bank_version="passiveversion"
+      fi
     fi
 
-    short_ver="$(grep </proc/banktable/$bank_version -Eo '.*\..*\.[0-9]*-[0-9]*')"
-    real_ver=$(grep </rom/etc/uci-defaults/tch_5000_versioncusto "$short_ver" | awk '{print $2}')
-    if [ "$real_ver" = "" ]; then
+    short_ver=""
+    if [ -f "/proc/banktable/$bank_version" ]; then
+      short_ver="$(grep -Eo '.*\..*\.[0-9]*-[0-9]*' "/proc/banktable/$bank_version")"
+    fi
+    real_ver=""
+    if [ -n "$short_ver" ]; then
+      real_ver=$(grep "$short_ver" /rom/etc/uci-defaults/tch_5000_versioncusto | awk '{print $2}')
+    fi
+    if [ -z "$real_ver" ]; then
       real_ver="Not Found"
     fi
     if [ ! "$(uci get -q versioncusto.override.fwversion_override_real)" ]; then
@@ -246,7 +254,7 @@ real_ver_entitied() {
     if [ -f /overlay/.skip_version_spoof ]; then
       uci set modgui.var.version_spoof_mode="disabled"
       uci set versioncusto.override.fwversion_override="$real_ver"
-      rm /overlay/.skip_version_spoof
+      rm -f /overlay/.skip_version_spoof
     else
       if [ "$(uci get -q modgui.var.version_spoof_mode)" ]; then
         if [ "$(uci get -q modgui.var.version_spoof_mode)" = "disabled" ]; then
@@ -316,18 +324,18 @@ dosprotect_inizialize() {
       /etc/init.d/dosprotect start
     fi
   fi
-  [ -f /tmp/dosprotect_orig ] && rm /tmp/dosprotect_orig
+  [ -f /tmp/dosprotect_orig ] && rm -f /tmp/dosprotect_orig
 }
 
 mobiled_lib_add() {
-  if [ -f /rom/usr/lib/lua/mobiled/scripthelpers.lua ]; then #restore from rom to avoid taking the replaced from older GUI installs
-    if [ "$(md5sum /rom/usr/lib/lua/mobiled/scripthelpers.lua | cut -d' ' -f1)" != "$(md5sum /usr/lib/lua/mobiled/scripthelpers.lua | cut -d' ' -f1)" ]; then
+  if [ -f /rom/usr/lib/lua/mobiled/scripthelpers.lua ] && [ -f /usr/lib/lua/mobiled/scripthelpers.lua ]; then #restore from rom to avoid taking the replaced from older GUI installs
+    if [ "$(md5sum /rom/usr/lib/lua/mobiled/scripthelpers.lua 2>/dev/null | cut -d' ' -f1)" != "$(md5sum /usr/lib/lua/mobiled/scripthelpers.lua 2>/dev/null | cut -d' ' -f1)" ]; then
       logecho "Restoring mobiled scripthelpers lib..."
       cp /rom/usr/lib/lua/mobiled/scripthelpers.lua /usr/lib/lua/mobiled/scripthelpers.lua
     fi
   fi
 
-  if [ -f /rom/usr/lib/lua/libat/huawei.lua ]; then
+  if [ -f /rom/usr/lib/lua/libat/huawei.lua ] && [ -f /usr/lib/lua/libat/huawei.lua ]; then
     cmp -s /rom/usr/lib/lua/libat/huawei.lua /usr/lib/lua/libat/huawei.lua || cp /rom/usr/lib/lua/libat/huawei.lua /usr/lib/lua/libat/huawei.lua
     grep -q "1003" /usr/lib/lua/libat/huawei.lua || sed -i '/^.*or device.pid == "1c05" then -- E173/i or device.pid == "1003" -- E156G E17X' /usr/lib/lua/libat/huawei.lua
   fi
@@ -342,30 +350,30 @@ mobiled_lib_add() {
   marketing_version="$(uci get -q version.@version[0].marketing_version)"
   if [ -z "${marketing_version##16*}" ]; then #need to replace on old fw (16.x) otherwise will ignore enabled status
     logecho "Replacing /etc/init.d/mobiled ..."
-    mv /tmp/mobiled /etc/init.d/mobiled
+    [ -f /tmp/mobiled ] && mv /tmp/mobiled /etc/init.d/mobiled
     /etc/init.d/mobiled restart
   else
     #make sure we haven't replaced it some old GUI install, restore from rom if needed
-    if [ -f /rom/etc/init.d/mobiled ] && [ -n "$(cmp /rom/etc/init.d/mobiled /etc/init.d/mobiled)" ]; then
+    if [ -f /rom/etc/init.d/mobiled ] && [ -f /etc/init.d/mobiled ] && ! cmp -s /rom/etc/init.d/mobiled /etc/init.d/mobiled; then
       logecho "Restoring and restarting /etc/init.d/mobiled ..."
       cp /rom/etc/init.d/mobiled /etc/init.d/mobiled
       /etc/init.d/mobiled restart
     fi
-    [ -f /tmp/mobiled ] && rm /tmp/mobiled
+    [ -f /tmp/mobiled ] && rm -f /tmp/mobiled
   fi
 
   #replacing default lte-doctor config if is configured as "no-logging" (found 1 time the logger word)
-  if [ ! -f /etc/config/ltedoctor ] || [ "$(grep -i -c logger </etc/config/ltedoctor)" = "1" ]; then
+  if [ ! -f /etc/config/ltedoctor ] || [ "$(grep -i -c logger </etc/config/ltedoctor 2>/dev/null)" = "1" ]; then
     if [ -f /tmp/ltedoctor ]; then
       logecho "Replacing ltedoctor config..."
       mv /tmp/ltedoctor /etc/config/ltedoctor
       /etc/init.d/lte-doctor-logger restart
     fi
   fi
-  [ -f /tmp/ltedoctor ] && rm /tmp/ltedoctor
+  [ -f /tmp/ltedoctor ] && rm -f /tmp/ltedoctor
 
   major_system_version="$(uci get version.@version[0].marketing_version | sed 's#\.##' | grep -o -E '[0-9]+')"
-  if [ "$major_system_version" -lt 173 ]; then #if fw <17.3
+  if [ -n "$major_system_version" ] && [ "$major_system_version" -lt 173 ] 2>/dev/null; then #if fw <17.3
     #Restore original lte-doctor related webui files
     [ -f /rom/www/docroot/ajax/radioparameters.lua ] && cp /rom/www/docroot/ajax/radioparameters.lua /www/docroot/ajax/radioparameters.lua
     [ -f /rom/www/docroot/modals/lte-doctor.lp ] && cp /rom/www/docroot/modals/lte-doctor.lp /www/docroot/modals/lte-doctor.lp
@@ -402,13 +410,28 @@ adds_dnd_config() {
   fi
 }
 
+if ! type safe_mv >/dev/null 2>&1; then
+  safe_mv() { # <src file path> <dest file path>
+    [ ! -f "$1" ] && return 1
+    [ -f "$2" ] && rm -f "$2"
+    dest_free=$(df -P "$(dirname "$2")" 2>/dev/null | awk 'NR==2 {print $4}')
+    src_size=$(($(wc -c <"$1" 2>/dev/null) / 1024))
+    if [ -n "$dest_free" ] && [ -n "$src_size" ] && [ "$dest_free" -gt "$src_size" ] 2>/dev/null; then
+      mv "$1" "$2"
+    else
+      echo "ERROR: No space left for mv $1 $2"
+      return 1
+    fi
+  }
+fi
+
 move_gui_to_root() {
   if [ -f /tmp/GUI.tar.bz2 ]; then
     logecho "Updating GUI in /root folder from /tmp"
     if [ -f /root/GUI.tar.bz2 ]; then
-      rm /root/GUI.tar.bz2
+      rm -f /root/GUI.tar.bz2
     fi
-    mv /tmp/GUI.tar.bz2 /root/GUI.tar.bz2
+    safe_mv /tmp/GUI.tar.bz2 /root/GUI.tar.bz2
   fi
 }
 
@@ -426,40 +449,43 @@ cumulative_check_gui() {
     logecho "Update branch detected: DEV"
   fi
 
-  #Remove deprecated .gz GUI file if low space device
-  overlay_space=$(df /overlay | sed -n 2p | awk \{'{print $2}'\})
+  #Remove deprecated / unneeded GUI packages if low space device to prevent 100% overlay exhaustion (issue #1203)
+  overlay_space=$(df -P /overlay 2>/dev/null | awk 'NR==2 {print $2}')
+  [ -z "$overlay_space" ] && overlay_space=999999
   if [ "$overlay_space" -lt 33000 ]; then
-    logger -s -t 'Root Script' "Detected low flash space device..."
-    if [ -f /root/GUI.tar.gz ]; then
-      logger -s -t 'Root Script' "Removing unneeded gz of Stable GUI"
-      rm /root/GUI.tar.gz
-    fi
+    logger -s -t 'Root Script' "Detected low flash space device ($overlay_space KB)..."
+    [ -f /root/GUI.tar.gz ] && rm -f /root/GUI.tar.gz
+    [ -f /root/GUI_dev.tar.bz2 ] && rm -f /root/GUI_dev.tar.bz2
   fi
 
-  #This makes sure we have a recovery GUI package in /root
+  #This makes sure we have a recovery GUI package in /root (only on devices with enough flash space)
   if [ ! -f /root/GUI.tar.bz2 ]; then
-    logecho "Stable GUI not found in /root"
-    if [ ! -f /tmp/GUI.tar.bz2 ]; then
-      logecho "Stable GUI not found in /tmp, checking for GUI_dev..."
-      if [ -f /tmp/GUI_dev.tar.bz2 ]; then
-        logecho "Found GUI_dev in /tmp, copying in /root to generate a valid hash"
-        mv /tmp/GUI_dev.tar.bz2 /tmp/GUI.tar.bz2
-        move_gui_to_root
-      elif ping -q -c 1 -W 1 8.8.8.8 >/dev/null 2>&1; then
-        logecho "Downloading stable..."
-        curl -k -s https://raw.githubusercontent.com/Ansuel/gui-dev-build-auto/master/GUI.tar.bz2 --output /tmp/GUI.tar.bz2
-        move_gui_to_root
-      else
-        logecho "Can't download stable GUI!"
-      fi
+    if [ "$overlay_space" -lt 33000 ] && [ -d /www/docroot ]; then
+      logecho "Low flash space device: skipping recovery GUI download to prevent overlay exhaustion"
     else
-      logecho "Moving stable GUI from /tmp to /root"
-      move_gui_to_root
-    fi
-    if [ -s /root/GUI.tar.bz2 ]; then
-      logecho "Assuming first time install, cleaning /www dir and re-extracting .bz2"
-      rm -r /www/*
-      bzcat /root/GUI.tar.bz2 | tar -C / -xf - www
+      logecho "Stable GUI not found in /root"
+      if [ ! -f /tmp/GUI.tar.bz2 ]; then
+        logecho "Stable GUI not found in /tmp, checking for GUI_dev..."
+        if [ -f /tmp/GUI_dev.tar.bz2 ]; then
+          logecho "Found GUI_dev in /tmp, copying in /root to generate a valid hash"
+          mv /tmp/GUI_dev.tar.bz2 /tmp/GUI.tar.bz2
+          move_gui_to_root
+        elif ping -q -c 1 -W 1 8.8.8.8 >/dev/null 2>&1; then
+          logecho "Downloading stable..."
+          curl -k -s https://raw.githubusercontent.com/Ansuel/gui-dev-build-auto/master/GUI.tar.bz2 --output /tmp/GUI.tar.bz2
+          move_gui_to_root
+        else
+          logecho "Can't download stable GUI!"
+        fi
+      else
+        logecho "Moving stable GUI from /tmp to /root"
+        move_gui_to_root
+      fi
+      if [ -s /root/GUI.tar.bz2 ]; then
+        logecho "Assuming first time install, cleaning /www dir and re-extracting .bz2"
+        rm -r /www/*
+        bzcat /root/GUI.tar.bz2 | tar -C / -xf - www
+      fi
     fi
   fi
 
@@ -478,18 +504,29 @@ cumulative_check_gui() {
     else
       logecho "GUI hash set: $old_gui_hash"
     fi
+  elif [ -f /root/gui_orig.md5sum ]; then
+    old_gui_hash=$(uci get -q modgui.gui.gui_hash)
+    gui_hash=$(awk '{ print $1 }' /root/gui_orig.md5sum)
+    logecho "GUI hash set from saved md5: $gui_hash"
   else
     logecho "Can't generate GUI hash, file not found!"
     gui_hash="0"
   fi
 
+  # On low flash space devices, remove /root/GUI.tar.bz2 after hash generation to keep overlay under safe threshold
+  if [ "$overlay_space" -lt 33000 ] && [ -f /root/GUI.tar.bz2 ]; then
+    logger -s -t 'Root Script' "Low flash space device: removing /root/GUI.tar.bz2 to preserve flash space"
+    [ -n "$gui_hash" ] && [ "$gui_hash" != "0" ] && echo "$gui_hash" >/root/gui_orig.md5sum
+    rm -f /root/GUI.tar.bz2
+  fi
+
   clean_version_gui=$(echo "$version_gui" | cut -d'-' -f1)
 
   #This is to fix a bug in older gui when stable gui is wrongly saved as dev and never replaced.
-  major_ver="$(echo "$clean_version_gui" | cut -d. -f 0)"
-  if [ "$major_ver" -lt 9 ]; then
+  major_ver="$(echo "$clean_version_gui" | cut -d. -f 1)"
+  if [ -n "$major_ver" ] && [ "$major_ver" -lt 9 ] 2>/dev/null; then
     if [ -f /root/GUI.tar.bz2 ] && [ -f /root/GUI_dev.tar.bz2 ]; then
-      rm /root/GUI.tar.bz2
+      rm -f /root/GUI.tar.bz2
       mv /root/GUI_dev.tar.bz2 /root/GUI.tar.bz2
     fi
   fi
@@ -535,7 +572,7 @@ cumulative_check_gui() {
 fcctlsettings_daemon() {
   if [ -f /etc/config/fcctlsettings ]; then
     if grep -q 'mcast-learn' </etc/config/fcctlsettings; then
-      rm /etc/config/fcctlsettings #NEVER EVER WRITE - IN CONFIG FILE...
+      rm -f /etc/config/fcctlsettings #NEVER EVER WRITE - IN CONFIG FILE...
     fi
   fi
   if [ ! -f /etc/config/fcctlsettings ]; then
@@ -544,7 +581,7 @@ fcctlsettings_daemon() {
     fi
   else
     if [ -f /etc/config/fcctlsettings_new ]; then
-      rm /etc/config/fcctlsettings_new
+      rm -f /etc/config/fcctlsettings_new
     fi
   fi
   if [ ! -f /etc/rc.d/S99fcctlsettings ] && [ -f /etc/init.d/fcctlsettings ]; then
@@ -557,18 +594,20 @@ fcctlsettings_daemon() {
 led_integration() {
   #Restart statusledeventing if old version
   if [ -f /tmp/status-led-eventing.lua_new ]; then
-    ledeventing_new_md5=$(awk </tmp/status-led-eventing.md5sum '{ print $1 }')
-    ledeventing_md5=$(md5sum /sbin/status-led-eventing.lua | awk '{ print $1 }')
+    ledeventing_new_md5=""
+    [ -f /tmp/status-led-eventing.md5sum ] && ledeventing_new_md5=$(awk '{ print $1 }' /tmp/status-led-eventing.md5sum)
+    ledeventing_md5=""
+    [ -f /sbin/status-led-eventing.lua ] && ledeventing_md5=$(md5sum /sbin/status-led-eventing.lua 2>/dev/null | awk '{ print $1 }')
     logecho "LedEventing new md5sum: $ledeventing_new_md5"
     logecho "LedEventing md5sum: $ledeventing_md5"
-    if [ "$ledeventing_new_md5" ] && [ "$ledeventing_new_md5" != "$ledeventing_md5" ]; then
-      rm /sbin/status-led-eventing.lua
+    if [ -n "$ledeventing_new_md5" ] && [ "$ledeventing_new_md5" != "$ledeventing_md5" ]; then
+      rm -f /sbin/status-led-eventing.lua
       mv /tmp/status-led-eventing.lua_new /sbin/status-led-eventing.lua
-      rm /tmp/status-led-eventing.md5sum
+      rm -f /tmp/status-led-eventing.md5sum
       /usr/share/transformer/scripts/restart_leds.sh
-      ubus send fwupgrade '{"state":"upgrading"}' # #continue blinking when service restarted
+      ubus send fwupgrade '{"state":"upgrading"}' #continue blinking when service restarted
     else
-      rm /tmp/status-led-eventing.lua_new /tmp/status-led-eventing.md5sum
+      rm -f /tmp/status-led-eventing.lua_new /tmp/status-led-eventing.md5sum
     fi
   fi
 }

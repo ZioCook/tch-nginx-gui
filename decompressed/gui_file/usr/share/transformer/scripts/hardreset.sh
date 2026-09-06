@@ -1,20 +1,20 @@
 #!/bin/sh
 get_alive_processes(){
-	if [[ $1 != "PID" && $1 != "NAME" ]]; then echo; exit; fi
+	if [ "$1" != "PID" ] && [ "$1" != "NAME" ]; then echo; exit; fi
 	alive_processes=""
 	for i in $(find /proc/[0-9]* -name exe -maxdepth 1); do
 		name=$(readlink $i);
-		if [[ ! -z $name ]]; then
+		if [ -n "$name" ]; then
 			basename_process=$(basename $name)
 			case $basename_process in
 				busybox|rtfd|dropbear|boot|procd)
 					# exclude some processes that might hang while killing
 					;;
 				*)
-					if [[ $1 == "NAME" ]]; then
+					if [ "$1" = "NAME" ]; then
 						alive_processes="$(basename $name) $alive_processes";
 					fi
-					if [[ $1 == "PID" ]]; then
+					if [ "$1" = "PID" ]; then
 						alive_processes="$(echo $i | sed 's|/proc/\([0-9]*\)/exe|\1|') $alive_processes";
 					fi
 					;;
@@ -82,7 +82,7 @@ kill_running_processes() {
 	done
 	# Now it is really time to shut down remaining processes...
 	alive_processes_pid=$(get_alive_processes PID)
-	if [[ -n "$alive_processes_pid" ]]; then
+	if [ -n "$alive_processes_pid" ]; then
 		echo "Still some processes alive, hard kill them ($alive_processes_pid)"
 		kill -9 $alive_processes_pid
 	fi
