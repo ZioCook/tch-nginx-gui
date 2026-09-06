@@ -31,7 +31,7 @@ EXTRA_HELP="\
         debug   Force install GUI with also debug logs
 "
 #Gui version is now autocompleted base on latest dev, this variable will be replaced by the automatic script
-version_gui=TO_AUTO_COMPLETE
+version_gui=9.7.8-dev
 
 logo_project() {
   cat <<EOF >/dev/console
