@@ -1,15 +1,16 @@
 #!/bin/sh
-eth4_mode=$(uci get ethernet.eth4.wan)
-sfp_presence=$(uci get env.rip.sfp)
+eth4_mode=$(uci get -q ethernet.eth4.wan)
+sfp_presence=$(uci get -q env.rip.sfp)
 sfp_wanlan_mode=$(uci get -q ethernet.globals.eth4lanwanmode)
 
 check_wan() {
-	if [ $eth4_mode == "1" ]; then
+	if [ "$eth4_mode" = "1" ]; then
 		#uci delete ethernet.eth4.wan
 		#uci delete network.waneth4
 		uci delete -q qos.eth4
 		uci set network.lan.ifname='eth0 eth1 eth2 eth3 eth4 eth5'
-		uci commit
+		uci commit network
+		uci commit qos
 		reboot
 	else
 		#uci delete ethernet.eth4.wan
@@ -17,7 +18,8 @@ check_wan() {
 		uci set qos.eth4=device
 		uci set qos.eth4.classgroup='TO_WAN'
 		uci set network.lan.ifname='eth0 eth1 eth2 eth3 eth5'
-		uci commit
+		uci commit network
+		uci commit qos
 		reboot
 	fi
 }
@@ -30,7 +32,7 @@ set_sfp() {
 	if [ "$sfp_wanlan_mode" = "0" ]; then
 		if [ ! "$(uci get -q network.lan.ifname | grep eth4)" ]; then
 			uci set network.lan.ifname='eth0 eth1 eth2 eth3 eth4 eth5'
-			uci commit
+			uci commit network
 			/etc/init.d/network restart
 			/etc/init.d/ethernet reload
 		fi
@@ -38,7 +40,7 @@ set_sfp() {
 		if [ ! "$(uci get -q network.sfp.ifname | grep eth4)" ]; then
 			uci set network.lan.ifname='eth0 eth1 eth2 eth3 eth5'
 			uci set network.sfp.ifname='eth4'
-			uci commit
+			uci commit network
 			/etc/init.d/network restart
 			/etc/init.d/ethernet reload
 		fi

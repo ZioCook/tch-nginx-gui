@@ -10,8 +10,8 @@ if [ -z "${kernel_ver##3.4*}" ]; then
 
   move_files_and_clean(){
     for file in $(find "$1"*/ -xdev | cut -d '/' -f4-); do
-      if [[ -d "$1$file" && ! -d "/$file" ]]; then
-        mkdir "/$file"
+      if [ -d "$1$file" ] && [ ! -d "/$file" ]; then
+        mkdir -p "/$file"
         continue
       fi
 
@@ -22,19 +22,19 @@ if [ -z "${kernel_ver##3.4*}" ]; then
   }
   move_files_and_clean /tmp/upgrade-pack-specificDGA/
 
-  opkg install /tmp/3.4_ipk/*
+  [ -d /tmp/3.4_ipk ] && opkg install /tmp/3.4_ipk/*
   rm -rf /tmp/3.4_ipk
 
   enable_new_upnp() {
     logecho "Checking UPnP.."
     if [ -f /etc/init.d/miniupnpd ]; then
       if [ "$(uci get -q upnpd.config.enable_upnp)" ]; then
-        if [ "$(uci get -q upnpd.config.enable_upnp)" == "1" ]; then
+        if [ "$(uci get -q upnpd.config.enable_upnp)" = "1" ]; then
           logecho "Disabling miniupnpd-tch and redirecting to miniupnpd"
           /etc/init.d/miniupnpd-tch stop
           /etc/init.d/miniupnpd-tch disable
-          rm /etc/init.d/miniupnpd-tch
-          ln -s /etc/init.d/miniupnpd /etc/init.d/miniupnpd-tch
+          rm -f /etc/init.d/miniupnpd-tch
+          ln -sf /etc/init.d/miniupnpd /etc/init.d/miniupnpd-tch
           /etc/init.d/miniupnpd enable
           if [ ! "$(pgrep "miniupnpd")" ]; then
             /etc/init.d/miniupnpd restart
@@ -45,8 +45,8 @@ if [ -z "${kernel_ver##3.4*}" ]; then
   }
   enable_new_upnp
 
-  if [ ! -f /etc/config/dland ]; then
-    touch /etc/config/dland
+  if [ ! -f /etc/config/dlnad ]; then
+    touch /etc/config/dlnad
     uci set dlnad.config=dlnad
     uci set dlnad.config.manufacturer_url='http://www.technicolor.com'
     uci set dlnad.config.model_url='http://www.technicolor.com'
@@ -58,9 +58,10 @@ if [ -z "${kernel_ver##3.4*}" ]; then
 
   #Use custom driver to remove downgrade limitation... thx @Roleo
   logecho "Checking downgrade limitation bit..."
-  if [ "$(uci get -q env.rip.board_mnemonic)" == "VBNT-S" ] &&
-    [ "$(uci get -q env.var.prod_number)" == "4132" ] &&
-    [ -f /proc/rip/0123 ]; then
+  if [ "$(uci get -q env.rip.board_mnemonic)" = "VBNT-S" ] &&
+    [ "$(uci get -q env.var.prod_number)" = "4132" ] &&
+    [ -f /proc/rip/0123 ] &&
+    [ -f /tmp/ripdrv.ko ] && [ -f /lib/modules/3.4.11/ripdrv.ko ]; then
     logecho "Downgrade limitation bit detected... Removing..."
     rmmod keymanager
     rmmod ripdrv
@@ -77,13 +78,13 @@ if [ -z "${kernel_ver##3.4*}" ]; then
     insmod keymanager
   fi
   if [ -f /tmp/ripdrv.ko ]; then
-    rm /tmp/ripdrv.ko
+    rm -f /tmp/ripdrv.ko
   fi
 
 elif [ -z "${kernel_ver##4.1.38*}" ]; then
 
   #Install telnet, openssl-util and update openssl (for security reason)
-  opkg install /tmp/upgrade-pack-specificDGA/tmp/4.1.38_ipk/*
+  [ -d /tmp/upgrade-pack-specificDGA/tmp/4.1.38_ipk ] && opkg install /tmp/upgrade-pack-specificDGA/tmp/4.1.38_ipk/*
   rm -rf /tmp/upgrade-pack-specificDGA
 
 else #unsupported kernels (ie 19.x using 4.1.52)
@@ -100,10 +101,12 @@ if [ ! -f /etc/config/telnet ]; then
   uci commit telnet
 fi
 
-if [ -f /bin/busybox_telnet ] && [ ! -f /usr/sbin/telnetd ]; then
-  ln -s /bin/busybox_telnet /usr/sbin/telnetd
+if [ -f /bin/busybox_telnet ]; then
+  ln -sf /bin/busybox_telnet /usr/sbin/telnetd
 fi
 
 if [ -f /etc/init.d/telnet ] && [ ! -f /etc/init.d/telnetd ]; then
-  ln -s /etc/init.d/telnet /etc/init.d/telnetd
+  ln -sf /etc/init.d/telnet /etc/init.d/telnetd
+elif [ -f /etc/init.d/telnetd ] && [ ! -f /etc/init.d/telnet ]; then
+  ln -sf /etc/init.d/telnetd /etc/init.d/telnet
 fi

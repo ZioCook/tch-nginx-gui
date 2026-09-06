@@ -51,7 +51,7 @@ upnpd_write_bool() {
 	local val
 
 	config_get_bool val config "$opt" "$def"
-	if [ "$val" -eq 0 ]; then
+	if [ "$val" = "0" ]; then
 		echo "${alt:-$opt}=no" >> $tmpconf
 	else
 		echo "${alt:-$opt}=yes" >> $tmpconf

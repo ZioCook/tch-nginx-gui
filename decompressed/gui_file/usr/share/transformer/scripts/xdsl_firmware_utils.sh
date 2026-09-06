@@ -97,7 +97,7 @@ else
 	[ "$1" = "clean" ] && CLEAN=1
 fi
 
-installed_driver=$(xdslctl --version 2>&1 >/dev/null | grep 'version -' | awk '{print $6}' | sed 's/\..*//')
+installed_driver=$(xdslctl --version 2>&1 | grep 'version -' | awk '{print $6}' | sed 's/\..*//')
 request_driver="$1"
 
 if [ "$(grep </proc/cpuinfo Processor | grep ARM)" ]; then
@@ -113,38 +113,43 @@ download_Driver() {
 
 test_apply() {
 	if [ -f "/tmp/$request_driver" ]; then
-		rm "/tmp/$request_driver"
+		rm -f "/tmp/$request_driver"
 	fi
 	connectivity="yes"
-	if ping -q -c 1 -W 1 8.8.8.8 >/dev/null; then
+	if ping -q -c 1 -W 1 8.8.8.8 >/dev/null 2>&1; then
 		connectivity="yes"
 	else
 		connectivity="no"
 	fi
 
-	if [ $connectivity == "yes" ]; then
+	if [ "$connectivity" = "yes" ]; then
 		if [ "$installed_driver" != "$request_driver" ]; then
 			download_Driver
-			if [ "$(echo $checksums | grep $(md5sum /tmp/$request_driver | awk '{print $1}'))" ]; then
+			if [ -f "/tmp/$request_driver" ]; then
+				driver_md5=$(md5sum "/tmp/$request_driver" 2>/dev/null | awk '{print $1}')
+			else
+				driver_md5=""
+			fi
+			if [ -n "$driver_md5" ] && echo "$checksums" | grep -q "$driver_md5"; then
 
 				log "Testing driver $request_driver... If the modem crash, reset the driver on next boot"
-				rm /etc/adsl/adsl_phy.bin
-				ln -s /tmp/$request_driver /etc/adsl/adsl_phy.bin
+				rm -f /etc/adsl/adsl_phy.bin
+				ln -sf /tmp/$request_driver /etc/adsl/adsl_phy.bin
 				log "Restarting xDSL..."
 				xdslctl stop
-				/etc/init.d/xdsl restart >/dev/null
+				/etc/init.d/xdsl restart >/dev/null 2>&1
 				sleep 5
 				log "Reading version with xdslctl..."
 				xdslctl --version
 				log "Moving driver to permantent dir"
-				rm /etc/adsl/adsl_phy.bin
+				rm -f /etc/adsl/adsl_phy.bin
 				mv /tmp/$request_driver /etc/adsl/adsl_phy.bin
 
 				if [ -f "/tmp/$request_driver" ]; then
-					rm "/tmp/$request_driver"
+					rm -f "/tmp/$request_driver"
 				fi
 			else
-				log "Download corrupted, retrying..."
+				log "Download corrupted or file missing, retrying..."
 				try=$((try + 1))
 				download_Driver
 				if [ $try -lt 2 ]; then
@@ -159,16 +164,16 @@ test_apply() {
 	fi
 }
 
-if [ $CLEAN -eq 0 ]; then
+if [ "$CLEAN" = "0" ]; then
 	log "Trying to download and apply driver $request_driver..."
 	test_apply
 	log "Process done"
 else
 	log "Restoring original driver"
-	rm /etc/adsl/adsl_phy.bin
-	cp /rom/etc/adsl/adsl_phy.bin /etc/adsl/adsl_phy.bin
+	rm -f /etc/adsl/adsl_phy.bin
+	[ -f /rom/etc/adsl/adsl_phy.bin ] && cp /rom/etc/adsl/adsl_phy.bin /etc/adsl/adsl_phy.bin
 	log "Restarting xDSL..."
 	xdslctl stop
-	/etc/init.d/xdsl restart >/dev/null
+	/etc/init.d/xdsl restart >/dev/null 2>&1
 	log "Process done"
 fi

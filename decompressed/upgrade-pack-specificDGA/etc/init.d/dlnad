@@ -46,7 +46,7 @@ start()
    local mountdir
    config_get mountdir mountd path
 
-   if [ $enabled == "1" ]; then
+   if [ "$enabled" = "1" ]; then
      if [ ! -f $CONF_FILE ]; then
        echo "enabled=$enabled" >> $CONF_FILE
        echo "manufacturer_url=$manufacturer_url" >> $CONF_FILE
@@ -94,7 +94,7 @@ reload() {
   local dlnad_enabled
   config_load dlnad
   config_get dlnad_enabled config enabled
-  if [[ "$dlnad_enabled" = "0" ]]; then
+  if [ "$dlnad_enabled" = "0" ]; then
     logger -t dlnad "Reload: WARNING DLNA Disabled, Stopping DLNAD"
     stop
   else

@@ -126,20 +126,33 @@ end
 
 local function getSupportedModel()
 
-        local friendly_name = proxy.get("uci.env.var.prod_friendly_name")[1].value
-        local marketing_version = proxy.get("uci.version.version.@version[0].marketing_version")
-        local cputype = proxy.get("rpc.system.modgui.CPUtype")[1].value
-        if marketing_version then
-                marketing_version = tonumber(marketing_version[1].value:sub(1,4))
+        local friendly_name_data = proxy.get("uci.env.var.prod_friendly_name")
+        local friendly_name = friendly_name_data and friendly_name_data[1] and friendly_name_data[1].value or ""
+        local marketing_version_data = proxy.get("uci.version.version.@version[0].marketing_version")
+        local cputype_data = proxy.get("rpc.system.modgui.CPUtype")
+        local cputype = cputype_data and cputype_data[1] and cputype_data[1].value or ""
+
+        -- First check friendly_name: DGA4130, DGA4132, AGTHP, AGTEF are always DGA
+        if friendly_name:match("DGA413") or friendly_name:match("AGTHP") or friendly_name:match("AGTEF") then
+                return "DGA"
         end
 
-        if marketing_version < 16.3 then
+        if friendly_name:match("TG800") or friendly_name:match("DGA0130") then
+                return "TG800"
+        end
+
+        local m_ver = 0
+        if marketing_version_data and marketing_version_data[1] and marketing_version_data[1].value then
+                m_ver = tonumber(marketing_version_data[1].value:sub(1,4)) or 0
+        end
+
+        if m_ver >= 16.0 and m_ver < 16.3 then
                 if cputype:match("armv7l") then
                         return "TG789Xtream35B"
                 elseif cputype:match("mips") then
                         return "TG789"
                 end
-        elseif marketing_version < 18 then
+        elseif m_ver >= 16.3 and m_ver < 19.0 then
                 if cputype:match("armv7l") then
                         if friendly_name:match("TG800") then
                                 return "TG800"
@@ -149,12 +162,14 @@ local function getSupportedModel()
                 elseif cputype:match("mips") then
                         return "TG789"
                 end
-        elseif marketing_version < 19 then
+        elseif m_ver >= 19.0 or (m_ver >= 2.0 and m_ver < 10.0) then
                 if cputype:match("armv7l") then
                         return "DGA"
-                elseif cputype:match("mips") then
-                        return friendly_name --Unknown package
                 end
+        end
+
+        if cputype:match("mips") then
+                return "TG789"
         end
 
         return friendly_name --Unknown package

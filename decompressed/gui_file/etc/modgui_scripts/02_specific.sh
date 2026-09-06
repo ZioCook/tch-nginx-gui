@@ -18,7 +18,9 @@ extract_with_check() {
       continue
     fi
 
-    grep -q '.md5sum' "$file" && continue
+    case "$file" in
+      *.md5sum*) continue ;;
+    esac
 
     orig_file=/$file
     file=$MD5_CHECK_DIR/$file
@@ -290,13 +292,17 @@ case $marketing_version in
   }
   [ "$cpu_type" = "mips" ] && install_specific TG789
   ;;
-"18."*)
+"18."* | "19."* | "2."*)
   [ "$cpu_type" = "armv7l" ] && install_specific DGA
-  [ "$cpu_type" = "mips" ] && logecho "Unknown what specific_app to install on $marketing_version $cpu_type"
+  [ "$cpu_type" = "mips" ] && install_specific TG789
   ;;
 *)
-  uci set modgui.app.specific_app="1" #no specific package for this device
-  logecho "Unknown what specific_app to install on $marketing_version $cpu_type"
+  if [ "$cpu_type" = "armv7l" ] && [ -z "${device_type##*DGA413*}" ]; then
+    install_specific DGA
+  else
+    uci set modgui.app.specific_app="1" #no specific package for this device
+    logecho "Unknown what specific_app to install on $marketing_version $cpu_type"
+  fi
   ;;
 esac
 
@@ -313,7 +319,7 @@ uci commit modgui
 [ -z "${device_type##*TG800*}" ] && ledfw_rework_TG800
 #[ -z "${device_type##*DGA413*}" ] && wifi_fix_24g
 
-ls /tmp/ledfw* 1>/dev/null 2>&1 && rm /tmp/ledfw* #clean ledfw bz2 from /tmp
+rm -f /tmp/ledfw* 2>/dev/null #clean ledfw bz2 from /tmp
 
 [ -z "${device_type##*TG788*}" ] && remove_wizard_5ghz
 
