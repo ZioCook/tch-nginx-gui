@@ -67,7 +67,9 @@ local modalPath = nil
 
 local session = ngx.ctx.session
 if session:hasAccess("/modals/internet-modal.lp") then
-    switchName = "uci_wan_auto"
+    if mode_active ~= "bridge" then
+        switchName = "uci_wan_auto"
+    end
     modalPath = "/modals/internet-modal.lp"
 end
   ngx.print('\
@@ -99,4 +101,4 @@ $(document).ready(function () {\
 	new modgui.createAjaxUpdateCard("internet-card","/ajax/internet.lua","InternetCardInterval",3000);\
 })\
 </script>\
-'); 
+');

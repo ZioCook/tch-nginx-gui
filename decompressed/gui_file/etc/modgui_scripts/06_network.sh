@@ -264,3 +264,12 @@ if [ "$restart_dnsmasq" = "1" ]; then
   killall dnsmasq 2>/dev/null
   /etc/init.d/dnsmasq restart
 fi
+
+# Enable and apply mode services manager
+if [ -x /etc/init.d/mode_services ]; then
+  /etc/init.d/mode_services enable 2>/dev/null
+fi
+if [ -x /usr/share/transformer/scripts/apply_service_modes.sh ]; then
+  logecho "Applying service mode optimization..."
+  /usr/share/transformer/scripts/apply_service_modes.sh
+fi

@@ -54,6 +54,36 @@ end
 
 local tablecontent = {}
 tablecontent[#tablecontent + 1] = {
+    name = "bridge",
+    default = false,
+    description = "Bridge / AP",
+    view = "broadband-bridge.lp",
+    card = "002_broadband_bridge.lp",
+    check = function()
+        local wan_mode = proxy.get("uci.network.config.wan_mode")
+        if wan_mode and wan_mode[1].value == "bridge" then
+            return true
+        end
+        local wan_proto = proxy.get("uci.network.interface.@wan.proto")
+        if wan_proto and wan_proto[1].value == "bridge" then
+            return true
+        end
+        local wan_auto = proxy.get("uci.network.interface.@wan.auto")
+        local lan_gw = proxy.get("uci.network.interface.@lan.gateway")
+        if wan_proto and wan_proto[1].value == "none" and wan_auto and wan_auto[1].value == "0" and lan_gw and lan_gw[1].value ~= "" then
+            return true
+        end
+        return false
+    end,
+    operations = function()
+        proxy.set("uci.network.config.wan_mode", "bridge")
+        proxy.set("uci.network.interface.@wan.proto", "none")
+        proxy.set("uci.network.interface.@wan.auto", "0")
+        proxy.set("uci.wansensing.global.enable", "0")
+        os.execute("/usr/share/transformer/scripts/apply_service_modes.sh &")
+    end,
+}
+tablecontent[#tablecontent + 1] = {
     name = "adsl",
     default = false,
     description = "ADSL2+",
@@ -100,6 +130,7 @@ tablecontent[#tablecontent + 1] = {
             })
         end
         proxy.set("uci.wansensing.global.l2type", "ADSL")
+        os.execute("/usr/share/transformer/scripts/apply_service_modes.sh &")
     end,
 }
 tablecontent[#tablecontent + 1] = {
@@ -149,6 +180,7 @@ tablecontent[#tablecontent + 1] = {
             })
         end
         proxy.set("uci.wansensing.global.l2type", "VDSL")
+        os.execute("/usr/share/transformer/scripts/apply_service_modes.sh &")
     end,
 }
 tablecontent[#tablecontent + 1] = {
@@ -204,6 +236,7 @@ tablecontent[#tablecontent + 1] = {
             })
         end
         proxy.set("uci.wansensing.global.l2type", "ETH")
+        os.execute("/usr/share/transformer/scripts/apply_service_modes.sh &")
     end,
 }
 
@@ -255,6 +288,7 @@ if sfp == 1 then
             end
             proxy.set("uci.ethernet.globals.eth4lanwanmode", "1")
             proxy.set("uci.wansensing.global.l2type", "SFP")
+            os.execute("/usr/share/transformer/scripts/apply_service_modes.sh &")
         end,
     }
 end

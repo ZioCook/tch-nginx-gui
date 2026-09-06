@@ -4,8 +4,10 @@ local readfile = require("web.content_helper").readfile
 local post_helper = require("web.post_helper")
 local ngx = ngx
 
-local ram = tonumber(proxy.get("sys.mem.RAMUsed")[1].value or 0) or 0
-local cpu_usage = proxy.get("sys.proc.CPUUsage")[1].value or "0"
+local ram_data = proxy.get("sys.mem.RAMUsed")
+local ram = (ram_data and ram_data[1] and tonumber(ram_data[1].value)) or 0
+local cpu_data = proxy.get("sys.proc.CPUUsage")
+local cpu_usage = (cpu_data and cpu_data[1] and cpu_data[1].value) or "0"
 
 local data = {
 	cpuusage = cpu_usage .. "%" or "0",

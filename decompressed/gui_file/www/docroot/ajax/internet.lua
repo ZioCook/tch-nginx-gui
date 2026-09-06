@@ -107,7 +107,7 @@ else
 
 	local wan_interface = "wan"
 
-	if wan_mode == "bridge" then
+	if content_uci.wan_mode == "bridge" then
 		wan_interface = content_uci.wan_ifname
 	end
 
@@ -255,30 +255,79 @@ else
 		end
 
 		status_light = ui_helper.createSimpleLight(static_light_map[static_state], static_state_map[static_state] , attributes , "fa-at")
+	elseif content_uci.wan_mode == "bridge" then
+		local lan_data = {
+			ipaddr = "uci.network.interface.@lan.ipaddr",
+			gateway = "uci.network.interface.@lan.gateway",
+			dns = "uci.network.interface.@lan.dns",
+			operstate = "sys.class.net.@br-lan.operstate",
+		}
+		content_helper.getExactContent(lan_data)
+
+		local is_connected = (lan_data.operstate == "up" and lan_data.gateway ~= "")
+		local light_color = is_connected and "1" or "4"
+		local light_text = is_connected and T"Bridge / Access Point" or T"Bridge Non Configurato"
+
+		status_light = ui_helper.createSimpleLight(light_color, light_text, attributes, "fas fa-network-wired")
+
+		local ip_text = ""
+		if lan_data.ipaddr ~= "" then
+			ip_text = format(T'IP Dispositivo: <strong>%s</strong>' .. '<br/>', lan_data.ipaddr)
+		end
+		local gw_text = ""
+		if lan_data.gateway ~= "" then
+			gw_text = format(T'Gateway: <strong>%s</strong>' .. '<br/>', lan_data.gateway)
+		end
+		local dns_text = ""
+		if lan_data.dns ~= "" then
+			dns_text = format(T'DNS: <strong>%s</strong>' .. '<br/>', lan_data.dns)
+		end
+
+		data = {
+			status_light = status_light or "",
+			WAN_IP_text = ip_text,
+			WAN_IPv6_text = gw_text,
+			uptime_text = dns_text,
+			wan_uptime = "",
+			wan_uptime_extended = "",
+			ppp_status = is_connected and "connected" or "disconnected",
+			ppp_light = light_color,
+			ppp_state = light_text,
+			WAN_IP = lan_data.ipaddr or "",
+			WAN_IPv6 = "",
+			concentrator_name = "",
+			ipv6_light = "",
+			ipv6_state = "",
+			status = is_connected and T"Connected" or T"Disconnected",
+			wangateway = lan_data.gateway or "",
+			wandns = lan_data.dns or ""
+		}
 	end
 
-	local wan_uptime = content_rpc["wan_uptime"]
-	local wan_uptime_time = post_helper.secondsToTimeShort(wan_uptime)
+	if content_uci.wan_mode ~= "bridge" then
+		local wan_uptime = content_rpc["wan_uptime"]
+		local wan_uptime_time = post_helper.secondsToTimeShort(wan_uptime)
 
-	data = {
-		status_light = status_light or "",
-		WAN_IP_text = not ( content_rpc["ipaddr"] == "" ) and format(T'WAN IP is <strong>%s</strong>'..'<br/>', content_rpc["ipaddr"]) or "",
-		WAN_IPv6_text = not ( content_rpc["ip6addr"] == "" ) and format(T'WAN IPv6 is <strong>%s</strong>'..'<br/>', content_rpc["ip6addr"]) or "",
-		uptime_text = wan_uptime_time and format(T"Uptime" .. ": <strong>%s</strong>",wan_uptime_time) or "",
-		wan_uptime = wan_uptime_time or "",
-		wan_uptime_extended = post_helper.secondsToTime(wan_uptime) or "",
-		ppp_status = ppp_status or "",
-		ppp_light = ppp_light or "" ,
-		ppp_state = ppp_state or "",
-		WAN_IP = content_rpc["ipaddr"] or "",
-		WAN_IPv6 = content_rpc["ip6addr"] or "",
-		concentrator_name = content_rpc["concentrator_name"] or "",
-		ipv6_light = ipv6_light or "",
-		ipv6_state = ipv6_state or "",
-		status = content_rpc["up"],
-		wangateway = content_rpc["nexthop"],
-		wandns = content_rpc["dns_wan"]
-	}
+		data = {
+			status_light = status_light or "",
+			WAN_IP_text = not ( content_rpc["ipaddr"] == "" ) and format(T'WAN IP is <strong>%s</strong>'..'<br/>', content_rpc["ipaddr"]) or "",
+			WAN_IPv6_text = not ( content_rpc["ip6addr"] == "" ) and format(T'WAN IPv6 is <strong>%s</strong>'..'<br/>', content_rpc["ip6addr"]) or "",
+			uptime_text = wan_uptime_time and format(T"Uptime" .. ": <strong>%s</strong>",wan_uptime_time) or "",
+			wan_uptime = wan_uptime_time or "",
+			wan_uptime_extended = post_helper.secondsToTime(wan_uptime) or "",
+			ppp_status = ppp_status or "",
+			ppp_light = ppp_light or "" ,
+			ppp_state = ppp_state or "",
+			WAN_IP = content_rpc["ipaddr"] or "",
+			WAN_IPv6 = content_rpc["ip6addr"] or "",
+			concentrator_name = content_rpc["concentrator_name"] or "",
+			ipv6_light = ipv6_light or "",
+			ipv6_state = ipv6_state or "",
+			status = content_rpc["up"],
+			wangateway = content_rpc["nexthop"],
+			wandns = content_rpc["dns_wan"]
+		}
+	end
 end
 
 
