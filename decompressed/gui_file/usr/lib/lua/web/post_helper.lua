@@ -824,7 +824,7 @@ function M.validateStringIsDomainName(value)
             if #strippedLabel > 63 then
                 return nil, T"Domain name contains a label that is longer than 63 characters."
             end
-            local correctLabel = match(strippedLabel, "^[a-zA-z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9]")
+            local correctLabel = match(strippedLabel, "^[a-zA-Z0-9][a-zA-Z0-9%-]*[a-zA-Z0-9]")
             if #strippedLabel == 1 then
                 if not match(strippedLabel, "[a-zA-Z0-9]") then
                     return nil, T"Label within domain name has invalid syntax."

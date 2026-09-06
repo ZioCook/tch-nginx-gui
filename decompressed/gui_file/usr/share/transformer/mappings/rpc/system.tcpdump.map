@@ -236,14 +236,14 @@ local function createscript()
   -- create script file /tmp/.tcpdump_gui.sh
   -- fcctl enable
   -- fcctl config --mcast 3
-  execute("echo 'type=\$1\
-interface=\$2\
-count=\$3\
-file=\$4\
-if [ \$type = pcap ]; then\
-  /usr/sbin/tcpdump -i \$interface -w \$file -c \$count;\
+  execute("echo 'type=$1\
+interface=$2\
+count=$3\
+file=$4\
+if [ \"$type\" = pcap ]; then\
+  /usr/sbin/tcpdump -i \"$interface\" -w \"$file\" -c \"$count\";\
 else\
-  /usr/sbin/tcpdump -i \$interface -l -c \$count | tee \$file\
+  /usr/sbin/tcpdump -i \"$interface\" -l -c \"$count\" | tee \"$file\"\
 fi\
 touch " .. TCPDUMP_COMPL .. "' > " .. TCPDUMP_SH)
   if pathexists("/proc/fcache") then

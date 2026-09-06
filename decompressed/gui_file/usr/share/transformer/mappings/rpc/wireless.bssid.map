@@ -100,7 +100,7 @@ local function getDataForBsslist(ap)
     end
     for k,v in pairs(result[ap]) do
         v.channelCentre = v.channel
-        v.channel = v.chan_descr:match("(%d+)[\/]*") or v.channel
+        v.channel = (v.chan_descr and v.chan_descr:match("(%d+)")) or v.channel
         bsslist[k.."_"..ap] = v
     end
 end

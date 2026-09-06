@@ -415,7 +415,7 @@ function  M.createSimpleInputCheckbox(name, value, attributes, suffixname)
     local input = createAttributesString(defaults["input"])
     local checked = (value == "1" or value == true) and " checked" or ""
     if suffixname then
-        return format("<input %s%s>  %s</input><br\> ", input, checked, name)
+        return format("<input %s%s>  %s</input><br/> ", input, checked, name)
     end
     return format("<input %s%s>", input, checked)
 end

@@ -16,8 +16,9 @@ local moca_interface = proxy.get("uci.moca.global.enable")
 
 local function AJAX(ap,path,mac)
   if ap and path and mac then
-    local rssi = format("%s",proxy.get("rpc.wireless.ap.@" .. ap:untaint() .. ".station.@" .. mac:untaint() ..".rssi")[1].value)
-    if rssi == "0" then rssi ="-100" end
+    local rssi_data = proxy.get("rpc.wireless.ap.@" .. ap:untaint() .. ".station.@" .. mac:untaint() ..".rssi")
+    local rssi = (rssi_data and rssi_data[1] and rssi_data[1].value) or "-100"
+    if rssi == "0" or rssi == "" then rssi = "-100" end
     path = path:untaint()
     local content = {
       Speed = path .. ".Speed",

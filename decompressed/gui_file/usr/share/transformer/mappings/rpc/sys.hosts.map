@@ -79,12 +79,19 @@ end
 local function updateLanCache()
     --Update the hosts cache from hostmanager
     --Request "ext_info" as well while invoking conn:call on "hostmanager.device"
-    hostsCache = conn:call("hostmanager.device", "get", { ["ext-info"] = true })
-    if hostsCache == nil then
-      error("retrieving hosts failed")
+    local newCache = conn:call("hostmanager.device", "get", { ["ext-info"] = true })
+    if newCache ~= nil then
+      hostsCache = newCache
+    elseif hostsCache == nil then
+      hostsCache = {}
     end
     --Update the lan interfaces cache
-    lanInterfacesCache = nwcommon.findLanWanInterfaces(false)
+    local newLan = nwcommon.findLanWanInterfaces(false)
+    if newLan ~= nil then
+      lanInterfacesCache = newLan
+    elseif lanInterfacesCache == nil then
+      lanInterfacesCache = {}
+    end
 end
 
 local function getWirelessNumberOfEntries(mapping)

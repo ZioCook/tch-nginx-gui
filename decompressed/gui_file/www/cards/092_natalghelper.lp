@@ -35,7 +35,7 @@ if session:hasAccess(modalPath) then
           <div class="divtable">\
               ');  if enabled_count ~= 0 then  ngx.print('\
                 <span class="simple-desc">\
-               <i " class="fas fa-info-circle" aria-hidden="true" href="#">&nbsp</i>\
+               <i class="fas fa-info-circle" aria-hidden="true">&nbsp;</i>\
                 ');  
                 ngx.print(format( N('<strong %1$s>%2$d Enabled Helper</strong>',
                                     '<strong %1$s>%2$d Enabled Helpers</strong>', enabled_count),
@@ -46,7 +46,7 @@ if session:hasAccess(modalPath) then
               end
               if disabled_count ~= 0 then  ngx.print('\
                 <span class="simple-desc">\
-               <i " class="fas fa-info-circle" aria-hidden="true" href="#">&nbsp</i>\
+               <i class="fas fa-info-circle" aria-hidden="true">&nbsp;</i>\
                 ');  
                 ngx.print(format( N('<strong %1$s>%2$d Disabled Helper</strong>',
                                     '<strong %1$s>%2$d Disabled Helpers</strong>', disabled_count),

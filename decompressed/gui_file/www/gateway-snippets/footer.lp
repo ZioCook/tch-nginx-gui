@@ -23,7 +23,7 @@ local current_year = string.sub(year,1,4)
 if cui.friendly_product_name then
 	if cui.provisioning_code == "Telstra" then
 		cui.friendly_product_name = cui.friendly_product_name:gsub("Technicolor", cui.provisioning_code)  -- Change Telstra
-	elseif friendly_product_name == "AGHP" then
+	elseif cui.friendly_product_name == "AGHP" then
 		cui.friendly_product_name = "AGTHP" -- Wrong product name by telecom!
 	end
 end
