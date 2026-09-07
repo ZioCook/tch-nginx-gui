@@ -112,6 +112,12 @@ case "$detected_mode" in
             uci -q set network.lan.igmp_snooping='1'
             uci commit network
         fi
+
+        # 7. Manage QoS in bridge mode according to user preference (default off in bridge)
+        qos_pref=$(uci -q get modgui.var.qos_enabled)
+        if [ "$qos_pref" != "1" ]; then
+            /usr/share/transformer/scripts/toggle_qos.sh 0
+        fi
         ;;
 
     ftth|gpon)

@@ -356,6 +356,11 @@ ngx.print( ui_helper.createHeader(T"QoS", false, true) ); ngx.print('\
     <form class="form-horizontal" method="post" action="modals/qos-classify-modal.lp">\
 	')
 		local html = {}
+		local qos_enabled_res = proxy.get("uci.modgui.var.qos_enabled")
+		local qos_state = (qos_enabled_res and qos_enabled_res[1].value == "1") and "1" or "0"
+		if qos_state == "0" then
+			html[#html+1] = '<div class="alert alert-info" style="margin-bottom: 15px;"><i class="fas fa-info-circle"></i> ' .. T"Attenzione: il servizio QoS è attualmente disattivato globalmente. Le regole di classificazione ed etichettatura non avranno effetto finché il servizio non viene abilitato." .. '</div>'
+		end
 		
         html[#html+1] = "<fieldset>"
         html[#html+1] =     "<legend>"..T"QoS Label Table".."</legend>"

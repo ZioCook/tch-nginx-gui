@@ -12,6 +12,19 @@ local table, ipairs = table, ipairs
 local format, gmatch = string.format, string.gmatch
 local concat = table.concat
 
+if ngx.var.request_method == "POST" then
+    local postargs = ngx.req.get_post_args()
+    if postargs and postargs.action == "SAVE" and postargs.qos_enabled then
+        local target_state = (postargs.qos_enabled == "1" or postargs.qos_enabled == "true") and "1" or "0"
+        os.execute(format("/usr/share/transformer/scripts/toggle_qos.sh %s", target_state))
+        if not postargs.fromModal then
+            ngx.header.content_type = "application/json"
+            ngx.print('{"success":true}')
+            ngx.exit(ngx.HTTP_OK)
+        end
+    end
+end
+
 local uci_classgroup_content = {
     wan_queues = "uci.qos.classgroup.@TO_WAN.classes",
     lan_queues = "uci.qos.classgroup.@TO_LAN.classes",
@@ -54,6 +67,7 @@ for id=0,15,1 do
 end
 
 local mapParams = {
+    qos_enabled = "uci.modgui.var.qos_enabled",
     wan_queues_enabled = "uci.qos.device.@ptm0.enable",
     wan_queues_policy = "uci.qos.classgroup.@TO_WAN.policy",
     wan_queues_default = "uci.qos.classgroup.@TO_WAN.default",
@@ -65,6 +79,7 @@ local mapParams = {
 }
 
 local mapValid = {
+    qos_enabled = vB,
     wan_queues_enabled = vB,
     wan_queues_policy = gVIES(policy_options),
     wan_queues_default = gVIES(wan_queue_options),
@@ -194,6 +209,11 @@ end
 
 if content.wan_queues_enabled == "" then
     content.wan_queues_enabled = "0"
+end
+
+if not content.qos_enabled or content.qos_enabled == "" then
+    local qval = proxy.get("uci.modgui.var.qos_enabled")
+    content.qos_enabled = (qval and qval[1].value == "1") and "1" or "0"
 end
 
 -- queue table
@@ -386,6 +406,16 @@ ngx.print( ui_helper.createHeader(T"QoS", false, true) ); ngx.print('\
   '); ngx.print( ui_helper.createMessages(uimessage_helper.popMessages()) )
 	local html = {}
 	
+    html[#html+1] = "<fieldset>"
+    html[#html+1] =   "<legend>" .. T"Stato Globale QoS" .. "</legend>"
+    html[#html+1] =     ui_helper.createSwitch(T"Stato Servizio QoS", "qos_enabled", content["qos_enabled"])
+    if content["qos_enabled"] == "0" then
+        html[#html+1] = '<div class="alert alert-info" style="margin-top: 10px;"><i class="fas fa-info-circle"></i> ' .. T"Il servizio QoS è attualmente disattivato. Tutte le code di prioritizzazione hardware e le regole di classificazione sono spente. Le interfacce utilizzano la disciplina standard Linux (fq_codel) per la minima latenza e zero overhead CPU." .. '</div>'
+    else
+        html[#html+1] = '<div class="alert alert-success" style="margin-top: 10px;"><i class="fas fa-check-circle"></i> ' .. T"Il servizio QoS è attivo. Il traffico di rete viene classificato e prioritizzato in base alle code configurate di seguito." .. '</div>'
+    end
+    html[#html+1] = "</fieldset>"
+
     html[#html+1] = "<fieldset>"
     html[#html+1] =   "<legend>" ..  T"QoS Queue Scheduling on Interface WAN".."</legend>"
 
