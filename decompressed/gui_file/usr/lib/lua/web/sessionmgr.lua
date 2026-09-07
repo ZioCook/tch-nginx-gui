@@ -827,8 +827,8 @@ function M.new(mgr_name, mgr_config, sessioncontrol)
       sessions = {},
       users = {},
       ruleset = {},
-      maxsessions = 50,
-      maxsessions_per_ip = 10,
+      maxsessions = 100,
+      maxsessions_per_ip = 50,
     },
     SessionMgr)
   parse_mgr_config(new_mgr, mgr_config)

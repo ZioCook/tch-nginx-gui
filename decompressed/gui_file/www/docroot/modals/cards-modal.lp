@@ -101,7 +101,18 @@ if ngx.req.get_method() == "POST" then
     uci2:commit("web")
     uci2:unload("web")
     pcall(function() require("web.lp").flush() end)
-    message_helper.pushMessage(T"Card settings saved successfully", "success")
+    ngx.print(ui_helper.createHeader(T"Card Settings", false, false))
+    ngx.print('\n<div class="modal-body update">\n')
+    ngx.print(ui_helper.createAlertBlock(T"Card settings saved successfully. Reloading...", { alert = { class = "alert-success" } }))
+    ngx.print('</div>\n')
+    ngx.print([[
+      <script>
+        setTimeout(function() {
+          window.location.href = "/";
+        }, 500);
+      </script>
+    ]])
+    return
   end
 end
 
