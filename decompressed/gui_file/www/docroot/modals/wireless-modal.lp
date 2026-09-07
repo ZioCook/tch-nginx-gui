@@ -147,12 +147,16 @@ for i,v in ipairs(wl_list) do
   local path = "rpc.wireless.ssid.@" .. v.value
   local values = proxy.get(path .. ".radio" , path .. ".ssid",path .. ".stb", path .. ".ap_display_name")
   if values ~= nil then
+    local ap_iso = proxy.get(v.path .. "ap_isolation")
+    local iface_state = proxy.get(path .. ".oper_state")
     wls[#wls+1] = {
             radio = values[1].value,
             ssid = values[2].value,
             iface = v.value,
             stb = values[3].value,
-            ap_display_name = values[4].value
+            ap_display_name = values[4].value,
+            ap_isolation = ap_iso and ap_iso[1].value or "0",
+            oper_state = iface_state and iface_state[1].value or "0",
         }
     if (v.value == getiface) or (not getiface and v.value == curiface) then
         curiface = v.value
@@ -169,6 +173,31 @@ table.sort(wls, function(a,b)
         return a.radio < b.radio
     end
 end)
+
+-- Determine if guest network is currently enabled (any guest SSID with state=1)
+local guest_ifaces = { "wl0_1", "wl1_1" }
+local guest_ap_map = { wl0_1 = "ap2", wl1_1 = "ap3" }
+local guest_enabled_raw = proxy.get("uci.wireless.wifi-iface.@wl0_1.state")
+local guest_network_enabled = guest_enabled_raw and guest_enabled_raw[1].value == "1" and "1" or "0"
+
+
+-- Handle guest network toggle
+if ngx.req.get_method() == "POST" and ngx.req.get_post_args().action == "toggle_guest" then
+    local new_state = ngx.req.get_post_args().guest_state
+    if new_state == "1" or new_state == "0" then
+        for _, iface in ipairs(guest_ifaces) do
+            proxy.set("uci.wireless.wifi-iface.@" .. iface .. ".state", new_state)
+            local ap = guest_ap_map[iface]
+            if ap then
+                proxy.set("uci.wireless.wifi-ap.@" .. ap .. ".state", new_state)
+            end
+        end
+        proxy.apply()
+    end
+    ngx.header.content_type = "application/json"
+    ngx.print('{"success":"true","guest_state":"' .. (new_state or "0") .. '"}')
+    ngx.exit(ngx.HTTP_OK)
+end
 
 if ngx.req.get_method() == "POST"  and  ngx.req.get_post_args().action == "set_reg" then
     local content_acl ={
@@ -958,6 +987,10 @@ if #wls > 0 then
    local html = {}
     local prevradio = ""
     for i,v in ipairs(wls) do
+        -- Skip guest SSIDs (ap_isolation=1) from sidebar when guest network is disabled
+        if v.ap_isolation == "1" and guest_network_enabled == "0" then
+            -- do not show in sidebar
+        else
         if v.radio ~= prevradio then
             if radioData[untaint(v.radio)].remotely_managed == "1" and radioData[untaint(v.radio)].integrated_ap ~= "1" then
                 html[#html+1] = format('<li class="nav-header">%s %s</li>', T"External access points", radioData[untaint(v.radio)].supported_frequency_bands)
@@ -979,6 +1012,7 @@ if #wls > 0 then
         else
             html[#html+1] = format('<li class="%s"><a  id = "Wireless_Tab_%s" href="#" data-remote="%s">%s</a></li>', active, i, url, v.ssid)
         end
+        end -- end guest check
     end
     -- If wifi analyzer enabled, draw it
     local wifi_analyzer_disable = proxy.get("uci.wireless.wifi.@global.wifi_analyzer_disable")
@@ -1028,6 +1062,29 @@ if getWifiAnalyzer == nil then  ngx.print('\
 ');  
 ngx.print(ui_helper.createMessages(message_helper.popMessages()))
 if bandsteerhelpmsg then ngx.print(ui_helper.createMessages(bandsteerhelpmsg)) end
+
+-- Guest network toggle fieldset (only show on main pages, not on guest SSID tab)
+if isguest ~= "1" and getWifiAnalyzer == nil then
+  local guest_html = {}
+  local guest_switch_attrs = {
+    input = { id = "guest_network_switch", class = "monitor-changes" }
+  }
+  local guest_label_attrs = {
+    group = { class = "control-group" }
+  }
+  guest_html[#guest_html+1] = ui_helper.createSwitch(T"Rete Ospite (Guest)", "guest_network_enabled_ui", guest_network_enabled, guest_switch_attrs)
+  local ssid_2g = proxy.get("uci.wireless.wifi-iface.@wl0_1.ssid")
+  local ssid_5g = proxy.get("uci.wireless.wifi-iface.@wl1_1.ssid")
+  if ssid_2g and ssid_5g then
+    local info_class = { group = { class = "control-group" }, span = { class = "span2 simple-desc" } }
+    guest_html[#guest_html+1] = ui_helper.createLabel(T"SSID 2.4 GHz:", tostring(ssid_2g[1].value), info_class)
+    guest_html[#guest_html+1] = ui_helper.createLabel(T"SSID 5 GHz:", tostring(ssid_5g[1].value), info_class)
+  end
+  ngx.print('<fieldset id="guest-network-section"><legend>' .. T"Rete Ospite" .. '</legend>')
+  ngx.print(guest_html)
+  ngx.print('</fieldset>')
+end
+
   ngx.print('\
 <fieldset>\
 <legend>');  ngx.print( T"Interface" ); ngx.print('</legend>\
@@ -1941,5 +1998,19 @@ $(\'input[id="band_steer_enabled"]\').on("click", function(){\
         $(\'option[value="wpa"]\').hide();\
     }\
 });\
+\
+// Guest network toggle handler\
+$(\'#guest_network_switch\').on("change", function(){\
+    var newState = $(this).val() === "1" ? "1" : "0";\
+    $.post("modals/wireless-modal.lp", {\
+        action: "toggle_guest",\
+        guest_state: newState,\
+        CSRFtoken: $("meta[name=CSRFtoken]").attr("content")\
+    }, function(data) {\
+        if (data && data.success) {\
+            location.reload();\
+        }\
+    }, "json");\
+});\
 </script>\
-'); 
+');
