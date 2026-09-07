@@ -56,7 +56,7 @@ jobs:
             VER="${GITHUB_REF_NAME#v}"
             IS_TAG="true"
           else
-            DEFAULT_VER=$(grep -oE 'version_gui=[0-9]+\.[0-9]+\.[0-9]+' decompressed/base/etc/init.d/rootdevice | cut -d= -f2 || echo "9.7.8")
+            DEFAULT_VER=$(grep -oE 'version_gui=[0-9]+\.[0-9]+\.[0-9]+' decompressed/base/etc/init.d/rootdevice | cut -d= -f2 || echo "9.7.9")
             VER="${DEFAULT_VER}"
             IS_TAG="false"
           fi
@@ -91,7 +91,7 @@ jobs:
           python3 - << 'EOF'
           import os, re
 
-          version = os.environ.get("VERSION", "9.7.8")
+          version = os.environ.get("VERSION", "9.7.9")
           full_ver = os.environ.get("FULL_VER", version)
           commit = os.environ.get("SHORT_HASH", "")
           repo = os.environ.get("GITHUB_REPOSITORY", "ZioCook/tch-nginx-gui")

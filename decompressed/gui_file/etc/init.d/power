@@ -37,6 +37,55 @@ setup_cpuspeed() {
     pwrctl config --cpuspeed $cpuspeed
 }
 
+setup_governor() {
+    config_get governor cpu governor ""
+    if [ -n "$governor" ] && [ -f /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor ]; then
+        if grep -q "$governor" /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors 2>/dev/null; then
+            echo "$governor" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor 2>/dev/null
+        fi
+    fi
+}
+
+setup_frequencies() {
+    config_get min_freq cpu min_freq ""
+    config_get max_freq cpu max_freq ""
+    if [ -n "$min_freq" ] && [ -f /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq ]; then
+        echo "$min_freq" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq 2>/dev/null
+    fi
+    if [ -n "$max_freq" ] && [ -f /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq ]; then
+        echo "$max_freq" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq 2>/dev/null
+    fi
+}
+
+setup_cores() {
+    config_get cores cpu cores "2"
+    if [ -f /sys/devices/system/cpu/cpu1/online ]; then
+        if [ "$cores" = "1" ]; then
+            echo 0 > /sys/devices/system/cpu/cpu1/online 2>/dev/null
+        else
+            echo 1 > /sys/devices/system/cpu/cpu1/online 2>/dev/null
+        fi
+    fi
+}
+
+setup_extra_ethernet() {
+    config_get phy_down ethernet phy_down 0
+    config_get net_down ethernet net_down 0
+    pwrctl config --phy `uci2onoff $phy_down` 2>/dev/null
+    pwrctl config --net `uci2onoff $net_down` 2>/dev/null
+}
+
+setup_vm() {
+    config_get swappiness vm swappiness ""
+    config_get vfs_cache_pressure vm vfs_cache_pressure ""
+    if [ -n "$swappiness" ] && [ -f /proc/sys/vm/swappiness ]; then
+        sysctl -w vm.swappiness="$swappiness" >/dev/null 2>&1
+    fi
+    if [ -n "$vfs_cache_pressure" ] && [ -f /proc/sys/vm/vfs_cache_pressure ]; then
+        sysctl -w vm.vfs_cache_pressure="$vfs_cache_pressure" >/dev/null 2>&1
+    fi
+}
+
 move_irq_interrupts_cpu1() {
 	#This cause crash on kernel 4.1 so only apply to kernel 3.4
 	if [ -z "${kernel_ver##3.4*}" ]; then
@@ -51,12 +100,21 @@ setup() {
     setup_autogreeen
     setup_eee
     setup_ethapd
+    setup_extra_ethernet
     setup_wait
     setup_cpuspeed
+    setup_governor
+    setup_frequencies
+    setup_cores
+    setup_vm
 	move_irq_interrupts_cpu1
 }
 
 start() {
+    setup
+}
+
+reload() {
     setup
 }
 

@@ -103,7 +103,7 @@ done
 
 # Inject build version into rootdevice
 short_commit=$(git rev-parse --short HEAD 2>/dev/null || echo "dev")
-build_ver="${VERSION:-9.7.8}"
+build_ver="${VERSION:-9.7.9}"
 echo "Stamping GUI version $build_ver-$short_commit..."
 if [ -f total/etc/init.d/rootdevice ]; then
 	sed -i "s#version_gui=.*#version_gui=$build_ver-$short_commit#" total/etc/init.d/rootdevice

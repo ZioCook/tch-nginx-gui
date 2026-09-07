@@ -47,14 +47,14 @@ if session:hasAccess("/modals/changelog.lp") then
 else
 	html[#html+1] =					format('%s', cui.gui_version)
 end
-html[#html+1] =				'</p>'
-html[#html+1] =				T'<p>Coded & Expanded by <font style="color:#0088cc;">Ansuel</font> and <a href="https://github.com/Ansuel/tch-nginx-gui/graphs/contributors">these GitHub users.</a><br/>Unlock Utility by <font style="color:#0088cc;">ADeltaX</font>'
+html[#html+1] =				'<p>Fork & modifiche di <font style="color:#0088cc;">ZioCook</font> &bull; Codice originale di <font style="color:#0088cc;">Ansuel</font> e <a href="https://github.com/ZioCook/tch-nginx-gui/graphs/contributors">questi utenti GitHub.</a><br/>Utility di sblocco di <font style="color:#0088cc;">ADeltaX</font>'
 
 if not ( tostring(gettext.language()) == "en-us" ) then
-	html[#html+1] =			format(T' && Translated by <font style="color:#0088cc;">%s</font>',lang_credit)
+	html[#html+1] =			format(' - Traduzione GUI di <font style="color:#0088cc;">%s</font>',lang_credit)
 end
 html[#html+1] =				'</p>'
 html[#html+1] =			'</div>'
+
 html[#html+1] =		'</div>'
 
 ngx.print(html)
