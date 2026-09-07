@@ -1073,13 +1073,19 @@ if isguest ~= "1" and getWifiAnalyzer == nil then
     group = { class = "control-group" }
   }
   guest_html[#guest_html+1] = ui_helper.createSwitch(T"Rete Ospite (Guest)", "guest_network_enabled_ui", guest_network_enabled, guest_switch_attrs)
-  local ssid_2g = proxy.get("uci.wireless.wifi-iface.@wl0_1.ssid")
-  local ssid_5g = proxy.get("uci.wireless.wifi-iface.@wl1_1.ssid")
-  if ssid_2g and ssid_5g then
-    local info_class = { group = { class = "control-group" }, span = { class = "span2 simple-desc" } }
-    guest_html[#guest_html+1] = ui_helper.createLabel(T"SSID 2.4 GHz:", untaint(ssid_2g[1].value), info_class)
-    guest_html[#guest_html+1] = ui_helper.createLabel(T"SSID 5 GHz:", untaint(ssid_5g[1].value), info_class)
+  local info_class = { group = { class = "control-group" }, span = { class = "span2 simple-desc" } }
+  if curradio == "radio_5G" or (radioData[curradio] and radioData[curradio].supported_frequency_bands == "5GHz") then
+    local ssid_5g = proxy.get("uci.wireless.wifi-iface.@wl1_1.ssid")
+    if ssid_5g and ssid_5g[1] then
+      guest_html[#guest_html+1] = ui_helper.createLabel(T"SSID Ospite:", untaint(ssid_5g[1].value), info_class)
+    end
+  else
+    local ssid_2g = proxy.get("uci.wireless.wifi-iface.@wl0_1.ssid")
+    if ssid_2g and ssid_2g[1] then
+      guest_html[#guest_html+1] = ui_helper.createLabel(T"SSID Ospite:", untaint(ssid_2g[1].value), info_class)
+    end
   end
+
 
   ngx.print('<fieldset id="guest-network-section"><legend>' .. T"Rete Ospite" .. '</legend>')
   ngx.print(guest_html)
