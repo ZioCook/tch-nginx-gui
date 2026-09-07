@@ -22,13 +22,13 @@ if [ "$1" = "dev" ]; then
 	type="_dev"
 fi
 
-if [ "$CI" = "true" ]; then
-	TYPE="$(cat $HOME/gui_build/data/type)"
+if [ "$CI" = "true" ] && [ -f "$HOME/gui_build/data/type" ]; then
+	TYPE="$(cat "$HOME/gui_build/data/type")"
 	if [ "$TYPE" = "PREVIEW" ]; then
 		type="_preview"
 	elif [ "$TYPE" = "DEV" ]; then
 		type="_dev"
-	elif [ "$TYPE" != "STABLE" ]; then
+	elif [ -n "$TYPE" ] && [ "$TYPE" != "STABLE" ]; then
 		type="_"$TYPE
 	fi
 fi

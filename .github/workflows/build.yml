@@ -1,0 +1,153 @@
+name: Build & Release GUI
+
+on:
+  push:
+    branches:
+      - master
+      - stable
+      - dev
+    tags:
+      - 'v*'
+  pull_request:
+    branches:
+      - master
+  workflow_dispatch:
+    inputs:
+      publish_release:
+        description: 'Publish / Update GitHub Release'
+        required: true
+        type: boolean
+        default: true
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build GUI Packages
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y bzip2 dos2unix
+
+      - name: Fix file line endings
+        run: |
+          echo "Scanning and normalizing line endings with dos2unix..."
+          find decompressed -type f -exec dos2unix -q {} +
+
+      - name: Determine version
+        id: version
+        run: |
+          SHORT_HASH=$(git rev-parse --short HEAD 2>/dev/null || echo "dev")
+          echo "SHORT_HASH=${SHORT_HASH}" >> $GITHUB_ENV
+          
+          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
+            VER="${GITHUB_REF_NAME#v}"
+            IS_TAG="true"
+          else
+            DEFAULT_VER=$(grep -oE 'version_gui=[0-9]+\.[0-9]+\.[0-9]+' decompressed/base/etc/init.d/rootdevice | cut -d= -f2 || echo "9.7.8")
+            VER="${DEFAULT_VER}"
+            IS_TAG="false"
+          fi
+          
+          FULL_VER="${VER}-${SHORT_HASH}"
+          echo "VERSION=${VER}" >> $GITHUB_ENV
+          echo "FULL_VER=${FULL_VER}" >> $GITHUB_ENV
+          echo "IS_TAG=${IS_TAG}" >> $GITHUB_ENV
+          echo "Building GUI version: ${FULL_VER}"
+
+      - name: Build DEV GUI package
+        run: |
+          chmod +x inizialize_gui.sh
+          VERSION="${FULL_VER}" ./inizialize_gui.sh dev
+
+      - name: Build STABLE GUI package
+        run: |
+          VERSION="${FULL_VER}" ./inizialize_gui.sh
+
+      - name: Generate Checksums
+        run: |
+          cd compressed
+          md5sum GUI.tar.bz2 GUI_dev.tar.bz2 > MD5SUMS
+          sha256sum GUI.tar.bz2 GUI_dev.tar.bz2 > SHA256SUMS
+          echo "=== MD5SUMS ==="
+          cat MD5SUMS
+          echo "=== SHA256SUMS ==="
+          cat SHA256SUMS
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: gui-packages-${{ env.SHORT_HASH }}
+          path: |
+            compressed/GUI.tar.bz2
+            compressed/GUI_dev.tar.bz2
+            compressed/MD5SUMS
+            compressed/SHA256SUMS
+            modular/*.tar.bz2
+          retention-days: 30
+
+      - name: Publish GitHub Release (Tags)
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          body: |
+            ## Technicolor Nginx GUI - Release ${{ github.ref_name }}
+            
+            Built from commit `${{ env.SHORT_HASH }}`.
+            
+            ### Installation
+            ```bash
+            curl -k -L https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/GUI.tar.bz2 --output /tmp/GUI.tar.bz2
+            bzcat /tmp/GUI.tar.bz2 | tar -C / -xvf -
+            /etc/init.d/rootdevice force
+            ```
+          files: |
+            compressed/GUI.tar.bz2
+            compressed/GUI_dev.tar.bz2
+            compressed/MD5SUMS
+            compressed/SHA256SUMS
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish/Update Rolling Dev Release
+        if: (github.event_name == 'push' && github.ref == 'refs/heads/master') || (github.event_name == 'workflow_dispatch' && inputs.publish_release == true)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: dev-latest
+          name: Development Build (${{ env.FULL_VER }})
+          body: |
+            ## Automated Development Build
+            
+            - **Version:** `${{ env.FULL_VER }}`
+            - **Commit:** [${{ env.SHORT_HASH }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
+            
+            ### Installation (DEV)
+            ```bash
+            curl -k -L https://github.com/${{ github.repository }}/releases/download/dev-latest/GUI_dev.tar.bz2 --output /tmp/GUI.tar.bz2
+            bzcat /tmp/GUI.tar.bz2 | tar -C / -xvf -
+            /etc/init.d/rootdevice force
+            ```
+          files: |
+            compressed/GUI.tar.bz2
+            compressed/GUI_dev.tar.bz2
+            compressed/MD5SUMS
+            compressed/SHA256SUMS
+          prerelease: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
