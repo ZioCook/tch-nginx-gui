@@ -538,6 +538,11 @@ local mapParSFP = {}
 local mapValSFP = {}
 
 local sfpintf = "sfp"
+local has_sfp_intf = false
+local sfp_check = proxy.get("uci.network.interface.@" .. sfpintf .. ".ipaddr")
+if sfp_check and sfp_check[1] and sfp_check[1].value and sfp_check[1].value ~= "" then
+    has_sfp_intf = true
+end
 
 if sfp_presence and  (sfp_presence[1].value == "1") then
     mapParSFP.ethsfp = "uci.ethernet.globals.eth4lanwanmode"
@@ -563,9 +568,10 @@ local mapParams = {
     eth0 = "uci.ethernet.port.@eth0.enable",
 }
 
-if sfp_presence and  (sfp_presence[1].value == "1") then
+if sfp_presence and (sfp_presence[1].value == "1") and has_sfp_intf then
     mapParams["sfplocalip"] = "uci.network.interface.@"..sfpintf..".ipaddr"
 end
+
 
 local ethports = {
     {"eth0", T"Port" .. " 1"},
@@ -1032,9 +1038,10 @@ local mapValid = {
     ethports = validateEthports,
 }
 
-if sfp_presence and  (sfp_presence[1].value == "1") then
+if sfp_presence and (sfp_presence[1].value == "1") and has_sfp_intf then
     mapValid["sfplocalip"] = validateSFPIP
 end
+
 
 if curintf == "lan" then
     mapParams.localIPv6 = "uci.network.interface.@" .. curintf .. ".ipv6"
@@ -1266,11 +1273,12 @@ if curintf == "lan" then
     else
         html[#html + 1] = ui_helper.createLabel(T"LAN IPv6", IPv6addr, advanced)
     end
-    if sfp_presence and ( sfp_presence[1].value == "1" ) then
+    if sfp_presence and ( sfp_presence[1].value == "1" ) and has_sfp_intf then
         html[#html + 1] = ui_helper.createAlertBlock(T("This is the internal IP of the SFP interface used for fiber connection. " ..
                 "This and the local Gateway IP must be different."), info_box)
         html[#html + 1] = ui_helper.createInputText(T"SFP IP address", "sfplocalip", content["sfplocalip"],{},helpmsg["sfplocalip"])
     end
+
 end
 ngx.print(html)
 ngx.print('\
