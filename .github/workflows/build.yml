@@ -137,6 +137,8 @@ jobs:
             compressed/GUI_dev.zip
             compressed/MD5SUMS
             compressed/SHA256SUMS
-          prerelease: true
+          prerelease: false
+          make_latest: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
