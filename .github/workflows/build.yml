@@ -32,7 +32,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
         with:
           fetch-depth: 0
 
@@ -91,7 +91,7 @@ jobs:
           python3 .github/scripts/generate_release_notes.py
 
       - name: Upload Build Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v4.6.2
         with:
           name: gui-packages-${{ env.SHORT_HASH }}
           path: |
@@ -106,7 +106,7 @@ jobs:
 
       - name: Publish GitHub Release (Tags)
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v2.3.2
         with:
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
@@ -125,7 +125,7 @@ jobs:
 
       - name: Publish/Update Rolling Dev Release
         if: (github.event_name == 'push' && github.ref == 'refs/heads/master') || (github.event_name == 'workflow_dispatch' && inputs.publish_release == true)
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v2.3.2
         with:
           tag_name: dev-latest
           name: Development Build (${{ env.FULL_VER }})
