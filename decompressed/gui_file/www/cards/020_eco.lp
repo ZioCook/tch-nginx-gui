@@ -84,7 +84,7 @@ ngx.print('\
 <div class="span3">\
   <div class="smallcard" data-aos="zoom-in" data-aos-anchor-placement="center-bottom" data-aos-easing="ease-in-back">\
 \
-    ');  ngx.print( ui_helper.createCardHeader(T"Eco & Hardware", modalPath, switchName, nil) ); ngx.print('\
+    ');  ngx.print( ui_helper.createCardHeader(T"Eco", modalPath, switchName, nil) ); ngx.print('\
 \
     <div class="content card_bg" data-bg-text="&#xf06c;">\
 	  <div class="divtable">\
@@ -93,15 +93,15 @@ ngx.print('\
 local html = {}
 
 html[#html + 1] = ui_helper.createSimpleLight(overall_eco, overall_text, nil, "fas fa-leaf")
-html[#html + 1] = '<p class="subinfos" style="margin-top:6px; line-height:1.7;">'
-html[#html + 1] = format('<span class="simple-desc"><i class="fas fa-microchip" style="width:16px; text-align:center;">&nbsp;</i>CPU: <strong>%s</strong> (%s, %d core)</span><br/>', cpu_status.cur_freq, cpu_status.governor:upper(), cpu_status.cores_online)
+html[#html + 1] = '<p class="subinfos">'
+html[#html + 1] = format('<span class="simple-desc"><i class="fas fa-microchip" aria-hidden="true">&nbsp;</i>CPU: <strong>%s</strong> (%s, %d core)</span><br/>', cpu_status.cur_freq, cpu_status.governor:upper(), cpu_status.cores_online)
 
 if temp_text then
-	html[#html + 1] = format('<span class="simple-desc"><i class="fas fa-thermometer-half" style="width:16px; text-align:center;">&nbsp;</i>%s</span><br/>', temp_text)
+	html[#html + 1] = format('<span class="simple-desc"><i class="fas fa-thermometer-half" aria-hidden="true">&nbsp;</i>%s</span><br/>', temp_text)
 end
 
-html[#html + 1] = format('<span class="simple-desc"><i class="fas fa-network-wired" style="width:16px; text-align:center;">&nbsp;</i>Ethernet EEE: <strong>%s</strong></span><br/>', (content.eee == "1") and T"Attivo" or T"Disattivato")
-html[#html + 1] = format('<span class="simple-desc"><i class="fas fa-lightbulb" style="width:16px; text-align:center;">&nbsp;</i>Eco LED: <strong>%s</strong></span>', (content.eco_led == "1") and T"Attivo" or T"Disattivato")
+html[#html + 1] = format('<span class="simple-desc"><i class="fas fa-network-wired" aria-hidden="true">&nbsp;</i>Ethernet EEE: <strong>%s</strong></span><br/>', (content.eee == "1") and T"Attivo" or T"Disattivato")
+html[#html + 1] = format('<span class="simple-desc"><i class="fas fa-lightbulb" aria-hidden="true">&nbsp;</i>Eco LED: <strong>%s</strong></span>', (content.eco_led == "1") and T"Attivo" or T"Disattivato")
 html[#html + 1] = '</p>'
 
 ngx.print(html)

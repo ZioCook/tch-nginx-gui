@@ -40,25 +40,25 @@ if session:hasAccess(modalPath) and lfs.attributes("/etc/config/xdsl", "mode") =
                 local html = {}
                 if not is_enabled then
                     html[#html+1] = ui_helper.createSimpleLight("0", T"xDSL disabilitato", { light = { class = "off" } }, "fas fa-microchip")
-                    html[#html+1] = '<p class="subinfos" style="margin-top:6px; line-height:1.7;">'
-                    html[#html+1] = '<span class="simple-desc"><i class="fas fa-network-wired" style="width:16px; text-align:center;">&nbsp;</i>' .. T"Modalità: <strong>Bridge / AP</strong>" .. '</span><br/>'
-                    html[#html+1] = '<span class="simple-desc"><i class="fas fa-plug" style="width:16px; text-align:center;">&nbsp;</i>' .. T"Interfaccia DSL non in uso" .. '</span>'
+                    html[#html+1] = '<p class="subinfos">'
+                    html[#html+1] = '<span class="simple-desc"><i class="fas fa-network-wired" aria-hidden="true">&nbsp;</i>' .. T"Modalità: <strong>Bridge / AP</strong>" .. '</span><br/>'
+                    html[#html+1] = '<span class="simple-desc"><i class="fas fa-plug" aria-hidden="true">&nbsp;</i>' .. T"Interfaccia DSL non in uso" .. '</span>'
                     html[#html+1] = '</p>'
                 elseif content.dsl0_status == "Up" then
                     html[#html+1] = ui_helper.createSimpleLight("1", T"xDSL Connesso", { light = { class = "green" } }, "fas fa-microchip")
-                    html[#html+1] = '<p class="subinfos" style="margin-top:6px; line-height:1.7;">'
+                    html[#html+1] = '<p class="subinfos">'
                     if content.xdsl_version and not content.xdsl_version:match("not found") and content.xdsl_version ~= "" then
-                        html[#html+1] = format('<span class="simple-desc"><i class="fas fa-code-branch" style="width:16px; text-align:center;">&nbsp;</i>' .. T"Datapump: <strong>%s</strong></span><br/>", content.xdsl_version)
+                        html[#html+1] = format('<span class="simple-desc"><i class="fas fa-code-branch" aria-hidden="true">&nbsp;</i>' .. T"Datapump: <strong>%s</strong></span><br/>", content.xdsl_version)
                     end
                     if content.dslam_chipset and content.dslam_chipset ~= "" and not content.dslam_chipset:match("not found") then
-                        html[#html+1] = format('<span class="simple-desc"><i class="fas fa-server" style="width:16px; text-align:center;">&nbsp;</i>' .. T"DSLAM: <strong>%s</strong></span>", content.dslam_chipset)
+                        html[#html+1] = format('<span class="simple-desc"><i class="fas fa-server" aria-hidden="true">&nbsp;</i>' .. T"DSLAM: <strong>%s</strong></span>", content.dslam_chipset)
                     end
                     html[#html+1] = '</p>'
                 else
                     html[#html+1] = ui_helper.createSimpleLight("2", T"xDSL Disconnesso", { light = { class = "orange" } }, "fas fa-microchip")
-                    html[#html+1] = '<p class="subinfos" style="margin-top:6px; line-height:1.7;">'
-                    html[#html+1] = '<span class="simple-desc"><i class="fas fa-plug" style="width:16px; text-align:center;">&nbsp;</i>' .. T"Cavo DSL non collegato" .. '</span><br/>'
-                    html[#html+1] = '<span class="simple-desc"><i class="fas fa-info-circle" style="width:16px; text-align:center;">&nbsp;</i>' .. T"In attesa di segnale..." .. '</span>'
+                    html[#html+1] = '<p class="subinfos">'
+                    html[#html+1] = '<span class="simple-desc"><i class="fas fa-plug" aria-hidden="true">&nbsp;</i>' .. T"Cavo DSL non collegato" .. '</span><br/>'
+                    html[#html+1] = '<span class="simple-desc"><i class="fas fa-info-circle" aria-hidden="true">&nbsp;</i>' .. T"In attesa di segnale..." .. '</span>'
                     html[#html+1] = '</p>'
                 end
                 ngx.print(html)
