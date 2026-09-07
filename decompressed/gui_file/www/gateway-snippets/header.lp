@@ -151,6 +151,11 @@ ngx.print('\
                 html[#html + 1] = [[ <li><a tabindex="-1" href="/password.lp" id="changepass"> ]]
                 html[#html + 1] = T"Profile Settings"
                 html[#html + 1] = [[ </a></li><li class="divider"></li> ]]
+                if session:hasAccess("/modals/cards-modal.lp") then
+                    html[#html + 1] = [[ <li><a tabindex="-1" href="#" class="modal-link" data-toggle="modal" data-remote="/modals/cards-modal.lp" data-id="cards-modal"> ]]
+                    html[#html + 1] = T"Card Settings"
+                    html[#html + 1] = [[ </a></li><li class="divider"></li> ]]
+                end
             end
         html[#html + 1] = [[ <li><a tabindex="-1" href="https://www.ilpuntotecnico.com/forum/index.php/topic,81461.0.html" target="_blank"> ]]
         html[#html + 1] = T"Support Forum"

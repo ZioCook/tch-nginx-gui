@@ -117,6 +117,7 @@ config ruleset 'ruleset_main'
 	list rules 'applicationsmodal'
 	list rules 'ajaxgatewaytab'
 	list rules 'ajaxinternet'
+	list rules 'cardsmodal'
 
 config rule 'gateway'
 	option target '/gateway.lp'
@@ -496,4 +497,9 @@ config rule 'ajaxinternet'
 	list roles 'admin'
 	list roles 'engineer'
 	list roles 'guest'
+
+config rule 'cardsmodal'
+	option target '/modals/cards-modal.lp'
+	list roles 'admin'
+	list roles 'engineer'
 

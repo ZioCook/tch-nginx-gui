@@ -4349,8 +4349,38 @@ msgstr "Modifica il seriale del modem. Considera che il seriale del modem è l'I
 msgid "Modem Serial"
 msgstr "Seriale modem"
 
-msgstr "Debug Report & Advanced settings"
+msgid "Debug Report & Advanced settings"
 msgstr "Rapporto debug e impostazioni avanzate"
 
 msgid "Change the default page in system-extra to set this GUI as default"
 msgstr "Modifica la pagina predefinita in Funzioni extra di sistema per impostare questa GUI come predefinita"
+
+msgid "Card Settings"
+msgstr "Personalizza schede"
+
+msgid "Network and Connectivity"
+msgstr "Rete e Connettività"
+
+msgid "Security and Routing"
+msgstr "Sicurezza e Routing"
+
+msgid "System and Services"
+msgstr "Sistema e Servizi"
+
+msgid "Choose which cards to display on the main dashboard. Disabling a card will hide it from the home page."
+msgstr "Scegli quali schede visualizzare nella dashboard principale. Disabilitando una scheda verrà nascosta dalla schermata iniziale."
+
+msgid "Show all"
+msgstr "Mostra tutte"
+
+msgid "Hide all"
+msgstr "Nascondi tutte"
+
+msgid "Card settings saved successfully"
+msgstr "Impostazioni schede salvate con successo"
+
+msgid "NAT Helpers (ALG) allow protocols that embed network addresses to traverse NAT. In bridge mode, NAT is bypassed and managed by the upstream router."
+msgstr "Gli helper NAT (ALG) consentono ai protocolli con indirizzi nel payload di attraversare il NAT. In modalità bridge, il NAT è disattivato e gestito dal router a monte."
+
+msgid "No NAT Helpers found"
+msgstr "Nessun helper NAT trovato"

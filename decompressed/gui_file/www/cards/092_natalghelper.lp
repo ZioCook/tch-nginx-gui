@@ -13,13 +13,15 @@ local modalPath = "/modals/nat-alg-helper-modal.lp"
 
 if session:hasAccess(modalPath) then
   local modal_link = format("class=\"modal-link\" data-toggle=\"modal\" data-remote=\"%s\" data-id=\"nat-alg-helper-modal\"",modalPath)
-  local helper_uci_path = "uci.firewall.helper."
+  local test_modern = proxy.getPN("uci.firewall_helpers.helper.", true)
+  local is_modern = (test_modern and #test_modern > 0)
+  local helper_uci_path = is_modern and "uci.firewall_helpers.helper." or "uci.firewall.helper."
   local helper_uci_content = proxy.get(helper_uci_path)
   helper_uci_content = content_helper.convertResultToObject(helper_uci_path,helper_uci_content)
   local enabled_count = 0
   local disabled_count = 0
   for _, v in ipairs (helper_uci_content) do
-      if v.intf ~= "loopback" then
+      if is_modern or v.intf ~= "loopback" then
           if v.enable == "0" then
               disabled_count = disabled_count + 1
           else
@@ -51,6 +53,14 @@ if session:hasAccess(modalPath) then
                 ngx.print(format( N('<strong %1$s>%2$d Disabled Helper</strong>',
                                     '<strong %1$s>%2$d Disabled Helpers</strong>', disabled_count),
                                     modal_link, disabled_count))
+                  ngx.print('\
+                </span>\
+              ');  end
+              if enabled_count == 0 and disabled_count == 0 then  ngx.print('\
+                <span class="simple-desc">\
+               <i class="fas fa-info-circle" aria-hidden="true">&nbsp;</i>\
+                ');  
+                ngx.print(format('<strong %s>%s</strong>', modal_link, T"No NAT Helpers found"))
                   ngx.print('\
                 </span>\
               ');  end  ngx.print('\

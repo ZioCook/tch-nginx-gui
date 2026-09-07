@@ -4349,8 +4349,38 @@ msgstr ""
 msgid "Modem Serial"
 msgstr ""
 
-msgstr "Debug Report & Advanced settings"
+msgid "Debug Report & Advanced settings"
 msgstr ""
 
 msgid "Change the default page in system-extra to set this GUI as default"
 msgstr ""
+
+msgid "Card Settings"
+msgstr "Karten-Einstellungen"
+
+msgid "Network and Connectivity"
+msgstr "Netzwerk und Konnektivität"
+
+msgid "Security and Routing"
+msgstr "Sicherheit und Routing"
+
+msgid "System and Services"
+msgstr "System und Dienste"
+
+msgid "Choose which cards to display on the main dashboard. Disabling a card will hide it from the home page."
+msgstr "Wählen Sie aus, welche Karten auf dem Haupt-Dashboard angezeigt werden sollen."
+
+msgid "Show all"
+msgstr "Alle anzeigen"
+
+msgid "Hide all"
+msgstr "Alle ausblenden"
+
+msgid "Card settings saved successfully"
+msgstr "Karten-Einstellungen erfolgreich gespeichert"
+
+msgid "NAT Helpers (ALG) allow protocols that embed network addresses to traverse NAT. In bridge mode, NAT is bypassed and managed by the upstream router."
+msgstr "NAT-Helper (ALG) ermöglichen Protokollen mit eingebetteten Netzwerkadressen das Durchqueren von NAT."
+
+msgid "No NAT Helpers found"
+msgstr "Keine NAT-Helper gefunden"

@@ -51,11 +51,10 @@ local config = get_cards_from_config()
 local function card_visible(session, config, cardname)
   local card = config[cardname]
   if card then
-    local access
-    if card.modal then
-      access = session:hasAccess(card.modal)
+    if card.hide then
+      return false
     end
-    if not access and card.hide then
+    if card.modal and not session:hasAccess(card.modal) then
       return false
     end
   end
@@ -118,6 +117,7 @@ end
 function M.get_card_from_modal(ModalSearch)
 	local session = ngx.ctx.session
 	local result
+	local current_config = get_cards_from_config()
 	
 	uci:foreach('web', 'card', function(card)
 
@@ -132,7 +132,7 @@ function M.get_card_from_modal(ModalSearch)
 
 	uci:unload('web')
 	
-	if result and card_visible(session, config, (result:gsub("^%d+_", ""))) then
+	if result and card_visible(session, current_config, (result:gsub("^%d+_", ""))) then
 	  return result
 	end
 	
@@ -162,11 +162,12 @@ function M.cards()
   local session = ngx.ctx.session
   local limit_info = get_limit_info()
   local result = {}
+  local current_config = get_cards_from_config()
   if includepath and lfs.attributes(includepath, 'mode') == 'directory' then
     for file in lfs.dir(includepath) do
       if find(file, "%.lp$") then
         local cardname = file:gsub("^%d+_", "")
-        if card_visible(session, config, cardname) and not card_limited(limit_info, cardname, includepath) then
+        if card_visible(session, current_config, cardname) and not card_limited(limit_info, cardname, includepath) then
           result[#result+1] = file
         end
       end

@@ -70,6 +70,7 @@ local check_rule = {
 	{ name = 'diagnosticsledsmodal', target = '/modals/diagnostics-leds-modal.lp' },
 	{ name = 'systeminitmodal', target = '/modals/system-init-modal.lp' },
 	{ name = 'systemcronmodal', target = '/modals/system-cron-modal.lp' },
+	{ name = 'cardsmodal', target = '/modals/cards-modal.lp' },
 }
 
 --We add telstra rules anyway as nginx will respond 404 if not found
@@ -156,6 +157,7 @@ local card_check_rule = {
 	{ name = 'system_card', card = '091_system.lp', modal = 'systemmodal' },
 	{ name = 'natalghelper_card', card = '092_natalghelper.lp', modal = 'natalghelper' },
 	{ name = 'xdsl_card', card = '093_xdsl.lp', modal = 'xdsllowmodal' },
+	{ name = 'speedservice_card', card = '016_speedservice.lp', modal = 'speedservicemodal' },
 }
 
 --Check every element in table
