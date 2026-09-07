@@ -70,6 +70,9 @@ if #temps > 0 then
 	end
 end
 
+local overall_eco = (content.eee == "1" or content.eco_led == "1") and "1" or "0"
+local overall_text = (overall_eco == "1") and T"Risparmio Energetico Attivo" or T"Modalità Standard"
+
 local modalPath = nil
 local switchName = nil
 local session = ngx.ctx.session
@@ -89,12 +92,17 @@ ngx.print('\
       ');
 local html = {}
 
-	html[#html + 1] = ui_helper.createSimpleLight(1, cpu_label, nil, "fas fa-microchip"  )
-	if temp_text then
-		html[#html + 1] = ui_helper.createSimpleLight(temp_status, temp_text, nil, "fas fa-thermometer-half"  )
-	end
-	html[#html + 1] = ui_helper.createSimpleLight(content.eee, content.eee_text, nil, "fas fa-exchange-alt"  )
-	html[#html + 1] = ui_helper.createSimpleLight(content.eco_led, content.eco_led_text, nil, "fas fa-leaf"  )
+html[#html + 1] = ui_helper.createSimpleLight(overall_eco, overall_text, nil, "fas fa-leaf")
+html[#html + 1] = '<p class="subinfos" style="margin-top:6px; line-height:1.7;">'
+html[#html + 1] = format('<span class="simple-desc"><i class="fas fa-microchip" style="width:16px; text-align:center;">&nbsp;</i>CPU: <strong>%s</strong> (%s, %d core)</span><br/>', cpu_status.cur_freq, cpu_status.governor:upper(), cpu_status.cores_online)
+
+if temp_text then
+	html[#html + 1] = format('<span class="simple-desc"><i class="fas fa-thermometer-half" style="width:16px; text-align:center;">&nbsp;</i>%s</span><br/>', temp_text)
+end
+
+html[#html + 1] = format('<span class="simple-desc"><i class="fas fa-network-wired" style="width:16px; text-align:center;">&nbsp;</i>Ethernet EEE: <strong>%s</strong></span><br/>', (content.eee == "1") and T"Attivo" or T"Disattivato")
+html[#html + 1] = format('<span class="simple-desc"><i class="fas fa-lightbulb" style="width:16px; text-align:center;">&nbsp;</i>Eco LED: <strong>%s</strong></span>', (content.eco_led == "1") and T"Attivo" or T"Disattivato")
+html[#html + 1] = '</p>'
 
 ngx.print(html)
 ngx.print('\

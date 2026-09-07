@@ -8,63 +8,59 @@ local ui_helper = require("web.ui_helper")
 local content_helper = require("web.content_helper")
 local session = ngx.ctx.session
 local modalPath = "/modals/xdsl-low-modal.lp"
-local untaint = string.untaint
+local untaint = string.untaint or function(x) return x end
 local lfs = require"lfs"
 
 local content = {
-      dsl0_enabled = "uci.xdsl.xdsl.@dsl0.enabled",
-	  dsl0_status = "sys.class.xdsl.@line0.Status",
-	  xdsl_version = "rpc.xdslctl.DslFirmware",
-	  dslam_chipset = "rpc.xdslctl.DslamChipset",
-	  dslam_version = "rpc.xdslctl.DslamVersion"
-  }
+    dsl0_enabled = "uci.xdsl.xdsl.@dsl0.enabled",
+    dsl0_status = "sys.class.xdsl.@line0.Status",
+    xdsl_version = "rpc.xdslctl.DslFirmware",
+    dslam_chipset = "rpc.xdslctl.DslamChipset",
+    dslam_version = "rpc.xdslctl.DslamVersion"
+}
 content_helper.getExactContent(content)
 
-if content.dslam_chipset:match("BDCM") then
-	content.dslam_chipset = "Broadcom"
-elseif content.dslam_chipset:match("IFTN") then
-	content.dslam_chipset = "Infineon"
-end
+local is_enabled = (untaint(content.dsl0_enabled) == "1")
 
-if not content.dslam_chipset then
-	content.dslam_chipset = T"Not Up"
-	content.dslam_version = " "
+if content.dslam_chipset and content.dslam_chipset:match("BDCM") then
+	content.dslam_chipset = "Broadcom"
+elseif content.dslam_chipset and content.dslam_chipset:match("IFTN") then
+	content.dslam_chipset = "Infineon"
 end
 
 if session:hasAccess(modalPath) and lfs.attributes("/etc/config/xdsl", "mode") == "file" then
 
-  local state_map_DSL = {
-      ["0"] = T"xDSL Disabled",
-      ["1"] = T"xDSL Enabled",
-  }
-
-  local light_map = {
-      ["0"] = "off",
-      ["1"] = "green",
-  }
-  -- The following lines have been added to prevent the page crash.
-  -- When content.dsl0_enabled doesn't contain valid values.
-  local status_msg = content.dsl0_enabled and state_map_DSL[untaint(content.dsl0_enabled)] or state_map_DSL["0"]
-  local status = content.dsl0_enabled and light_map[untaint(content.dsl0_enabled)] or light_map["0"]
     ngx.print('\
-\
   <div class="span3">\
       <div class="smallcard" data-aos="zoom-in" data-aos-anchor-placement="center-bottom" data-aos-easing="ease-in-back">\
-         ');  ngx.print( ui_helper.createCardHeader(T"xDSL Config", modalPath) ); ngx.print('\
+         ');  ngx.print( ui_helper.createCardHeader(T"Configurazione xDSL", modalPath) ); ngx.print('\
           <div class="content card_bg" data-bg-text="&#xf2db;">\
-          <div class="divtable" style="width: 105%;">\
+          <div class="divtable">\
                 ');  
-                html={}
-                html[#html+1] = ui_helper.createSimpleLight(content["dsl0_enabled"], status_msg, { light = {}},"fas fa-microchip")
-				html[#html+1] = '<p class="subinfos">'
-                html[#html+1] = format(T"Datapump Version"..": <strong>%s</strong>", content.xdsl_version )
-                html[#html+1] = '<br/>'
-				if not ( content.dslam_chipset == "" ) and ( content.dsl0_status == "Up" ) then
-					html[#html+1] = format(T"DSLAM Chipset: <strong>%s</strong>", content.dslam_chipset )
-					html[#html+1] = '<br/>'
-					html[#html+1] = format(T"DSLAM Version: <strong>%s</strong>", content.dslam_version )
-				end
-				html[#html+1] = '</p>'
+                local html = {}
+                if not is_enabled then
+                    html[#html+1] = ui_helper.createSimpleLight("0", T"xDSL disabilitato", { light = { class = "off" } }, "fas fa-microchip")
+                    html[#html+1] = '<p class="subinfos" style="margin-top:6px; line-height:1.7;">'
+                    html[#html+1] = '<span class="simple-desc"><i class="fas fa-network-wired" style="width:16px; text-align:center;">&nbsp;</i>' .. T"Modalità: <strong>Bridge / AP</strong>" .. '</span><br/>'
+                    html[#html+1] = '<span class="simple-desc"><i class="fas fa-plug" style="width:16px; text-align:center;">&nbsp;</i>' .. T"Interfaccia DSL non in uso" .. '</span>'
+                    html[#html+1] = '</p>'
+                elseif content.dsl0_status == "Up" then
+                    html[#html+1] = ui_helper.createSimpleLight("1", T"xDSL Connesso", { light = { class = "green" } }, "fas fa-microchip")
+                    html[#html+1] = '<p class="subinfos" style="margin-top:6px; line-height:1.7;">'
+                    if content.xdsl_version and not content.xdsl_version:match("not found") and content.xdsl_version ~= "" then
+                        html[#html+1] = format('<span class="simple-desc"><i class="fas fa-code-branch" style="width:16px; text-align:center;">&nbsp;</i>' .. T"Datapump: <strong>%s</strong></span><br/>", content.xdsl_version)
+                    end
+                    if content.dslam_chipset and content.dslam_chipset ~= "" and not content.dslam_chipset:match("not found") then
+                        html[#html+1] = format('<span class="simple-desc"><i class="fas fa-server" style="width:16px; text-align:center;">&nbsp;</i>' .. T"DSLAM: <strong>%s</strong></span>", content.dslam_chipset)
+                    end
+                    html[#html+1] = '</p>'
+                else
+                    html[#html+1] = ui_helper.createSimpleLight("2", T"xDSL Disconnesso", { light = { class = "orange" } }, "fas fa-microchip")
+                    html[#html+1] = '<p class="subinfos" style="margin-top:6px; line-height:1.7;">'
+                    html[#html+1] = '<span class="simple-desc"><i class="fas fa-plug" style="width:16px; text-align:center;">&nbsp;</i>' .. T"Cavo DSL non collegato" .. '</span><br/>'
+                    html[#html+1] = '<span class="simple-desc"><i class="fas fa-info-circle" style="width:16px; text-align:center;">&nbsp;</i>' .. T"In attesa di segnale..." .. '</span>'
+                    html[#html+1] = '</p>'
+                end
                 ngx.print(html)
                   ngx.print('\
            </div>\
