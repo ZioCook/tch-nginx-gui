@@ -154,13 +154,13 @@ local init_data, sipnet_helpmsg = post_helper.handleTableQuery(init_columns, ini
 
 	ngx.print('\
 	</fieldset>\
-  </fiedlset>\
+  </fieldset>\
   </div>\
   <script>\
 	function handleInitAction(btn, action) {\
 		var $btn = $(btn);\
 		var originalHtml = $btn.html();\
-		$btn.prop("disabled", true).html('<i class=\"fas fa-spinner fa-spin\"></i>');\
+		$btn.prop("disabled", true).html("<i class=\\"fas fa-spinner fa-spin\\"></i>");\
 		$.post("/modals/system-init-modal.lp", {\
 			action: action,\
 			CSRFtoken: $("meta[name=CSRFtoken]").attr("content")\
