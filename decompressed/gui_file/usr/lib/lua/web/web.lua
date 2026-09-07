@@ -136,7 +136,11 @@ do
         -- We only check the CSRF token if the session is there. If there is no session present,
         -- this signals a GUI that is not using the webframework. GUI's that do use the webframework
         -- will always have a session at the time get_post_args can be called.
-        session:checkCSRFtoken(post_data.CSRFtoken)  -- does not return on failure
+        local csrf = post_data.CSRFtoken
+        if type(csrf) == "table" then
+          csrf = csrf[1]
+        end
+        session:checkCSRFtoken(csrf)  -- does not return on failure
       end
       post_data = taint_table(post_data)
     end

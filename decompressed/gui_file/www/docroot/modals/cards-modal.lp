@@ -84,28 +84,29 @@ table.sort(cards_list, function(a, b) return a.order < b.order end)
 if ngx.req.get_method() == "POST" then
   local post_args = ngx.req.get_post_args()
   local action = post_args.action
+  if type(action) == "table" then action = action[1] end
   if action and string.untaint(action) == "SAVE" then
     local uci2 = require("uci"):cursor()
     for _, c in ipairs(cards_list) do
       local val = post_args["card_" .. c.sec]
-      if val then val = string.untaint(val) end
-      -- val=="1" means switch ON (visible), hide=0; no val or "0" means hide=1
-      local hide_val = (val == "1") and "0" or "1"
-      uci2:set("web", string.untaint(c.sec), "hide", hide_val)
-      c.hide = hide_val
+      if type(val) == "table" then val = val[1] end
+      if val then
+        val = string.untaint(val)
+        -- val=="1" means switch ON (visible), hide=0; val=="0" means hide=1
+        local hide_val = (val == "1") and "0" or "1"
+        uci2:set("web", string.untaint(c.sec), "hide", hide_val)
+        c.hide = hide_val
+      end
     end
     uci2:commit("web")
     uci2:unload("web")
+    pcall(function() require("web.lp").flush() end)
     message_helper.pushMessage(T"Card settings saved successfully", "success")
   end
 end
 
 ngx.print(ui_helper.createHeader(T"Card Settings", false, false))
 ngx.print('\n<div class="modal-body update">\n  <form class="form-horizontal" method="post" action="modals/cards-modal.lp">\n')
-local session = ngx.ctx.session
-if session and session.getCSRFtoken then
-  ngx.print('    <input type="hidden" name="CSRFtoken" value="' .. session:getCSRFtoken() .. '">\n')
-end
 ngx.print(ui_helper.createMessages(message_helper.popMessages()))
 ngx.print(ui_helper.createAlertBlock(T"Choose which cards to display on the main dashboard. Disabling a card will hide it from the home page.", { alert = { class = "alert-info" } }))
 
