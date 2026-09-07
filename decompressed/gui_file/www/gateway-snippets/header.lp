@@ -152,7 +152,7 @@ ngx.print('\
                 html[#html + 1] = T"Profile Settings"
                 html[#html + 1] = [[ </a></li><li class="divider"></li> ]]
                 if session:hasAccess("/modals/cards-modal.lp") then
-                    html[#html + 1] = [[ <li><a tabindex="-1" href="#" class="modal-link" data-toggle="modal" data-remote="/modals/cards-modal.lp" data-id="cards-modal"> ]]
+                    html[#html + 1] = [[ <li><a tabindex="-1" id="cards-settings-btn" style="cursor: pointer;" data-toggle="modal" data-target="#cards-modal" data-remote="modals/cards-modal.lp" data-id="cards-modal"> ]]
                     html[#html + 1] = T"Card Settings"
                     html[#html + 1] = [[ </a></li><li class="divider"></li> ]]
                 end
