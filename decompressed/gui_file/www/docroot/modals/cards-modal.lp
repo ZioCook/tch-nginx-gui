@@ -9,6 +9,10 @@ local uci = require("uci"):cursor()
 local lfs = require("lfs")
 local string, table, ngx = string, table, ngx
 
+ngx.header["Cache-Control"] = "no-cache, no-store, must-revalidate, max-age=0"
+ngx.header["Pragma"] = "no-cache"
+ngx.header["Expires"] = "0"
+
 -- Cards meta: friendly names and categories for known cards
 local cards_meta = {
   -- Category 1: Network & Connectivity
@@ -80,9 +84,29 @@ end)
 uci:unload('web')
 table.sort(cards_list, function(a, b) return a.order < b.order end)
 
+if ngx.req.get_method() == "GET" then
+  local f = io.open("/tmp/cards_debug.log", "a")
+  if f then
+    f:write(string.format("=== [%s] GET MODAL ===\n", os.date()))
+    f:close()
+  end
+end
+
 -- Handle POST save: re-open cursor
 if ngx.req.get_method() == "POST" then
   local post_args = ngx.req.get_post_args()
+  local f = io.open("/tmp/cards_debug.log", "a")
+  if f then
+    f:write(string.format("=== [%s] POST SAVE ===\n", os.date()))
+    for k, v in pairs(post_args) do
+      if type(v) == "table" then
+        f:write(string.format("  POST: %s = table[%s]\n", tostring(k), table.concat(v, ",")))
+      else
+        f:write(string.format("  POST: %s = %s\n", tostring(k), tostring(v)))
+      end
+    end
+    f:close()
+  end
   local action = post_args.action
   if type(action) == "table" then action = action[1] end
   if action and string.untaint(action) == "SAVE" then
@@ -94,11 +118,21 @@ if ngx.req.get_method() == "POST" then
         val = string.untaint(val)
         -- val=="1" means switch ON (visible), hide=0; val=="0" means hide=1
         local hide_val = (val == "1") and "0" or "1"
-        uci2:set("web", string.untaint(c.sec), "hide", hide_val)
+        local ok_set, err_set = uci2:set("web", string.untaint(c.sec), "hide", hide_val)
+        local f2 = io.open("/tmp/cards_debug.log", "a")
+        if f2 then
+          f2:write(string.format("  UCI SET %s hide=%s (val=%s) ok=%s err=%s\n", c.sec, hide_val, tostring(val), tostring(ok_set), tostring(err_set)))
+          f2:close()
+        end
         c.hide = hide_val
       end
     end
-    uci2:commit("web")
+    local ok_commit, err_commit = uci2:commit("web")
+    local f3 = io.open("/tmp/cards_debug.log", "a")
+    if f3 then
+      f3:write(string.format("  UCI COMMIT ok=%s err=%s\n", tostring(ok_commit), tostring(err_commit)))
+      f3:close()
+    end
     uci2:unload("web")
     pcall(function() require("web.lp").flush() end)
     ngx.print(ui_helper.createHeader(T"Card Settings", false, false))
@@ -117,7 +151,7 @@ if ngx.req.get_method() == "POST" then
 end
 
 ngx.print(ui_helper.createHeader(T"Card Settings", false, false))
-ngx.print('\n<div class="modal-body update">\n  <form class="form-horizontal" method="post" action="modals/cards-modal.lp">\n')
+ngx.print('\n<div class="modal-body update">\n  <form class="form-horizontal" method="post" action="/modals/cards-modal.lp">\n')
 ngx.print(ui_helper.createMessages(message_helper.popMessages()))
 ngx.print(ui_helper.createAlertBlock(T"Choose which cards to display on the main dashboard. Disabling a card will hide it from the home page.", { alert = { class = "alert-info" } }))
 
@@ -158,9 +192,10 @@ ngx.print([[
         $sw.find("input[type=hidden]").val("1").trigger("change");
       }
     });
-    $("#modal-no-change").fadeOut(300);
-    $("#modal-changes").delay(350).fadeIn(300);
+    $("#modal-no-change").fadeOut(200);
+    $("#modal-changes").delay(250).fadeIn(200);
   });
+
   $("#btn-hide-all").on("click", function (e) {
     e.preventDefault();
     $(".modal-body .switch").each(function () {
@@ -170,8 +205,36 @@ ngx.print([[
         $sw.find("input[type=hidden]").val("0").trigger("change");
       }
     });
-    $("#modal-no-change").fadeOut(300);
-    $("#modal-changes").delay(350).fadeIn(300);
+    $("#modal-no-change").fadeOut(200);
+    $("#modal-changes").delay(250).fadeIn(200);
+  });
+
+  $(".modal-body").on("click", ".switch", function () {
+    $("#modal-no-change").fadeOut(200);
+    $("#modal-changes").delay(250).fadeIn(200);
+  });
+
+  $(document).off("click", "#save-config").on("click", "#save-config", function (e) {
+    e.preventDefault();
+    var $btn = $(this);
+    $btn.addClass("disabled").text("Salvataggio...");
+    var params = $(".modal form").serializeArray();
+    params.push({ name: "action", value: "SAVE" });
+    params.push({ name: "fromModal", value: "YES" });
+    params.push({ name: "CSRFtoken", value: $("meta[name=CSRFtoken]").attr("content") });
+    $.ajax({
+      url: "/modals/cards-modal.lp",
+      type: "POST",
+      data: params,
+      cache: false,
+      success: function () {
+        window.location.href = "/";
+      },
+      error: function () {
+        window.location.reload(true);
+      }
+    });
+    return false;
   });
 </script>
 ]])
