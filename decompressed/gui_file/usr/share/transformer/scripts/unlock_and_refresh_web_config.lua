@@ -210,3 +210,68 @@ if new_rule then
 	uci:set('web','ruleset_main','rules',ruleset)
 	uci:commit('web')
 end
+
+-- Ensure essential firewall sections exist for RPC mappings (mode slider and DMZ)
+local fw_cursor = require("uci"):cursor()
+local fwconfig_type = fw_cursor:get("firewall", "fwconfig")
+if not fwconfig_type then
+	fw_cursor:set("firewall", "fwconfig", "fwconfig")
+	fw_cursor:set("firewall", "fwconfig", "defaultoutgoing_lax", "ACCEPT")
+	fw_cursor:set("firewall", "fwconfig", "defaultoutgoing_normal", "ACCEPT")
+	fw_cursor:set("firewall", "fwconfig", "defaultoutgoing_high", "DROP")
+	fw_cursor:set("firewall", "fwconfig", "defaultoutgoing_user", "ACCEPT")
+	fw_cursor:set("firewall", "fwconfig", "defaultincoming_lax", "REJECT")
+	fw_cursor:set("firewall", "fwconfig", "defaultincoming_normal", "DROP")
+	fw_cursor:set("firewall", "fwconfig", "defaultincoming_high", "DROP")
+	fw_cursor:set("firewall", "fwconfig", "defaultincoming_user", "DROP")
+	fw_cursor:set("firewall", "fwconfig", "level", "normal")
+	fw_cursor:set("firewall", "fwconfig", "dmz", "0")
+
+	fw_cursor:set("firewall", "pinholerules", "rulesgroup")
+	fw_cursor:set("firewall", "pinholerules", "enabled", "1")
+	fw_cursor:set("firewall", "pinholerules", "name", "FW rules for opening pinholes")
+	fw_cursor:set("firewall", "pinholerules", "type", "pinholerule")
+
+	fw_cursor:set("firewall", "userredirects", "redirectsgroup")
+	fw_cursor:set("firewall", "userredirects", "enabled", "1")
+	fw_cursor:set("firewall", "userredirects", "name", "FW redirects defined by the user")
+	fw_cursor:set("firewall", "userredirects", "type", "userredirect")
+
+	fw_cursor:set("firewall", "dmzredirects", "redirectsgroup")
+	fw_cursor:set("firewall", "dmzredirects", "enabled", "0")
+	fw_cursor:set("firewall", "dmzredirects", "name", "FW redirects for the DMZ functionality")
+	fw_cursor:set("firewall", "dmzredirects", "type", "dmzredirect")
+
+	fw_cursor:set("firewall", "dmzredirect", "dmzredirect")
+	fw_cursor:set("firewall", "dmzredirect", "name", "DMZ rule")
+	fw_cursor:set("firewall", "dmzredirect", "src", "wan")
+	fw_cursor:set("firewall", "dmzredirect", "dest", "lan")
+	fw_cursor:set("firewall", "dmzredirect", "family", "ipv4")
+	fw_cursor:set("firewall", "dmzredirect", "target", "DNAT")
+	fw_cursor:set("firewall", "dmzredirect", "proto", "tcpudp")
+	fw_cursor:set("firewall", "dmzredirect", "dest_ip", "0.0.0.0")
+	fw_cursor:set("firewall", "dmzredirect", "enabled", "0")
+
+	fw_cursor:set("firewall", "normalrules", "rulesgroup")
+	fw_cursor:set("firewall", "normalrules", "enabled", "1")
+	fw_cursor:set("firewall", "normalrules", "name", "FW rules for normal level")
+	fw_cursor:set("firewall", "normalrules", "type", "normalrule")
+
+	fw_cursor:set("firewall", "laxrules", "rulesgroup")
+	fw_cursor:set("firewall", "laxrules", "enabled", "0")
+	fw_cursor:set("firewall", "laxrules", "name", "FW rules for lax level")
+	fw_cursor:set("firewall", "laxrules", "type", "laxrule")
+
+	fw_cursor:set("firewall", "highrules", "rulesgroup")
+	fw_cursor:set("firewall", "highrules", "enabled", "0")
+	fw_cursor:set("firewall", "highrules", "name", "FW rules for high level")
+	fw_cursor:set("firewall", "highrules", "type", "highrule")
+
+	fw_cursor:set("firewall", "userrules", "rulesgroup")
+	fw_cursor:set("firewall", "userrules", "enabled", "0")
+	fw_cursor:set("firewall", "userrules", "name", "FW rules for user level")
+	fw_cursor:set("firewall", "userrules", "type", "userrule")
+
+	fw_cursor:commit("firewall")
+end
+fw_cursor:close()

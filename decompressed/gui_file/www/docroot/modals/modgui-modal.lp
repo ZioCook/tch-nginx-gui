@@ -92,11 +92,12 @@ end
 
 local function sendcmd(cmd)
         proxy.set("rpc.system.modgui.utility.sendcmd", cmd)
+        ngx.header.content_type = "application/json"
         ngx.print('{"success":"true"}')
         ngx.timer.at(0, function()
                 proxy.apply()
         end)
-        ngx.exit(ngx.HTTP_OK)
+        ngx.exit(ngx.OK)
 end
 
 local function upgradeguifile()
@@ -116,11 +117,14 @@ local function upgradeguifile()
         local dl = untaint(fwupgrade_location) .. filename
         local rcv_ok, rcv_errno, rcv_errmsg = receive_file(dl, 'name="upgradefile"')
         if rcv_ok then
+                ngx.header.content_type = "application/json"
                 ngx.print('{"success":"true"}')
-                ngx.exit(ngx.HTTP_OK)
+                ngx.exit(ngx.OK)
         else
+                ngx.status = ngx.HTTP_INTERNAL_SERVER_ERROR
+                ngx.header.content_type = "application/json"
                 ngx.print('{"error":"'..rcv_errmsg..'"}')
-                ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
+                ngx.exit(ngx.OK)
         end
 end
 
@@ -189,11 +193,14 @@ local function installspecificapp()
         local rcv_ok, rcv_errno, rcv_errmsg = receive_file(dl, 'name="specificapp_file"')
 
         if rcv_ok then
+                ngx.header.content_type = "application/json"
                 ngx.print('{"success":"true"}')
-                ngx.exit(ngx.HTTP_OK)
+                ngx.exit(ngx.OK)
         else
+                ngx.status = ngx.HTTP_INTERNAL_SERVER_ERROR
+                ngx.header.content_type = "application/json"
                 ngx.print('{"error":"'..rcv_errmsg..'"}')
-                ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
+                ngx.exit(ngx.OK)
         end
 end
 
@@ -209,8 +216,10 @@ local function restoreFromSysupgradeBackup()
         if rcv_ok then
                 sendcmd("restoreSysupgradeBackup")
         else
+                ngx.status = ngx.HTTP_INTERNAL_SERVER_ERROR
+                ngx.header.content_type = "application/json"
                 ngx.print('{"error":"'..rcv_errmsg..'"}')
-                ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
+                ngx.exit(ngx.OK)
         end
 end
 
@@ -235,7 +244,7 @@ local function genSysupgradeBackup()
                         os.remove("/tmp/"..filename)
 
                         -- and we're done
-                        ngx.exit(ngx.HTTP_OK)
+                        ngx.exit(ngx.OK)
                 end
         end
 
@@ -279,7 +288,7 @@ if ngx.req.get_method() == "POST" then
                 ngx.timer.at(0, function()
                         proxy.apply()
                 end)
-                ngx.exit(ngx.HTTP_OK)
+                ngx.exit(ngx.OK)
         end
         if action == "system_remove_root" then
                 return sendcmd("removeroot")
@@ -298,7 +307,7 @@ if ngx.req.get_method() == "POST" then
         end
         if action == "getVendor" then
                 ngx.print(call_popen(untaint("! grep -q " .. post_args.mac:gsub('_.*','') .. " /tmp/mac_cache && (curl -fksm 2 https://api.maclookup.app/v2/macs/" .. post_args.mac:gsub('_.*','') .. "/company/name >> /tmp/mac_cache && echo '|" .. post_args.mac:gsub('_.*','') .. "' >> /tmp/mac_cache); grep " .. post_args.mac:gsub('_.*','') .. " /tmp/mac_cache | cut -d'|' -f1"), "r"))
-                ngx.exit(ngx.HTTP_OK)
+                ngx.exit(ngx.OK)
                 return
         end
         if proxy.get("uci.web.sessionmgr.@default.force_https")[1].value ~= post_args.gui_forcehttps then
@@ -334,7 +343,7 @@ if ngx.req.get_method() == "POST" then
                         os.remove(fname)
 
                         -- and we're done
-                        ngx.exit(ngx.HTTP_OK)
+                        ngx.exit(ngx.OK)
                 else
                         ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
                 end

@@ -219,6 +219,88 @@ function M.getLedsInfo()
       end
     end
   end
+  if next(ledsInfo) == nil then
+    local uci_lib = require("uci")
+    local cursor = uci_lib and uci_lib.cursor and uci_lib.cursor()
+
+    -- Power
+    ledsInfo["power"] = {
+      green = { trigger = "default-on", brightness = 255, max_brightness = 255 }
+    }
+
+    -- Broadband / DSL
+    local bbStatus = "Off"
+    local xdsl = io.open("/sys/class/xdsl/status", "r") or io.open("/proc/driver/enet/status", "r")
+    if xdsl then
+      local content = xdsl:read("*all")
+      xdsl:close()
+      if content:match("up") or content:match("Showtime") then
+        bbStatus = "On"
+      end
+    end
+    if bbStatus == "Off" and cursor then
+      local proto = cursor:get("network", "wan", "proto")
+      if proto and proto ~= "" then
+        bbStatus = "On"
+      end
+    end
+    ledsInfo["broadband"] = {
+      green = { trigger = bbStatus == "On" and "default-on" or "none", brightness = bbStatus == "On" and 255 or 0, max_brightness = 255 }
+    }
+
+    -- Internet
+    local inetStatus = "Off"
+    local routes = io.open("/proc/net/route", "r")
+    if routes then
+      for line in routes:lines() do
+        local iface, dest = line:match("^([^%s]+)%s+([0-9A-Fa-f]+)")
+        if dest == "00000000" then
+          inetStatus = "On"
+          break
+        end
+      end
+      routes:close()
+    end
+    ledsInfo["internet"] = {
+      green = { trigger = inetStatus == "On" and "default-on" or "none", brightness = inetStatus == "On" and 255 or 0, max_brightness = 255 }
+    }
+
+    -- Wireless 2.4GHz
+    local wl0_state = cursor and cursor:get("wireless", "radio_2G", "state")
+    local wl0Status = (wl0_state == "1" or wl0_state == "on") and "On" or "Off"
+    ledsInfo["wireless_2.4GHz"] = {
+      green = { trigger = wl0Status == "On" and "default-on" or "none", brightness = wl0Status == "On" and 255 or 0, max_brightness = 255 }
+    }
+
+    -- Wireless 5GHz
+    local wl1_state = cursor and cursor:get("wireless", "radio_5G", "state")
+    local wl1Status = (wl1_state == "1" or wl1_state == "on") and "On" or "Off"
+    ledsInfo["wireless_5GHz"] = {
+      green = { trigger = wl1Status == "On" and "default-on" or "none", brightness = wl1Status == "On" and 255 or 0, max_brightness = 255 }
+    }
+
+    -- Ethernet
+    local ethStatus = "Off"
+    for i = 0, 3 do
+      local eth = io.open("/sys/class/net/eth" .. i .. "/operstate", "r")
+      if eth then
+        local state = eth:read("*all"):gsub("%s+", "")
+        eth:close()
+        if state == "up" then
+          ethStatus = "On"
+          break
+        end
+      end
+    end
+    ledsInfo["ethernet"] = {
+      green = { trigger = ethStatus == "On" and "default-on" or "none", brightness = ethStatus == "On" and 255 or 0, max_brightness = 255 }
+    }
+
+    -- WPS
+    ledsInfo["wps"] = {
+      green = { trigger = "none", brightness = 0, max_brightness = 255 }
+    }
+  end
   for k1, v1 in pairs(ledsInfo) do
     local redInfo, greenInfo, blueInfo
     for k2, v2 in pairs(v1) do
