@@ -2,6 +2,17 @@
 ---------------------------------------------------------------------------
 # Mainline 18.3 Cobalt
 
+9.7.8
+---------------------------------------------------------------------------
+- Modalità Bridge / Dumb AP Switch: card Banda Larga riprogettata con parametri di rete locale AP (IP, Subnet, Gateway, DNS, Lease DHCP) senza sezioni GPON/SFP superflue
+- Rilevazione sicura interfaccia SFP per prevenire errori quando non configurata
+- Correzione rilevazione ed estrazione dei server DNS attivi
+- Orchestrazione intelligente dei servizi (apply_service_modes.sh): arresto automatico dei demoni non necessari (pppd, firewall/NAT, CWMP, QoS, IGMP proxy, cupsd) al cambio modalità, con risparmio di oltre 50-70 MB di RAM
+- Gestione QoS: interruttore master ON/OFF nella card e nella modale con fallback a disciplina nativa Linux fq_codel a zero carico CPU
+- Gestione Wi-Fi Guest: controllo attivazione/disattivazione e visibilità dinamica delle reti guest (scompaiono dalla card del cruscotto e dalla modale quando disattivate)
+- Risoluzione problema OpenResty Lua con stringhe tainted ("tainted string") nei campi di configurazione e nelle tabelle di lookup
+- Pipeline CI/CD GitHub Actions per build automatica e rilascio pacchetti (tar.bz2 e zip)
+
 9.6.65
 ---------------------------------------------------------------------------
 - Fix vari che causavano la perdita delle configurazioni dopo un riavvio

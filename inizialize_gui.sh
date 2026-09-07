@@ -109,5 +109,9 @@ if [ -f total/etc/init.d/rootdevice ]; then
 	sed -i "s#version_gui=.*#version_gui=$build_ver-$short_commit#" total/etc/init.d/rootdevice
 fi
 
-cd total && BZIP2=-9 tar -cjf ../compressed/GUI$type.tar.bz2 * --owner=0 --group=0
+cd total
+BZIP2=-9 tar -cjf ../compressed/GUI$type.tar.bz2 * --owner=0 --group=0
+if command -v zip >/dev/null 2>&1; then
+	zip -q -r -9 ../compressed/GUI$type.zip *
+fi
 cd ../

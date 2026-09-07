@@ -4,3 +4,5 @@ total/*
 .DS_Store
 *.DS_Store
 .idea
+compressed/*.zip
+tar_tmp/

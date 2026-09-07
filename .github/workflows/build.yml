@@ -39,7 +39,7 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y bzip2 dos2unix
+          sudo apt-get install -y bzip2 dos2unix zip python3
 
       - name: Fix file line endings
         run: |
@@ -67,24 +67,83 @@ jobs:
           echo "IS_TAG=${IS_TAG}" >> $GITHUB_ENV
           echo "Building GUI version: ${FULL_VER}"
 
-      - name: Build DEV GUI package
+      - name: Build DEV GUI package (.tar.bz2 & .zip)
         run: |
           chmod +x inizialize_gui.sh
           VERSION="${FULL_VER}" ./inizialize_gui.sh dev
 
-      - name: Build STABLE GUI package
+      - name: Build STABLE GUI package (.tar.bz2 & .zip)
         run: |
           VERSION="${FULL_VER}" ./inizialize_gui.sh
 
       - name: Generate Checksums
         run: |
           cd compressed
-          md5sum GUI.tar.bz2 GUI_dev.tar.bz2 > MD5SUMS
-          sha256sum GUI.tar.bz2 GUI_dev.tar.bz2 > SHA256SUMS
+          md5sum GUI*.tar.bz2 GUI*.zip > MD5SUMS
+          sha256sum GUI*.tar.bz2 GUI*.zip > SHA256SUMS
           echo "=== MD5SUMS ==="
           cat MD5SUMS
           echo "=== SHA256SUMS ==="
           cat SHA256SUMS
+
+      - name: Generate Release Notes & Changelog
+        run: |
+          python3 - << 'EOF'
+          import os, re
+
+          version = os.environ.get("VERSION", "9.7.8")
+          full_ver = os.environ.get("FULL_VER", version)
+          commit = os.environ.get("SHORT_HASH", "")
+          repo = os.environ.get("GITHUB_REPOSITORY", "ZioCook/tch-nginx-gui")
+
+          changelog_notes = []
+          try:
+              with open("CHANGELOG.md", "r", encoding="utf-8") as f:
+                  lines = f.readlines()
+              
+              in_ver = False
+              for line in lines:
+                  s = line.strip()
+                  if s == version or s.startswith(version):
+                      in_ver = True
+                      continue
+                  if in_ver:
+                      # Stop when encountering next version header (e.g. 9.6.65) or mainline header
+                      if (re.match(r'^[0-9]+\.[0-9]+', s) and not s.startswith(version)) or s.startswith("# Mainline"):
+                          if len(changelog_notes) > 1:
+                              break
+                      if not s.startswith("---") and s:
+                          changelog_notes.append(s)
+          except Exception as e:
+              changelog_notes = [f"- Modifiche e fix da commit {commit}"]
+
+          changelog_text = "\n".join(changelog_notes) if changelog_notes else f"- Aggiornamenti da commit {commit}"
+
+          body = f"""## 🚀 Technicolor Nginx GUI - Release {full_ver}
+
+### 📝 Changelog per {version}
+{changelog_text}
+
+---
+
+### 📦 Installazione Rapida (via SSH sul modem)
+```bash
+curl -k -L https://raw.githubusercontent.com/{repo}/master/compressed/GUI_dev.tar.bz2 --output /tmp/GUI.tar.bz2
+bzcat /tmp/GUI.tar.bz2 | tar -C / -xvf -
+/etc/init.d/rootdevice force
+```
+
+### 📁 File Disponibili
+- **`GUI_dev.zip`** & **`GUI_dev.tar.bz2`**: Pacchetto di sviluppo con tutte le ultime funzionalità.
+- **`GUI.zip`** & **`GUI.tar.bz2`**: Pacchetto stabile.
+- **`MD5SUMS`** & **`SHA256SUMS`**: Checksum di integrità dei file.
+"""
+
+          with open("release_notes.md", "w", encoding="utf-8") as out:
+              out.write(body)
+          EOF
+
+          cat release_notes.md
 
       - name: Upload Build Artifacts
         uses: actions/upload-artifact@v4
@@ -92,7 +151,9 @@ jobs:
           name: gui-packages-${{ env.SHORT_HASH }}
           path: |
             compressed/GUI.tar.bz2
+            compressed/GUI.zip
             compressed/GUI_dev.tar.bz2
+            compressed/GUI_dev.zip
             compressed/MD5SUMS
             compressed/SHA256SUMS
             modular/*.tar.bz2
@@ -104,20 +165,12 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
-          body: |
-            ## Technicolor Nginx GUI - Release ${{ github.ref_name }}
-            
-            Built from commit `${{ env.SHORT_HASH }}`.
-            
-            ### Installation
-            ```bash
-            curl -k -L https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/GUI.tar.bz2 --output /tmp/GUI.tar.bz2
-            bzcat /tmp/GUI.tar.bz2 | tar -C / -xvf -
-            /etc/init.d/rootdevice force
-            ```
+          body_path: release_notes.md
           files: |
             compressed/GUI.tar.bz2
+            compressed/GUI.zip
             compressed/GUI_dev.tar.bz2
+            compressed/GUI_dev.zip
             compressed/MD5SUMS
             compressed/SHA256SUMS
           draft: false
@@ -131,21 +184,12 @@ jobs:
         with:
           tag_name: dev-latest
           name: Development Build (${{ env.FULL_VER }})
-          body: |
-            ## Automated Development Build
-            
-            - **Version:** `${{ env.FULL_VER }}`
-            - **Commit:** [${{ env.SHORT_HASH }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
-            
-            ### Installation (DEV)
-            ```bash
-            curl -k -L https://github.com/${{ github.repository }}/releases/download/dev-latest/GUI_dev.tar.bz2 --output /tmp/GUI.tar.bz2
-            bzcat /tmp/GUI.tar.bz2 | tar -C / -xvf -
-            /etc/init.d/rootdevice force
-            ```
+          body_path: release_notes.md
           files: |
             compressed/GUI.tar.bz2
+            compressed/GUI.zip
             compressed/GUI_dev.tar.bz2
+            compressed/GUI_dev.zip
             compressed/MD5SUMS
             compressed/SHA256SUMS
           prerelease: true
