@@ -178,7 +178,7 @@ end)
 local guest_ifaces = { "wl0_1", "wl1_1" }
 local guest_ap_map = { wl0_1 = "ap2", wl1_1 = "ap3" }
 local guest_enabled_raw = proxy.get("uci.wireless.wifi-iface.@wl0_1.state")
-local guest_network_enabled = guest_enabled_raw and guest_enabled_raw[1].value == "1" and "1" or "0"
+local guest_network_enabled = guest_enabled_raw and untaint(guest_enabled_raw[1].value) == "1" and "1" or "0"
 
 
 -- Handle guest network toggle
@@ -987,8 +987,8 @@ if #wls > 0 then
    local html = {}
     local prevradio = ""
     for i,v in ipairs(wls) do
-        -- Skip guest SSIDs (ap_isolation=1) from sidebar when guest network is disabled
-        if v.ap_isolation == "1" and guest_network_enabled == "0" then
+        -- Skip guest SSIDs from sidebar when guest network is disabled
+        if (v.ap_isolation == "1" or v.iface == "wl0_1" or v.iface == "wl1_1") and guest_network_enabled == "0" then
             -- do not show in sidebar
         else
         if v.radio ~= prevradio then
