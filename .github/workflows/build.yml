@@ -109,7 +109,7 @@ jobs:
         uses: softprops/action-gh-release@v2.3.2
         with:
           tag_name: ${{ github.ref_name }}
-          name: Release ${{ github.ref_name }}
+          name: Technicolor Nginx GUI ${{ github.ref_name }}
           body_path: release_notes.md
           files: |
             compressed/GUI.tar.bz2
@@ -128,7 +128,7 @@ jobs:
         uses: softprops/action-gh-release@v2.3.2
         with:
           tag_name: dev-latest
-          name: Development Build (${{ env.FULL_VER }})
+          name: "Technicolor Nginx GUI ${{ env.FULL_VER }} (Dev)"
           body_path: release_notes.md
           files: |
             compressed/GUI.tar.bz2
