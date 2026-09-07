@@ -157,20 +157,41 @@ local init_data, sipnet_helpmsg = post_helper.handleTableQuery(init_columns, ini
   </fiedlset>\
   </div>\
   <script>\
-	$(".btn-disable").on("click", function(){\
-		modgui.postAction("disable_"+$(this).data("name"));\
+	function handleInitAction(btn, action) {\
+		var $btn = $(btn);\
+		var originalHtml = $btn.html();\
+		$btn.prop("disabled", true).html('<i class=\"fas fa-spinner fa-spin\"></i>');\
+		$.post("/modals/system-init-modal.lp", {\
+			action: action,\
+			CSRFtoken: $("meta[name=CSRFtoken]").attr("content")\
+		}, function(res) {\
+			setTimeout(function() {\
+				tch.loadModal("/modals/system-init-modal.lp");\
+			}, 1200);\
+		}, "json").fail(function() {\
+			$btn.prop("disabled", false).html(originalHtml);\
+		});\
+	}\
+\
+	$(document).off("click", ".btn-disable").on("click", ".btn-disable", function(e){\
+		e.preventDefault();\
+		handleInitAction(this, "disable_" + $(this).data("name"));\
 	});\
-	$(".btn-enable").on("click", function(){\
-		modgui.postAction("enable_"+$(this).data("name"));\
+	$(document).off("click", ".btn-enable").on("click", ".btn-enable", function(e){\
+		e.preventDefault();\
+		handleInitAction(this, "enable_" + $(this).data("name"));\
 	});\
-	$(".btn-start").on("click", function(){\
-		modgui.postAction("start_"+$(this).data("name"));\
+	$(document).off("click", ".btn-start").on("click", ".btn-start", function(e){\
+		e.preventDefault();\
+		handleInitAction(this, "start_" + $(this).data("name"));\
 	});\
-	$(".btn-stop").on("click", function(){\
-		modgui.postAction("stop_"+$(this).data("name"));\
+	$(document).off("click", ".btn-stop").on("click", ".btn-stop", function(e){\
+		e.preventDefault();\
+		handleInitAction(this, "stop_" + $(this).data("name"));\
 	});\
-	$(".btn-restart").on("click", function(){\
-		modgui.postAction("restart_"+$(this).data("name"));\
+	$(document).off("click", ".btn-restart").on("click", ".btn-restart", function(e){\
+		e.preventDefault();\
+		handleInitAction(this, "restart_" + $(this).data("name"));\
 	});\
   </script>\
 ');  ngx.print(ui_helper.createFooter() ); ngx.print('\

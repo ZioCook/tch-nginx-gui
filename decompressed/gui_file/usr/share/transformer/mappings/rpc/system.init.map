@@ -21,8 +21,24 @@ for file in lfs.dir("/etc/init.d/") do
 end
 
 local function getState(file)
-    local name = "/etc/rc.d/S"..initTable[file].start..file
-    return lfs.attributes(name,"mode") == "file" and "1" or "0"
+    if not initTable[file] then
+        return "0"
+    end
+    local start = initTable[file].start
+    if start and start ~= "" then
+        local start_num = tonumber(start)
+        local name1 = "/etc/rc.d/S" .. start .. file
+        local name2 = start_num and string.format("/etc/rc.d/S%02d%s", start_num, file) or name1
+        if (lfs.attributes(name1, "mode") == "file") or (lfs.attributes(name2, "mode") == "file") then
+            return "1"
+        end
+    end
+    for rc in lfs.dir("/etc/rc.d/") do
+        if rc:match("^S%d+" .. file .. "$") then
+            return "1"
+        end
+    end
+    return "0"
 end
 
 local function initHelperFunction(name,type)
@@ -31,6 +47,7 @@ local function initHelperFunction(name,type)
     end
     local command = string.format("/etc/init.d/%s %s",name,type)
     async_exec({[command]=true})
+    return true
 end
 
 local SYSTEM_INIT_ = {
@@ -41,6 +58,14 @@ local SYSTEM_INIT_ = {
         maxEntries = 1,
         parameters = {
             toggle = {
+                access = "readWrite",
+                type = "string"
+            },
+            enable = {
+                access = "readWrite",
+                type = "string"
+            },
+            disable = {
                 access = "readWrite",
                 type = "string"
             },
@@ -62,6 +87,8 @@ local SYSTEM_INIT_ = {
 
 SYSTEM_INIT_.get = {
     toggle = "0",
+    enable = "0",
+    disable = "0",
     start = "0",
     stop = "0",
     restart = "0"
@@ -69,11 +96,17 @@ SYSTEM_INIT_.get = {
 
 SYSTEM_INIT_.set = {
     toggle = function(mapping, param, value)
-        if getState(param) == "1" then
+        if getState(value) == "1" then
             return initHelperFunction(value,"disable")
         else
             return initHelperFunction(value,"enable")
         end
+    end,
+    enable = function(mapping, param, value)
+        return initHelperFunction(value,"enable")
+    end,
+    disable = function(mapping, param, value)
+        return initHelperFunction(value,"disable")
     end,
     start = function(mapping, param, value)
         return initHelperFunction(value,"start")
