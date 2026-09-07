@@ -7,6 +7,8 @@ local ui_helper = require("web.ui_helper")
 local content_helper = require("web.content_helper")
 local proxy = require("datamodel")
 local format = string.format
+require("web.taint")
+local untaint = string.untaint or function(x) return x end
 
 local lan_info = {
     ipaddr = "uci.network.interface.@lan.ipaddr",
@@ -71,10 +73,10 @@ html[#html + 1] = '</fieldset>'
 
 html[#html + 1] = '<fieldset>'
 html[#html + 1] = '<legend>' .. T"Parametri Rete Locale (AP)" .. '</legend>'
-html[#html + 1] = ui_helper.createLabel(T"Indirizzo IP Router/AP:", tostring(lan_info.ipaddr))
-html[#html + 1] = ui_helper.createLabel(T"Subnet Mask:", tostring(lan_info.netmask))
-html[#html + 1] = ui_helper.createLabel(T"Gateway Predefinito:", tostring(lan_info.gateway ~= "" and lan_info.gateway or "-"))
-html[#html + 1] = ui_helper.createLabel(T"Server DNS:", tostring(dns_val ~= "" and dns_val or "-"))
+html[#html + 1] = ui_helper.createLabel(T"Indirizzo IP Router/AP:", untaint(lan_info.ipaddr))
+html[#html + 1] = ui_helper.createLabel(T"Subnet Mask:", untaint(lan_info.netmask))
+html[#html + 1] = ui_helper.createLabel(T"Gateway Predefinito:", (lan_info.gateway ~= "" and lan_info.gateway ~= nil) and untaint(lan_info.gateway) or "-")
+html[#html + 1] = ui_helper.createLabel(T"Server DNS:", (dns_val ~= "" and dns_val ~= nil) and untaint(dns_val) or "-")
 html[#html + 1] = ui_helper.createLabel(T"IGMP Snooping (IPTV):", "Attivo sul bridge locale")
 html[#html + 1] = ui_helper.createLabel(T"Server DHCP Locale:", "Disattivato (gestito dal router principale)")
 html[#html + 1] = '</fieldset>'
