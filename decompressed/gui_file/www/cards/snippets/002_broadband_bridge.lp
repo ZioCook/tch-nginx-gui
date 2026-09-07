@@ -42,15 +42,15 @@ end
 local br_operstate = proxy.get("sys.class.net.@br-lan.operstate")
 local is_up = (br_operstate and br_operstate[1].value == "up") and any_carrier
 
-local intf_state = is_up and "connected" or "disconnected"
 local intf_state_map = {
-    connected = T"Bridge / AP Connesso",
-    disconnected = T"Bridge Non Connesso",
+    connected = T"Bridge / AP Attivo",
+    disconnected = T"Bridge Disconnesso",
 }
 local intf_light_map = {
     connected = "1",
     disconnected = "4",
 }
+local intf_state = is_up and "connected" or "disconnected"
 
 ngx.print(ui_helper.createCardHeader(T"Broadband", modalPath))
 ngx.print('\
@@ -67,7 +67,7 @@ else
     ngx.print('<p class="subinfos">&emsp;<i class="fas fa-exclamation-triangle" style="color:#f0ad4e;"></i> ' .. T"Nessun cavo Ethernet collegato" .. '</p>')
 end
 
-ngx.print('<p class="subinfos text-muted" style="margin-top: 6px;"><i class="fas fa-info-circle"></i> ' .. T"Modem xDSL disattivato (Modalità Bridge)" .. '</p>')
+ngx.print('<p class="subinfos text-muted" style="margin-top: 6px;"><i class="fas fa-check-circle" style="color:#5cb85c;"></i> ' .. T"Modem xDSL / GPON: Disattivato" .. '</p>')
 
 ngx.print('\
   </div>\
