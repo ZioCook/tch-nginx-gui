@@ -70,7 +70,10 @@ local dbvalues = proxy.get(dbpath)
 local data = content_helper.convertResultToObject(dbpath, dbvalues)
 
 for _,v in pairs(data) do
-  if v.Interface == "lan" then
+  if v.paramindex == "@afg" then
+    ssh_lan = v.enable
+    ssh_lan_index = "@afg"
+  elseif v.Interface == "lan" and ssh_lan_index ~= "@afg" then
     ssh_lan = v.enable
     ssh_lan_index = v.paramindex
   elseif v.Interface == "wan" then
@@ -100,6 +103,9 @@ if ngx.var.request_method == "POST" then
     if ssh_lan_new ~= ssh_lan then
        ssh_lan = ssh_lan_new
        proxy.set(dbpath..ssh_lan_index.. ".enable", ssh_lan)
+       if ssh_lan_index == "@afg" and proxy.get("uci.dropbear.dropbear.@lan.enable") then
+          proxy.set("uci.dropbear.dropbear.@lan.enable", "0")
+       end
        -- Log  that someone has changed SSH access
        ngx.log(ngx.ALERT, "Local Setting of SSH on lan to "..ssh_lan)
     end
@@ -119,8 +125,10 @@ if ngx.var.request_method == "POST" then
 
     syslog_present = vars["syslog_present"]
     syslog_filter_sw = vars["syslog_filter_sw"]
-    proxy.set("uci.system.system.@system[0].log_ip","")
-    proxy.set("uci.system.system.@system[0].log_filter_ip","")
+    if syslog_present == "0" then
+       proxy.set("uci.system.system.@system[0].log_ip","")
+       proxy.set("uci.system.system.@system[0].log_filter_ip","")
+    end
     proxy.apply()
   end
 end
@@ -330,9 +338,10 @@ ngx.print('\
   <legend>');  ngx.print( T"SSH Access" ); ngx.print('</legend>\
     ');
       local html = {}
+      html[#html + 1] = ui_helper.createAlertBlock(T"L'accesso SSH via LAN consente l'accesso root sulla rete locale (porta 22 predefinita). L'accesso WAN apre la porta specificata sul firewall per la gestione remota.", info_box)
       html[#html + 1] = ui_helper.createSwitch(T"LAN", "ssh_lan", ssh_lan)
       html[#html + 1] = ui_helper.createSwitch(T"WAN", "ssh_wan", ssh_wan)
-html[#html + 1] = ui_helper.createInputText(T "WAN SSH Port", "ssh_wan_port", fwversion_override_content["ssh_wan_port"], nil, fwversion_override_helpmsg["ssh_wan_port"])
+      html[#html + 1] = ui_helper.createInputText(T"WAN SSH Port", "ssh_wan_port", fwversion_override_content["ssh_wan_port"], nil, fwversion_override_helpmsg["ssh_wan_port"])
       ngx.print(html)
       ngx.print('\
 </fieldset>\

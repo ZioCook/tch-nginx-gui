@@ -37,17 +37,14 @@ local syslog_light_map = {
 }
 
 local ssh_enable = "disabled"
-local SSH_legacy = proxy.get("uci.dropbear.dropbear.@dropbear[0].enable")
-local SSH_lan = proxy.get("uci.dropbear.dropbear.@lan.enable")
-local SSH_wan = proxy.get("uci.dropbear.dropbear.@wan.enable")
-if SSH_legacy and (SSH_legacy[1].value == "1") then
-    ssh_enable = "enabled"
-end
-if SSH_lan and (SSH_lan[1].value == "1") then
-    ssh_enable = "enabled"
-end
-if SSH_wan and (SSH_wan[1].value == "1") then
-    ssh_enable = "enabled"
+local dbvalues = proxy.get("uci.dropbear.dropbear.")
+if dbvalues then
+  for _, v in ipairs(dbvalues) do
+    if v.param == "enable" and v.value == "1" then
+      ssh_enable = "enabled"
+      break
+    end
+  end
 end
 
 local SSH_state_map = {
