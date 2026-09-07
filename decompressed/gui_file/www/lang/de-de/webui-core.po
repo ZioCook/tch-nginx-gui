@@ -2930,7 +2930,7 @@ msgid "<p>%s GUI Version "
 msgstr "<p>%s GUI Version "
 
 msgid "<p>Coded & Expanded by <font style=\"color:#0088cc;\">Ansuel</font> and <a href=\"https://github.com/Ansuel/tch-nginx-gui/graphs/contributors\">these GitHub users.</a><br/>Unlock Utility by <font style=\"color:#0088cc;\">ADeltaX</font>"
-msgstr "<p>Geschrieben und erweitert von <font style=\"color:#0088cc;\">Ansuel</font> und <a href=\"https://github.com/Ansuel/tch-nginx-gui/graphs/contributors\">diesen GitHub Nutzern.</a><br/>Entsperrwerkzeug von <font style=\"color:#0088cc;\">ADeltaX</font>"
+msgstr "<p>Geschrieben und erweitert von <font style=\"color:#0088cc;\">Ansuel</font> und <a href=\"https://github.com/ZioCook/tch-nginx-gui/graphs/contributors\">diesen GitHub Nutzern.</a><br/>Entsperrwerkzeug von <font style=\"color:#0088cc;\">ADeltaX</font>"
 
 msgid " && Translated by <font style=\"color:#0088cc;\">%s</font>"
 msgstr " && Übersetzt von <font style=\"color:#0088cc;\">%s</font>"

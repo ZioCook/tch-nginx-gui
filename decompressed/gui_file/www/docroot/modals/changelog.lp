@@ -22,9 +22,9 @@ ngx.print('\
 	  local html = {}
 
 	  html[#html + 1] = '<fieldset style="white-space: pre-wrap" >'
-	  html[#html + 1] = 'This is directly downloaded from https://raw.githubusercontent.com/Ansuel/tch-nginx-gui/master/CHANGELOG.md'
+	  html[#html + 1] = 'This is directly downloaded from https://raw.githubusercontent.com/ZioCook/tch-nginx-gui/master/CHANGELOG.md'
 	  html[#html + 1] = '<div id="changelog_div">'
-      html[#html + 1] = call_popen("curl -m 2 https://raw.githubusercontent.com/Ansuel/tch-nginx-gui/master/CHANGELOG.md")
+      html[#html + 1] = call_popen("curl -m 2 https://raw.githubusercontent.com/ZioCook/tch-nginx-gui/master/CHANGELOG.md")
 	  html[#html + 1] = '</div>'
 	  html[#html + 1] = '</fieldset>'
 

@@ -48,7 +48,7 @@ if [ "$CI" == "true" ]; then
 		git add $build_type_name.version GUI$type.tar.bz2
 	fi
 
-	commit_link=https://github.com/Ansuel/tch-nginx-gui/commit/$CIRCLE_SHA1
+	commit_link=https://github.com/ZioCook/tch-nginx-gui/commit/$CIRCLE_SHA1
 
 	git commit -m "[$build_type_name] Version: $version Commit: $commit_link";
 	git push origin master;

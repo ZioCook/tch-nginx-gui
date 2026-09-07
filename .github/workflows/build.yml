@@ -70,11 +70,11 @@ jobs:
       - name: Build DEV GUI package (.tar.bz2 & .zip)
         run: |
           chmod +x inizialize_gui.sh
-          VERSION="${FULL_VER}" ./inizialize_gui.sh dev
+          VERSION="${VER}" ./inizialize_gui.sh dev
 
       - name: Build STABLE GUI package (.tar.bz2 & .zip)
         run: |
-          VERSION="${FULL_VER}" ./inizialize_gui.sh
+          VERSION="${VER}" ./inizialize_gui.sh
 
       - name: Generate Checksums
         run: |

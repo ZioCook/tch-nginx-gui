@@ -104,9 +104,15 @@ done
 # Inject build version into rootdevice
 short_commit=$(git rev-parse --short HEAD 2>/dev/null || echo "dev")
 build_ver="${VERSION:-9.7.9}"
-echo "Stamping GUI version $build_ver-$short_commit..."
+# If VERSION already contains a hyphen/commit hash, do not append short_commit again
+if [[ "$build_ver" =~ -[0-9a-fA-F]{7,8}$ ]] || [[ "$build_ver" =~ -dev$ ]]; then
+	stamp_ver="$build_ver"
+else
+	stamp_ver="$build_ver-$short_commit"
+fi
+echo "Stamping GUI version $stamp_ver..."
 if [ -f total/etc/init.d/rootdevice ]; then
-	sed -i "s#version_gui=.*#version_gui=$build_ver-$short_commit#" total/etc/init.d/rootdevice
+	sed -i "s#version_gui=.*#version_gui=$stamp_ver#" total/etc/init.d/rootdevice
 fi
 
 cd total

@@ -155,7 +155,7 @@ ngx.print('\
         html[#html + 1] = [[ <li><a tabindex="-1" href="https://www.ilpuntotecnico.com/forum/index.php/topic,81461.0.html" target="_blank"> ]]
         html[#html + 1] = T"Support Forum"
         html[#html + 1] = [[ </a></li><li class="divider"></li> ]]
-        html[#html + 1] = [[ <li><a tabindex="-1" href="https://github.com/Ansuel/tch-nginx-gui" target="_blank"> ]]
+        html[#html + 1] = [[ <li><a tabindex="-1" href="https://github.com/ZioCook/tch-nginx-gui" target="_blank"> ]]
         html[#html + 1] = T"GitHub GUI"
         html[#html + 1] = [[ </a></li><li class="divider"></li> ]]
       if not ( session:getusername() == "guest" ) then
@@ -206,7 +206,7 @@ ngx.print('\
     if cui.outdated_ver == "0" then
       alert_style_upper.alert.class = "alert hide"
     end
-    html[#html + 1] = ui_helper.createAlertBlock(format(T'Update available! Version: <strong id="new-version-text"><a target=\"_blank\" href=https://github.com/Ansuel/tch-nginx-gui/releases/tag/%s>%s</a></strong>',cui.new_ver,cui.new_ver),alert_style_upper)
+    html[#html + 1] = ui_helper.createAlertBlock(format(T'Update available! Version: <strong id="new-version-text"><a target=\"_blank\" href=https://github.com/ZioCook/tch-nginx-gui/releases>%s</a></strong>',cui.new_ver),alert_style_upper)
 
     local autoupgrade_view = cui.autoupgrade_view
     if not ( autoupgrade_view == "none" ) and not ( autoupgrade_view == "" ) then

@@ -400,10 +400,14 @@ local function xdslctlVersion(type)
 	version_info:close()
 
 	if type == "DslFirmwareVersion" then
-		return firm_ver
+		return firm_ver or "N/A"
 	end
 
-	return firm_ver..'.'..kmod_ver
+	if firm_ver and kmod_ver then
+		return firm_ver .. '.' .. kmod_ver
+	end
+
+	return firm_ver or "N/A"
 end
 
 local function get(mapping, paramName, key)
