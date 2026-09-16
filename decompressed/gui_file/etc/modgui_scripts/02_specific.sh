@@ -380,9 +380,10 @@ fi
 # starving Nginx/Transformer. Moving it to Core 1 (bitmask 0x2)
 # leaves Core 0 free for latency-sensitive GUI and routing tasks.
 if [ "$hw_ver" = "hw19" ]; then
-  # Find the IRQ number for the WiFi interface (wl0) dynamically
-  # so this works regardless of kernel version or slot assignment
-  wifi_irq=$(grep -l "wl0" /proc/irq/*/actions 2>/dev/null | head -1 | grep -o '[0-9]*')
+  # Find the IRQ number for the WiFi interface (wl0) from /proc/interrupts
+  # The actions file only contains the driver name (e.g. 80060000.pcie),
+  # so we must parse /proc/interrupts which lists both driver and interface
+  wifi_irq=$(awk '/wl0/{print $1}' /proc/interrupts 2>/dev/null | tr -d ':' | head -1)
   if [ -n "$wifi_irq" ] && [ -f "/proc/irq/$wifi_irq/smp_affinity" ]; then
     logecho "Pinning WiFi IRQ $wifi_irq (wl0) to Core 1..."
     echo 2 > "/proc/irq/$wifi_irq/smp_affinity"
