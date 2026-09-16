@@ -694,3 +694,37 @@ for svc in telnetd socat; do
     }
   fi
 done
+
+# Kernel/TCP Stack Tuning
+# Rationale: defaults are optimized for 10Mbps-era hardware.
+# These values improve throughput on VDSL/GPON and reduce latency.
+logecho "Applying TCP stack and VM tuning..."
+
+# Increase TCP socket buffers: from 200KB to 2MB
+# Needed for VDSL2/GPON > 50Mbps to saturate the link
+sysctl -w net.core.rmem_max=2097152 >/dev/null 2>&1
+sysctl -w net.core.wmem_max=2097152 >/dev/null 2>&1
+sysctl -w net.ipv4.tcp_rmem="4096 87380 2097152" >/dev/null 2>&1
+sysctl -w net.ipv4.tcp_wmem="4096 65536 2097152" >/dev/null 2>&1
+
+# Enable TCP Fast Open (both client and server sides)
+# Eliminates one RTT for connections to known servers
+sysctl -w net.ipv4.tcp_fastopen=3 >/dev/null 2>&1
+
+# VM: keep processes in RAM, avoid aggressive swap
+# Default 60 is too aggressive for a router with limited RAM
+# 10 = swap only when nearly full, keeping transformer/nginx in RAM
+sysctl -w vm.swappiness=10 >/dev/null 2>&1
+sysctl -w vm.min_free_kbytes=8192 >/dev/null 2>&1
+
+# Reduce TIME_WAIT connections to free up ports faster
+sysctl -w net.ipv4.tcp_fin_timeout=15 >/dev/null 2>&1
+sysctl -w net.ipv4.tcp_tw_reuse=1 >/dev/null 2>&1
+
+# Increase conntrack table size proportionally to available RAM
+total_ram=$(awk '/MemTotal/{print $2}' /proc/meminfo)
+if [ "$total_ram" -gt 400000 ]; then
+  sysctl -w net.netfilter.nf_conntrack_max=16384 >/dev/null 2>&1
+fi
+
+logecho "TCP/VM tuning applied."
