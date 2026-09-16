@@ -374,3 +374,19 @@ if [ -f "/tmp/upgrade-pack-${hw_ver}.tar.bz2" ]; then
   logecho "Installing optimizations for $hw_ver..."
   extract_with_check "/tmp/upgrade-pack-${hw_ver}.tar.bz2"
 fi
+
+# IRQ Affinity tuning (HW19 / Kernel 4.1 dual-core only)
+# On DGA4132, all WiFi traffic (wl0) is pinned to Core 0 by default,
+# starving Nginx/Transformer. Moving it to Core 1 (bitmask 0x2)
+# leaves Core 0 free for latency-sensitive GUI and routing tasks.
+if [ "$hw_ver" = "hw19" ]; then
+  # Find the IRQ number for the WiFi interface (wl0) dynamically
+  # so this works regardless of kernel version or slot assignment
+  wifi_irq=$(grep -l "wl0" /proc/irq/*/actions 2>/dev/null | head -1 | grep -o '[0-9]*')
+  if [ -n "$wifi_irq" ] && [ -f "/proc/irq/$wifi_irq/smp_affinity" ]; then
+    logecho "Pinning WiFi IRQ $wifi_irq (wl0) to Core 1..."
+    echo 2 > "/proc/irq/$wifi_irq/smp_affinity"
+  else
+    logecho "WiFi IRQ not found, skipping affinity tuning."
+  fi
+fi
