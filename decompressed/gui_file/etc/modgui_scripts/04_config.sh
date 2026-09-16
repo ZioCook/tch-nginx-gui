@@ -682,18 +682,26 @@ decrypt_config_pass
 clean_ping_and_traceroute
 clean_watchdog
 
-# Disable insecure/unused services to free RAM and reduce attack surface
-# telnetd: plaintext protocol, fully replaced by SSH (dropbear)
-# socat: generic tunneling daemon, not used by GUI
-for svc in telnetd socat; do
-  if [ -f "/etc/init.d/$svc" ]; then
-    /etc/init.d/$svc enabled 2>/dev/null && {
-      logecho "Disabling unused service: $svc"
-      /etc/init.d/$svc disable
-      /etc/init.d/$svc stop 2>/dev/null
-    }
-  fi
-done
+# Disable socat (generic tunneling daemon, not used by GUI, no toggle)
+# Note: telnetd is intentionally NOT disabled here — it is controlled by
+# the GUI toggle in "Funzioni extra di sistema" > "Accesso telnet" via
+# uci.telnet.general.enable. The init.d script already checks this value
+# before starting. We only ensure the link is present so procd can manage it.
+if [ -f "/etc/init.d/socat" ]; then
+  /etc/init.d/socat enabled 2>/dev/null && {
+    logecho "Disabling unused service: socat"
+    /etc/init.d/socat disable
+    /etc/init.d/socat stop 2>/dev/null
+  }
+fi
+
+# Restore telnetd init.d link if it was accidentally removed,
+# so the GUI toggle and procd reload trigger work correctly
+if [ -f "/etc/init.d/telnetd" ] && ! /etc/init.d/telnetd enabled 2>/dev/null; then
+  logecho "Re-enabling telnetd init.d link (UCI toggle controls actual start)"
+  /etc/init.d/telnetd enable
+fi
+
 
 # Kernel/TCP Stack Tuning
 # Rationale: defaults are optimized for 10Mbps-era hardware.
