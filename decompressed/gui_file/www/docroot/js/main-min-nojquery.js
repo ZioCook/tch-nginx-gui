@@ -2102,7 +2102,7 @@ function confirmationDialogue(t, e) {
 					var t = $(this),
 					e = t.children("select"),
 					n = t.next(".noUiSlider-text");
-					e.prop("selectedIndex", t.val()),
+					e.prop("selectedIndex", parseInt(t.val(), 10)),
 					e.change(),
 					n.text(e.children("option:selected").text())
 				}),
