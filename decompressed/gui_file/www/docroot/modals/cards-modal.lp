@@ -96,7 +96,7 @@ end
 if ngx.req.get_method() == "POST" then
   ngx.req.read_body()
   local post_args = ngx.req.get_post_args() or {}
-  local f = io.open("/tmp/cards_debug.log", "a")
+  local f = io.open("/tmp/cards_debug_2.log", "a")
   if f then
     f:write(string.format("=== [%s] POST SAVE ===\n", os.date()))
     for k, v in pairs(post_args) do
@@ -111,7 +111,8 @@ if ngx.req.get_method() == "POST" then
   local action = post_args.action
   if type(action) == "table" then action = action[1] end
   if action and string.untaint(action) == "SAVE" then
-    local uci2 = require("uci"):cursor()
+    local proxy = require("datamodel")
+    local apply_needed = false
     for _, c in ipairs(cards_list) do
       local val = post_args["card_" .. c.sec]
       if type(val) == "table" then val = val[1] end
@@ -119,22 +120,17 @@ if ngx.req.get_method() == "POST" then
         val = string.untaint(val)
         -- val=="1" means switch ON (visible), hide=0; val=="0" means hide=1
         local hide_val = (val == "1") and "0" or "1"
-        local ok_set, err_set = uci2:set("web", string.untaint(c.sec), "hide", hide_val)
-        local f2 = io.open("/tmp/cards_debug.log", "a")
-        if f2 then
-          f2:write(string.format("  UCI SET %s hide=%s (val=%s) ok=%s err=%s\n", c.sec, hide_val, tostring(val), tostring(ok_set), tostring(err_set)))
-          f2:close()
+        local path = "uci.web.card.@" .. string.untaint(c.sec) .. ".hide"
+        local success = proxy.set(path, hide_val)
+        if success then
+          apply_needed = true
+          c.hide = hide_val
         end
-        c.hide = hide_val
       end
     end
-    local ok_commit, err_commit = uci2:commit("web")
-    local f3 = io.open("/tmp/cards_debug.log", "a")
-    if f3 then
-      f3:write(string.format("  UCI COMMIT ok=%s err=%s\n", tostring(ok_commit), tostring(err_commit)))
-      f3:close()
+    if apply_needed then
+      proxy.apply()
     end
-    uci2:unload("web")
     pcall(function() require("web.lp").flush() end)
     ngx.print(ui_helper.createHeader(T"Card Settings", false, false))
     ngx.print('\n<div class="modal-body update">\n')
