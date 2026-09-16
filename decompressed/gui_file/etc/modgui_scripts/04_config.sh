@@ -681,3 +681,16 @@ logecho "Decrypting any encrypted password present in config"
 decrypt_config_pass
 clean_ping_and_traceroute
 clean_watchdog
+
+# Disable insecure/unused services to free RAM and reduce attack surface
+# telnetd: plaintext protocol, fully replaced by SSH (dropbear)
+# socat: generic tunneling daemon, not used by GUI
+for svc in telnetd socat; do
+  if [ -f "/etc/init.d/$svc" ]; then
+    /etc/init.d/$svc enabled 2>/dev/null && {
+      logecho "Disabling unused service: $svc"
+      /etc/init.d/$svc disable
+      /etc/init.d/$svc stop 2>/dev/null
+    }
+  fi
+done
