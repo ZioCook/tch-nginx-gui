@@ -1,4 +1,35 @@
 
+9.8.0
+---------------------------------------------------------------------------
+- (Supporto Nuovi Firmware & Compatibilità)
+- Supporto Totale TIM HUB 2.4.4: Aggiunto il pieno supporto ad Homeware 19.4 (Linux 4.1.52) per DGA4132
+- Risoluzione Rilevamento Modello: Fixati i problemi di rilevamento per i device della serie TIM 2.x
+- Compatibilità Pacchetti (OPKG): Risolti i problemi di installazione per pacchetti del ramo 18.x su firmware 19.x aggiungendo --force-depends
+- Protezione Flash (TG789vac v2): Migliorata la gestione dell'OBP per i firmware dual-bank
+- (Nuove Funzionalità & Interfaccia UI)
+- Modalità Bridge (Dumb-AP): Supporto esteso per la modalità Bridge con orchestrazione intelligente dei servizi di rete
+- Miglioramenti Scheda Broadband: Aggiornato il design della scheda Broadband e l'interfaccia della relativa modale
+- Gestore Schede (Cards): Introdotta una nuovissima modale che permette all'utente di nascondere o mostrare le schede sulla homepage a piacimento
+- Reti Ospiti (Guest Network): Aggiunto un interruttore per accendere/spegnere la rete ospiti direttamente dalla modale Wi-Fi. Le reti ospiti disattivate vengono ora nascoste
+- Nuovo Pannello Eco & Monitoraggio: Migliorata la scheda Eco per includere governor della CPU, monitoraggio termico (temperature) e i settaggi della Virtual Machine
+- QoS (Quality of Service): Aggiunto lo switch globale per il QoS e una spia di stato dinamica sulla scheda (con fallback automatico ad fq_codel)
+- Update Link: Tutti i collegamenti interni per l'aggiornamento puntano ora al nuovo fork ufficiale ZioCook
+- (Bug Fixes & Stabilità)
+- Aggiornamento GUI dal Menu: Risolto errore 'aggiornamento fallito' quando si provava ad aggiornare la GUI offline via web
+- Gestore Servizi (System Init): Ripristinata la corretta gestione dei servizi di sistema e risolti i crash causati da apici non escapati
+- Slider Livello Firewall: Risolto un bug Javascript nel parsing dello slider noUiSlider del firewall (ora non serve ricaricare la pagina)
+- Fix Errore DMZ: Investigati e risolti messaggi d'errore transitori di salvataggio ('Exact data not found')
+- Stato SSH LAN: Risolto un bug in system-extras che riportava un falso stato sulla LAN per dropbear
+- Stringhe Tainted: Utilizzata la funzione untaint() al posto di tostring() per prevenire la comparsa della scritta visiva 'tainted string' 
+- Core BusyBox: Migliorata la compliance POSIX degli script ash interni
+- Merge Ansuel (Bugfix): Inclusi gli ultimissimi due fix upstream (PR 1222 e 1223) per correggere rari crash 'nil' sulle pagine Wireless e Bridge Grouping
+- (GitHub Actions & CI/CD)
+- Build Automatica (CI): Introdotto un workflow completo per compilare automaticamente gli archivi al push di nuovi tag
+- Auto-Changelog: Script in Python dedicato per generare automaticamente note di rilascio ricche ed esplicative
+- Azioni Aggiornate: Aggiornate tutte le dipendenze per l'infrastruttura GitHub Actions a Node.js 24
+- Documentazione: README.md riorganizzato e migliorato
+
+
 ---------------------------------------------------------------------------
 # Mainline 18.3 Cobalt
 
