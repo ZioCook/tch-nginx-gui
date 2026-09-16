@@ -43,32 +43,33 @@ local function receive_file(filename, match)
                 end
                 local totalsize = 0
                 local file
-                local discard = false
+                local skip_part = false
                 while true do
                         local token, data, err = form:read()
                         if not token then
                                 return false, 2, "read failed: " .. err
                         end
                         if token == "header" then
-                                if not discard and not file and find(data[2], match, 1, true) then
+                                if data[2] and find(data[2], match, 1, true) then
                                         file = outfile
-                                end
-                                if not discard and not file then
-                                        return false, 3, "failed to start receiving file"
+                                        skip_part = false
+                                else
+                                        skip_part = true
                                 end
                         elseif token == "body" then
-                                if file then
+                                if file and not skip_part then
                                         totalsize = totalsize + #data
                                         file:write(data)
                                 end
                         elseif token == "part_end" then
-                                if file then
-                                        file = nil
-                                        discard = true
-                                end
+                                file = nil
+                                skip_part = false
                         elseif token == "eof" then
                                 break
                         end
+                end
+                if totalsize == 0 then
+                        return false, 3, "failed to receive file or file empty"
                 end
                 return true
         end

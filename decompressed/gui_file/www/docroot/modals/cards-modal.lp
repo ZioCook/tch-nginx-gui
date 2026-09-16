@@ -94,7 +94,8 @@ end
 
 -- Handle POST save: re-open cursor
 if ngx.req.get_method() == "POST" then
-  local post_args = ngx.req.get_post_args()
+  ngx.req.read_body()
+  local post_args = ngx.req.get_post_args() or {}
   local f = io.open("/tmp/cards_debug.log", "a")
   if f then
     f:write(string.format("=== [%s] POST SAVE ===\n", os.date()))
