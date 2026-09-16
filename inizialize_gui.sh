@@ -105,7 +105,7 @@ done
 
 # Inject build version into rootdevice
 short_commit=$(git rev-parse --short HEAD 2>/dev/null || echo "dev")
-build_ver="${version:-9.7.9}"
+build_ver="${version:-9.9.0-dev}"
 # If VERSION already contains a hyphen/commit hash, do not append short_commit again
 if [[ "$build_ver" =~ -[0-9a-fA-F]{7,8}$ ]] || [[ "$build_ver" =~ -dev$ ]]; then
 	stamp_ver="$build_ver"
