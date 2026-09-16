@@ -356,21 +356,21 @@ detect_homeware() {
   local fw_version=$(uci -q get env.var.friendly_sw_version_activebank || cat /proc/banktable/activeversion 2>/dev/null)
   
   if echo "$kernel_ver" | grep -q "4.1."; then
-    echo "HW19"
+    echo "hw19"
   elif echo "$kernel_ver" | grep -q "3.4."; then
     if echo "$fw_version" | grep -qi "AGTEF_2\|AGTHP_2"; then
-      echo "HW18"
+      echo "hw18"
     else
-      echo "HW18"
+      echo "hw18"
     fi
   else
-    echo "HW18" # Default fallback
+    echo "hw18" # Default fallback
   fi
 }
 
 hw_ver=$(detect_homeware)
 logecho "Detected Homeware Version: $hw_ver"
-if [ -f "/tmp/upgrade-pack-${hw_ver,,}.tar.bz2" ]; then
+if [ -f "/tmp/upgrade-pack-${hw_ver}.tar.bz2" ]; then
   logecho "Installing optimizations for $hw_ver..."
-  extract_with_check "/tmp/upgrade-pack-${hw_ver,,}.tar.bz2"
+  extract_with_check "/tmp/upgrade-pack-${hw_ver}.tar.bz2"
 fi
