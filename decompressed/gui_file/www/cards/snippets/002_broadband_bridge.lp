@@ -31,7 +31,7 @@ for port, label in pairs(port_names) do
     if carrier and carrier[1].value == "1" then
         any_carrier = true
         local speed = proxy.get("sys.class.net.@" .. port .. ".speed")
-        local speed_val = (speed and speed[1].value ~= "" and speed[1].value ~= "0") and (speed[1].value .. " Mbps") or T"Attivo"
+        local speed_val = (speed and speed[1].value ~= "" and speed[1].value ~= "0") and (speed[1].value .. " Mbps") or T"Active"
         connected_ports[#connected_ports + 1] = {
             name = label,
             speed = speed_val,
@@ -43,8 +43,8 @@ local br_operstate = proxy.get("sys.class.net.@br-lan.operstate")
 local is_up = (br_operstate and br_operstate[1].value == "up") and any_carrier
 
 local intf_state_map = {
-    connected = T"Bridge / AP Attivo",
-    disconnected = T"Bridge Disconnesso",
+    connected = T"Bridge / AP Active",
+    disconnected = T"Bridge Disconnected",
 }
 local intf_light_map = {
     connected = "1",
@@ -64,10 +64,10 @@ if #connected_ports > 0 then
         ngx.print(format('<p class="subinfos">&emsp;<i class="fas fa-plug" style="color:#5cb85c;"></i> %s: <strong>%s</strong></p>', p.name, p.speed))
     end
 else
-    ngx.print('<p class="subinfos">&emsp;<i class="fas fa-exclamation-triangle" style="color:#f0ad4e;"></i> ' .. T"Nessun cavo Ethernet collegato" .. '</p>')
+    ngx.print('<p class="subinfos">&emsp;<i class="fas fa-exclamation-triangle" style="color:#f0ad4e;"></i> ' .. T"No Ethernet cable connected" .. '</p>')
 end
 
-ngx.print('<p class="subinfos text-muted" style="margin-top: 6px;"><i class="fas fa-check-circle" style="color:#5cb85c;"></i> ' .. T"Modem xDSL / GPON: Disattivato" .. '</p>')
+ngx.print('<p class="subinfos text-muted" style="margin-top: 6px;"><i class="fas fa-check-circle" style="color:#5cb85c;"></i> ' .. T"Modem xDSL / GPON: Disabled" .. '</p>')
 
 ngx.print('\
   </div>\

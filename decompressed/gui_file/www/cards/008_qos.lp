@@ -27,7 +27,7 @@ local dataQoS = {
 content_helper.getExactContent(dataQoS)
 
 local light = qos_state
-local state_text = (qos_state == "1") and T"QoS abilitato" or T"QoS disattivato"
+local state_text = (qos_state == "1") and T"QoS enabled" or T"QoS disabled"
 
 ngx.print('\
 <div class="span3">\
@@ -50,7 +50,7 @@ ngx.print('\
                 else
                     html[#html + 1] = '<p class="subinfos">'
                     html[#html + 1] = '<span class="simple-desc"><i class="fas fa-ban" aria-hidden="true">&nbsp;</i>'
-                    html[#html + 1] = T"Prioritizzazione disattivata"
+                    html[#html + 1] = T"Prioritization disabled"
                     html[#html + 1] = '</span><br/>'
                     html[#html + 1] = '<span class="simple-desc"><i class="fas fa-microchip" aria-hidden="true">&nbsp;</i>'
                     html[#html + 1] = T"Zero overhead CPU (fq_codel)"

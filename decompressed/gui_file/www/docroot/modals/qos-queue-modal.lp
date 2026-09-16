@@ -16,7 +16,7 @@ if ngx.var.request_method == "POST" then
     local postargs = ngx.req.get_post_args()
     if postargs and postargs.action == "SAVE" and postargs.qos_enabled then
         local target_state = (postargs.qos_enabled == "1" or postargs.qos_enabled == "true") and "1" or "0"
-        os.execute(format("/usr/share/transformer/scripts/toggle_qos.sh %s", target_state))
+        os.execute(format("/usr/share/transformer/scripts/toggle_qos.sh %s >/dev/null 2>&1 &", target_state))
         if not postargs.fromModal then
             ngx.header.content_type = "application/json"
             ngx.print('{"success":true}')
@@ -407,12 +407,12 @@ ngx.print( ui_helper.createHeader(T"QoS", false, true) ); ngx.print('\
 	local html = {}
 	
     html[#html+1] = "<fieldset>"
-    html[#html+1] =   "<legend>" .. T"Stato Globale QoS" .. "</legend>"
-    html[#html+1] =     ui_helper.createSwitch(T"Stato Servizio QoS", "qos_enabled", content["qos_enabled"])
+    html[#html+1] =   "<legend>" .. T"Global QoS Status" .. "</legend>"
+    html[#html+1] =     ui_helper.createSwitch(T"QoS Service Status", "qos_enabled", content["qos_enabled"])
     if content["qos_enabled"] == "0" then
-        html[#html+1] = '<div class="alert alert-info" style="margin-top: 10px;"><i class="fas fa-info-circle"></i> ' .. T"Il servizio QoS è attualmente disattivato. Tutte le code di prioritizzazione hardware e le regole di classificazione sono spente. Le interfacce utilizzano la disciplina standard Linux (fq_codel) per la minima latenza e zero overhead CPU." .. '</div>'
+        html[#html+1] = '<div class="alert alert-info" style="margin-top: 10px;"><i class="fas fa-info-circle"></i> ' .. T"The QoS service is currently disabled. All hardware prioritization queues and classification rules are turned off. The interfaces use the standard Linux discipline (fq_codel) for minimum latency and zero CPU overhead." .. '</div>'
     else
-        html[#html+1] = '<div class="alert alert-success" style="margin-top: 10px;"><i class="fas fa-check-circle"></i> ' .. T"Il servizio QoS è attivo. Il traffico di rete viene classificato e prioritizzato in base alle code configurate di seguito." .. '</div>'
+        html[#html+1] = '<div class="alert alert-success" style="margin-top: 10px;"><i class="fas fa-check-circle"></i> ' .. T"The QoS service is active. Network traffic is classified and prioritized based on the queues configured below." .. '</div>'
     end
     html[#html+1] = "</fieldset>"
 

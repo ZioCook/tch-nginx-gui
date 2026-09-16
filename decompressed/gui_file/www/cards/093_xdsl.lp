@@ -33,19 +33,19 @@ if session:hasAccess(modalPath) and lfs.attributes("/etc/config/xdsl", "mode") =
     ngx.print('\
   <div class="span3">\
       <div class="smallcard" data-aos="zoom-in" data-aos-anchor-placement="center-bottom" data-aos-easing="ease-in-back">\
-         ');  ngx.print( ui_helper.createCardHeader(T"Configurazione xDSL", modalPath) ); ngx.print('\
+         ');  ngx.print( ui_helper.createCardHeader(T"xDSL Configuration", modalPath) ); ngx.print('\
           <div class="content card_bg" data-bg-text="&#xf2db;">\
           <div class="divtable">\
                 ');  
                 local html = {}
                 if not is_enabled then
-                    html[#html+1] = ui_helper.createSimpleLight("0", T"xDSL disabilitato", { light = { class = "off" } }, "fas fa-microchip")
+                    html[#html+1] = ui_helper.createSimpleLight("0", T"xDSL disabled", { light = { class = "off" } }, "fas fa-microchip")
                     html[#html+1] = '<p class="subinfos">'
-                    html[#html+1] = '<span class="simple-desc"><i class="fas fa-network-wired" aria-hidden="true">&nbsp;</i>' .. T"Modalità: <strong>Bridge / AP</strong>" .. '</span><br/>'
-                    html[#html+1] = '<span class="simple-desc"><i class="fas fa-plug" aria-hidden="true">&nbsp;</i>' .. T"Interfaccia DSL non in uso" .. '</span>'
+                    html[#html+1] = '<span class="simple-desc"><i class="fas fa-network-wired" aria-hidden="true">&nbsp;</i>' .. T"Mode: <strong>Bridge / AP</strong>" .. '</span><br/>'
+                    html[#html+1] = '<span class="simple-desc"><i class="fas fa-plug" aria-hidden="true">&nbsp;</i>' .. T"DSL interface not in use" .. '</span>'
                     html[#html+1] = '</p>'
                 elseif content.dsl0_status == "Up" then
-                    html[#html+1] = ui_helper.createSimpleLight("1", T"xDSL Connesso", { light = { class = "green" } }, "fas fa-microchip")
+                    html[#html+1] = ui_helper.createSimpleLight("1", T"xDSL Connected", { light = { class = "green" } }, "fas fa-microchip")
                     html[#html+1] = '<p class="subinfos">'
                     if content.xdsl_version and not content.xdsl_version:match("not found") and content.xdsl_version ~= "" then
                         html[#html+1] = format('<span class="simple-desc"><i class="fas fa-code-branch" aria-hidden="true">&nbsp;</i>' .. T"Datapump: <strong>%s</strong></span><br/>", content.xdsl_version)
@@ -55,10 +55,10 @@ if session:hasAccess(modalPath) and lfs.attributes("/etc/config/xdsl", "mode") =
                     end
                     html[#html+1] = '</p>'
                 else
-                    html[#html+1] = ui_helper.createSimpleLight("2", T"xDSL Disconnesso", { light = { class = "orange" } }, "fas fa-microchip")
+                    html[#html+1] = ui_helper.createSimpleLight("2", T"xDSL Disconnected", { light = { class = "orange" } }, "fas fa-microchip")
                     html[#html+1] = '<p class="subinfos">'
-                    html[#html+1] = '<span class="simple-desc"><i class="fas fa-plug" aria-hidden="true">&nbsp;</i>' .. T"Cavo DSL non collegato" .. '</span><br/>'
-                    html[#html+1] = '<span class="simple-desc"><i class="fas fa-info-circle" aria-hidden="true">&nbsp;</i>' .. T"In attesa di segnale..." .. '</span>'
+                    html[#html+1] = '<span class="simple-desc"><i class="fas fa-plug" aria-hidden="true">&nbsp;</i>' .. T"DSL cable not connected" .. '</span><br/>'
+                    html[#html+1] = '<span class="simple-desc"><i class="fas fa-info-circle" aria-hidden="true">&nbsp;</i>' .. T"Waiting for signal..." .. '</span>'
                     html[#html+1] = '</p>'
                 end
                 ngx.print(html)

@@ -54,6 +54,9 @@ var modgui = modgui || {};
 		var arrayLength = ElementBindingList.length;
 
 		var AjaxRefresh = ( typeof CustomRefreshFunction === "function" ) && CustomRefreshFunction || function() {
+			if (document.hidden) return;
+			if (ElementBinding._isIntersecting === false) return;
+
 			var updateLink = "auto_update=true";
 			if ( /[a-z]+=[a-z]+/.test(ajaxLink) ) {
 				updateLink = "&" + updateLink;
@@ -98,6 +101,18 @@ var modgui = modgui || {};
 
 		if (!ko.dataFor(element))
 			ko.applyBindings(ElementBinding, element);
+
+		if (window.IntersectionObserver) {
+			ElementBinding._isIntersecting = true;
+			var observer = new IntersectionObserver(function(entries) {
+				ElementBinding._isIntersecting = entries[0].isIntersecting;
+				if (entries[0].isIntersecting) {
+					AjaxRefresh(ElementBinding);
+				}
+			});
+			observer.observe(element);
+		}
+
 		KoRequest[IntervalVar] = {
 			interval : setInterval(AjaxRefresh,RefreshTime,ElementBinding),
 			function : AjaxRefresh,

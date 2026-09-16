@@ -141,7 +141,7 @@ end
 
 local driver_content, helpmsg = post_helper.handleQuery(driver_Params, driver_valid)
 
-ngx.print(ui_helper.createHeader(T"Configurazione xDSL", false, false))
+ngx.print(ui_helper.createHeader(T"xDSL Configuration", false, false))
 ngx.print('<div class="modal-body update">\n')
 ngx.print(ui_helper.createMessages(message_helper.popMessages()))
 
@@ -156,39 +156,39 @@ ngx.print('\
 ')
 
 -- SECTION 1: Impostazioni di Base
-html[#html + 1] = '<legend>' .. T"Impostazioni di Base" .. '</legend>'
+html[#html + 1] = '<legend>' .. T"Basic Settings" .. '</legend>'
 
 if is_disabled then
   html[#html + 1] = ui_helper.createAlertBlock(
-    T"L'interfaccia xDSL è attualmente disattivata. Questa configurazione è ottimale quando il modem opera in modalità Bridge o Access Point (la connessione Internet proviene dalla porta WAN Ethernet). Abilitare l'interruttore sottostante solo se si desidera allineare il modem sulla linea telefonica DSL.",
+    T"The xDSL interface is currently disabled. This configuration is optimal when the modem operates in Bridge or Access Point mode (Internet connection comes from the Ethernet WAN port). Enable the switch below only if you want to align the modem on the DSL phone line.",
     alertinfo
   )
 end
 
-html[#html + 1] = ui_helper.createSwitch(T"Interfaccia xDSL", "dsl0_enabled", driver_content["dsl0_enabled"])
+html[#html + 1] = ui_helper.createSwitch(T"xDSL Interface", "dsl0_enabled", driver_content["dsl0_enabled"])
 
 local conn_status_text
 if is_disabled then
-  conn_status_text = T"Disattivato (Circuito DSL spento)"
+  conn_status_text = T"Disabled (DSL circuit off)"
 elseif content.dsl0_status == "Up" then
-  conn_status_text = T"Connesso (Allineato)"
+  conn_status_text = T"Connected (Aligned)"
 else
   conn_status_text = T(content.dsl0_status or "Inizializzazione...")
 end
-html[#html + 1] = ui_helper.createLabel(T"Stato Connessione DSL", conn_status_text, span5)
+html[#html + 1] = ui_helper.createLabel(T"DSL Connection Status", conn_status_text, span5)
 
 local datapump_text
 if is_disabled or not content.dsl0_xdsl_FirmwareVersion or content.dsl0_xdsl_FirmwareVersion == "" or content.dsl0_xdsl_FirmwareVersion:match("not found") then
-  datapump_text = is_disabled and T"Non disponibile (interfaccia disattivata)" or T"In rilevamento..."
+  datapump_text = is_disabled and T"Not available (interface disabled)" or T"Detecting..."
 else
   datapump_text = content.dsl0_xdsl_FirmwareVersion
 end
-html[#html + 1] = ui_helper.createLabel(T"Versione Datapump", datapump_text, span5)
+html[#html + 1] = ui_helper.createLabel(T"Datapump Version", datapump_text, span5)
 
 if not driver_Params.driver_ver then
   html[#html + 1] = ui_helper.createLabel(
     T"Driver xDSL",
-    T"Versione originale di sistema",
+    T"Original system version",
     span5
   )
 else
@@ -200,19 +200,19 @@ local reset_driver = {
     id = "btn-reset-driver"
   }
 }
-html[#html + 1] = ui_helper.createButton(T"Ripristina Driver", T"Ripristina driver originale", "icon-refresh", reset_driver)
+html[#html + 1] = ui_helper.createButton(T"Restore Driver", T"Restore original driver", "icon-refresh", reset_driver)
 
 -- SECTION 2: Parametri di Linea
-html[#html + 1] = '<legend>' .. T"Parametri di Linea" .. '</legend>'
+html[#html + 1] = '<legend>' .. T"Line Parameters" .. '</legend>'
 
 html[#html + 1] = ui_helper.createSwitch(T"SRA (Rate Adaptation)", "ds10_sra", driver_content["ds10_sra"])
 html[#html + 1] = ui_helper.createSwitch(T"Bitswap", "ds10_bitswap", driver_content["ds10_bitswap"])
 
 html[#html + 1] = ui_helper.createAlertBlock(
-  T"La modifica dell'offset SNR ha effetto solo con connessioni ADSL / ADSL2+. Su linee VDSL2 questo valore viene ignorato dal DSLAM.",
+  T"Changing the SNR offset only affects ADSL / ADSL2+ connections. On VDSL2 lines this value is ignored by the DSLAM.",
   alertinfo
 )
-html[#html + 1] = ui_helper.createInputText(T"Offset Margine SNR", "ds10_snr", driver_content["ds10_snr"], span5, helpmsg["ds10_snr"])
+html[#html + 1] = ui_helper.createInputText(T"SNR Margin Offset", "ds10_snr", driver_content["ds10_snr"], span5, helpmsg["ds10_snr"])
 
 local mode_labels = {
   adsl2 = "ADSL2 (G.992.3)",
@@ -225,7 +225,7 @@ local mode_labels = {
   vdsl2 = "VDSL2 (G.993.2)"
 }
 
-html[#html + 1] = '<div class="control-group"><label class="control-label">' .. T"Modalità Supportate" .. '</label><div class="controls"><select multiple="multiple" class="span5" size="6" name="modes">'
+html[#html + 1] = '<div class="control-group"><label class="control-label">' .. T"Supported Modes" .. '</label><div class="controls"><select multiple="multiple" class="span5" size="6" name="modes">'
 for i = 1, #all_modes do
   local selected = ""
   for _, w in pairs(modes_content) do
@@ -238,20 +238,20 @@ for i = 1, #all_modes do
 end
 html[#html + 1] = '</select></div></div>'
 
-html[#html + 1] = ui_helper.createLabel(T"Profili VDSL", profile_list or T"Nessuno", span5)
+html[#html + 1] = ui_helper.createLabel(T"VDSL Profiles", profile_list or T"None", span5)
 
 -- SECTION 3: Dettagli DSLAM (solo se connesso Up)
 if (content.dsl0_status == "Up") then
-  html[#html + 1] = '<legend>' .. T"Dettagli DSLAM & Connessione" .. '</legend>'
-  html[#html + 1] = ui_helper.createLabel(T"Modalità DSL", content.dsl0_mode .. " (" .. content.dsl0_linkencapsulation .. ")", span5)
+  html[#html + 1] = '<legend>' .. T"DSLAM & Connection Details" .. '</legend>'
+  html[#html + 1] = ui_helper.createLabel(T"DSL Mode", content.dsl0_mode .. " (" .. content.dsl0_linkencapsulation .. ")", span5)
   if (content.dsl0_profile ~= "Not Found") then
-    html[#html + 1] = ui_helper.createLabel(T"Profilo VDSL", content.dsl0_profile, span5)
+    html[#html + 1] = ui_helper.createLabel(T"VDSL Profile", content.dsl0_profile, span5)
   end
   if (content.dsl0_port ~= "") then
-    html[#html + 1] = ui_helper.createLabel(T"Porta DSLAM VDSL", content.dsl0_port, span5)
+    html[#html + 1] = ui_helper.createLabel(T"VDSL DSLAM Port", content.dsl0_port, span5)
   end
   if (content.dslam_serial ~= "") then
-    html[#html + 1] = ui_helper.createLabel(T"Seriale DSLAM", content.dslam_serial, span5)
+    html[#html + 1] = ui_helper.createLabel(T"DSLAM Serial", content.dslam_serial, span5)
   end
   html[#html + 1] = ui_helper.createLabel(T"Chipset DSLAM", content.dslam_chipset, span5)
   if content.dslam_version_raw:sub(0, 2) == "0x" then
@@ -261,24 +261,24 @@ if (content.dsl0_status == "Up") then
       span5
     )
   elseif content.dslam_version_raw == "" then
-    html[#html + 1] = ui_helper.createLabel(T"Firmware DSLAM", T"Versione non rilevata", span5)
+    html[#html + 1] = ui_helper.createLabel(T"Firmware DSLAM", T"Version not detected", span5)
   else
     html[#html + 1] = ui_helper.createLabel(
       T"Firmware DSLAM",
-      format(T"Valore grezzo: %s", content.dslam_version_raw),
+      format(T"Raw value: %s", content.dslam_version_raw),
       span5
     )
   end
 end
 
 -- SECTION 4: Identificativi EOC & Registri PHY
-html[#html + 1] = '<legend>' .. T"Registri Demod & PHY" .. '</legend>'
+html[#html + 1] = '<legend>' .. T"Demod & PHY Registers" .. '</legend>'
 
 html[#html + 1] = ui_helper.createLabel(T"Vendor ID EOC", content.dsl0_eoc_vendor_id or "-", span5)
-html[#html + 1] = ui_helper.createLabel(T"Numero Seriale EOC", content.dsl0_eoc_serial_number or "-", span5)
+html[#html + 1] = ui_helper.createLabel(T"EOC Serial Number", content.dsl0_eoc_serial_number or "-", span5)
 html[#html + 1] = ui_helper.createLabel(T"Timeout Switch HS", format("%s s", content.dsl0_handshake_switch_timeout or "0"), span5)
 
-html[#html + 1] = '<div class="control-group"><label class="control-label">' .. T"Registri Demod / PHY" .. '</label><div class="controls">'
+html[#html + 1] = '<div class="control-group"><label class="control-label">' .. T"Demod / PHY Registers" .. '</label><div class="controls">'
 html[#html + 1] = format([[
 <table class="table table-bordered table-striped table-condensed span5" style="margin-left:0; margin-bottom:0;">
   <thead>
@@ -298,7 +298,7 @@ html[#html + 1] = format([[
 </table>
 </div></div>
 ]],
-  T"Registro", T"Valore", T"Maschera",
+  T"Register", T"Value", T"Mask",
   content.dsl0_demod_cap_value or "-", content.dsl0_demod_cap_mask or "-",
   content.dsl0_demod_cap2_value or "-", content.dsl0_demod_cap2_mask or "-",
   content.dsl0_aux_features_value or "-", content.dsl0_aux_features_mask or "-",

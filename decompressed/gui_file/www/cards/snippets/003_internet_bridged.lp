@@ -33,7 +33,7 @@ end
 
 local is_connected = (lan_data.operstate == "up" and lan_data.gateway ~= "")
 local light_color = is_connected and "1" or "4"
-local light_text = is_connected and T"Bridge / Access Point" or T"Bridge Non Configurato"
+local light_text = is_connected and T"Bridge / Access Point" or T"Bridge Not Configured"
 
 local attributes = { light = { id = "Internet_State_Led" }, span = { id = "Internet_State_Enabled" } }
 
@@ -49,7 +49,7 @@ ngx.print('\
 
 local ip_text = ""
 if lan_data.ipaddr ~= "" then
-    ip_text = format(T'IP Dispositivo: <strong>%s</strong>' .. '<br/>', lan_data.ipaddr)
+    ip_text = format(T'Device IP: <strong>%s</strong>' .. '<br/>', lan_data.ipaddr)
 end
 ngx.print('<div data-bind="html: WAN_IP_text">' .. ip_text .. '</div>')
 

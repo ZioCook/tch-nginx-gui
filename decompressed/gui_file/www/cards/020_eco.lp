@@ -27,22 +27,22 @@ content_helper.getExactContent(content)
 
 if prod_name:match("DGA4131") then
 	if content.eco_led == "1" then
-		content.eco_led_text = T"Ambient LED abilitato"
+		content.eco_led_text = T"Ambient LED enabled"
 	else
-		content.eco_led_text = T"Ambient LED disabilitato"
+		content.eco_led_text = T"Ambient LED disabled"
 	end
 else
 	if content.eco_led == "1" then
-		content.eco_led_text = T"Eco LED abilitato"
+		content.eco_led_text = T"Eco LED enabled"
 	else
-		content.eco_led_text = T"Eco LED disattivato"
+		content.eco_led_text = T"Eco LED disabled"
 	end
 end
 
 if content.eee == "1" then
-	content.eee_text = T"Ethernet EEE abilitato"
+	content.eee_text = T"Ethernet EEE enabled"
 else
-	content.eee_text = T"Ethernet EEE disattivato"
+	content.eee_text = T"Ethernet EEE disabled"
 end
 
 local cpu_status = eco_helper.getCpuStatus()
@@ -71,7 +71,7 @@ if #temps > 0 then
 end
 
 local overall_eco = (content.eee == "1" or content.eco_led == "1") and "1" or "0"
-local overall_text = (overall_eco == "1") and T"Risparmio Energetico Attivo" or T"Modalità Standard"
+local overall_text = (overall_eco == "1") and T"Active Energy Saving" or T"Standard Mode"
 
 local modalPath = nil
 local switchName = nil
@@ -100,8 +100,8 @@ if temp_text then
 	html[#html + 1] = format('<span class="simple-desc"><i class="fas fa-thermometer-half" aria-hidden="true">&nbsp;</i>%s</span><br/>', temp_text)
 end
 
-html[#html + 1] = format('<span class="simple-desc"><i class="fas fa-network-wired" aria-hidden="true">&nbsp;</i>Ethernet EEE: <strong>%s</strong></span><br/>', (content.eee == "1") and T"Attivo" or T"Disattivato")
-html[#html + 1] = format('<span class="simple-desc"><i class="fas fa-lightbulb" aria-hidden="true">&nbsp;</i>Eco LED: <strong>%s</strong></span>', (content.eco_led == "1") and T"Attivo" or T"Disattivato")
+html[#html + 1] = format('<span class="simple-desc"><i class="fas fa-network-wired" aria-hidden="true">&nbsp;</i>Ethernet EEE: <strong>%s</strong></span><br/>', (content.eee == "1") and T"Active" or T"Disabled")
+html[#html + 1] = format('<span class="simple-desc"><i class="fas fa-lightbulb" aria-hidden="true">&nbsp;</i>Eco LED: <strong>%s</strong></span>', (content.eco_led == "1") and T"Active" or T"Disabled")
 html[#html + 1] = '</p>'
 
 ngx.print(html)

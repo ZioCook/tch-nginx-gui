@@ -4384,3 +4384,327 @@ msgstr "Gli helper NAT (ALG) consentono ai protocolli con indirizzi nel payload 
 
 msgid "No NAT Helpers found"
 msgstr "Nessun helper NAT trovato"
+
+msgid "Turns on the front Wi-Fi LEDs only when at least one client is connected to the radio network."
+msgstr "Accende i LED Wi-Fi sul frontale solo quando almeno un client è connesso alla rete radio."
+
+msgid "Ambient LED enabled"
+msgstr "Ambient LED abilitato"
+
+msgid "Ambient LED disabled"
+msgstr "Ambient LED disabilitato"
+
+msgid "Warning: the QoS service is currently disabled globally. Classification and marking rules will not take effect until the service is enabled."
+msgstr "Attenzione: il servizio QoS è attualmente disattivato globalmente. Le regole di classificazione ed etichettatura non avranno effetto finché il servizio non viene abilitato."
+
+msgid "Active"
+msgstr "Attivo"
+
+msgid "Auto (Dynamic)"
+msgstr "Auto (Dinamico)"
+
+msgid "Bridge / AP Active"
+msgstr "Bridge / AP Attivo"
+
+msgid "Bridge Disconnected"
+msgstr "Bridge Disconnesso"
+
+msgid "Bridge Not Configured"
+msgstr "Bridge Non Configurato"
+
+msgid "RAM cache emptied successfully."
+msgstr "Cache RAM svuotata con successo."
+
+msgid "DSL cable not connected"
+msgstr "Cavo DSL non collegato"
+
+msgid "Configure power saving features for the integrated Broadcom switch and physical LAN port transceivers (802.3az)."
+msgstr "Configura le funzioni di risparmio energetico per lo switch integrato Broadcom e i transceiver delle porte LAN fisiche (802.3az)."
+
+msgid "CPU & Performance Configuration"
+msgstr "Configurazione CPU & Prestazioni"
+
+msgid "xDSL Configuration"
+msgstr "Configurazione xDSL"
+
+msgid "Connected (Aligned)"
+msgstr "Connesso (Allineato)"
+
+msgid "DSLAM & Connection Details"
+msgstr "Dettagli DSLAM & Connessione"
+
+msgid "Disabled"
+msgstr "Disattivato"
+
+msgid "Disabled (DSL circuit off)"
+msgstr "Disattivato (Circuito DSL spento)"
+
+msgid "Dual-Core (2 active cores - Standard)"
+msgstr "Dual-Core (2 core attivi - Standard)"
+
+msgid "Eco & Energy Saving"
+msgstr "Eco & Risparmio Energetico"
+
+msgid "Eco LED enabled"
+msgstr "Eco LED abilitato"
+
+msgid "Eco LED disabled"
+msgstr "Eco LED disattivato"
+
+msgid "Ethernet EEE enabled"
+msgstr "Ethernet EEE abilitato"
+
+msgid "Ethernet EEE disabled"
+msgstr "Ethernet EEE disattivato"
+
+msgid "Maximum CPU Frequency"
+msgstr "Frequenza Massima CPU"
+
+msgid "Minimum CPU Frequency"
+msgstr "Frequenza Minima CPU"
+
+msgid "Default Gateway:"
+msgstr "Gateway Predefinito:"
+
+msgid "RAM & Cache Memory Management"
+msgstr "Gestione Memoria RAM & Cache"
+
+msgid "The internal xDSL and GPON SFP modules have been turned off to save energy and eliminate heat.<br/>"
+msgstr "I moduli interni xDSL e GPON SFP sono stati spenti per risparmiare energia ed azzerare il calore.<br/>"
+
+msgid "Device IP: <strong>%s</strong>"
+msgstr "IP Dispositivo: <strong>%s</strong>"
+
+msgid "The modem router is operating in <strong>Bridge / Access Point Switch Mode</strong>.<br/>"
+msgstr "Il modem router sta operando in <strong>Modalità Bridge / Access Point Switch</strong>.<br/>"
+
+msgid "The QoS service is active. Network traffic is classified and prioritized based on the queues configured below."
+msgstr "Il servizio QoS è attivo. Il traffico di rete viene classificato e prioritizzato in base alle code configurate di seguito."
+
+msgid "The QoS service is currently disabled. All hardware prioritization queues and classification rules are turned off. The interfaces use the standard Linux discipline (fq_codel) for minimum latency and zero CPU overhead."
+msgstr "Il servizio QoS è attualmente disattivato. Tutte le code di prioritizzazione hardware e le regole di classificazione sono spente. Le interfacce utilizzano la disciplina standard Linux (fq_codel) per la minima latenza e zero overhead CPU."
+
+msgid "LED Indicator Settings"
+msgstr "Impostazioni Indicatori LED"
+
+msgid "Basic Settings"
+msgstr "Impostazioni di Base"
+
+msgid "Waiting for signal..."
+msgstr "In attesa di segnale..."
+
+msgid "Detecting..."
+msgstr "In rilevamento..."
+
+msgid "Router/AP IP Address:"
+msgstr "Indirizzo IP Router/AP:"
+
+msgid "DSL interface not in use"
+msgstr "Interfaccia DSL non in uso"
+
+msgid "xDSL Interface"
+msgstr "Interfaccia xDSL"
+
+msgid "SSH access via LAN allows root access on the local network (default port 22). WAN access opens the specified port on the firewall for remote management."
+msgstr "L'accesso SSH via LAN consente l'accesso root sulla rete locale (porta 22 predefinita). L'accesso WAN apre la porta specificata sul firewall per la gestione remota."
+
+msgid "The xDSL interface is currently disabled. This configuration is optimal when the modem operates in Bridge or Access Point mode (Internet connection comes from the Ethernet WAN port). Enable the switch below only if you want to align the modem on the DSL phone line."
+msgstr "L'interfaccia xDSL è attualmente disattivata. Questa configurazione è ottimale quando il modem opera in modalità Bridge o Access Point (la connessione Internet proviene dalla porta WAN Ethernet). Abilitare l'interruttore sottostante solo se si desidera allineare il modem sulla linea telefonica DSL."
+
+msgid "Ambient LED"
+msgstr "LED Ambientale"
+
+msgid "Changing the SNR offset only affects ADSL / ADSL2+ connections. On VDSL2 lines this value is ignored by the DSLAM."
+msgstr "La modifica dell'offset SNR ha effetto solo con connessioni ADSL / ADSL2+. Su linee VDSL2 questo valore viene ignorato dal DSLAM."
+
+msgid "Mask"
+msgstr "Maschera"
+
+msgid "Cache Memory"
+msgstr "Memoria Cache"
+
+msgid "RAM Memory"
+msgstr "Memoria RAM"
+
+msgid "Swap Memory"
+msgstr "Memoria Swap"
+
+msgid "CPU Core Mode"
+msgstr "Modalità Core CPU"
+
+msgid "DSL Mode"
+msgstr "Modalità DSL"
+
+msgid "Eco LED Mode"
+msgstr "Modalità Eco LED"
+
+msgid "Standard Mode"
+msgstr "Modalità Standard"
+
+msgid "Supported Modes"
+msgstr "Modalità Supportate"
+
+msgid "Mode: <strong>Bridge / AP</strong>"
+msgstr "Modalità: <strong>Bridge / AP</strong>"
+
+msgid "Modem xDSL / GPON: Disabled"
+msgstr "Modem xDSL / GPON: Disattivato"
+
+msgid "No Ethernet cable connected"
+msgstr "Nessun cavo Ethernet collegato"
+
+msgid "No sensor available"
+msgstr "Nessun sensore disponibile"
+
+msgid "None"
+msgstr "Nessuno"
+
+msgid "Not available (interface disabled)"
+msgstr "Non disponibile (interfaccia disattivata)"
+
+msgid "EOC Serial Number"
+msgstr "Numero Seriale EOC"
+
+msgid "SNR Margin Offset"
+msgstr "Offset Margine SNR"
+
+msgid "Local Network Parameters (AP)"
+msgstr "Parametri Rete Locale (AP)"
+
+msgid "Line Parameters"
+msgstr "Parametri di Linea"
+
+msgid "VDSL DSLAM Port"
+msgstr "Porta DSLAM VDSL"
+
+msgid "Prioritization disabled"
+msgstr "Prioritizzazione disattivata"
+
+msgid "Processor (CPU)"
+msgstr "Processore (CPU)"
+
+msgid "VDSL Profiles"
+msgstr "Profili VDSL"
+
+msgid "VDSL Profile"
+msgstr "Profilo VDSL"
+
+msgid "QoS enabled"
+msgstr "QoS abilitato"
+
+msgid "QoS disabled"
+msgstr "QoS disattivato"
+
+msgid "Broadcom Clock Ratio"
+msgstr "Rapporto Clock Broadcom"
+
+msgid "Demod & PHY Registers"
+msgstr "Registri Demod & PHY"
+
+msgid "Demod / PHY Registers"
+msgstr "Registri Demod / PHY"
+
+msgid "Register"
+msgstr "Registro"
+
+msgid "Adjusts the virtual memory parameters of the Linux kernel. Low swappiness values keep processes active in physical RAM and avoid aggressive swapping."
+msgstr "Regola i parametri di memoria virtuale del kernel Linux. Valori bassi di swappiness mantengono i processi attivi in RAM fisica ed evitano swap aggressivo."
+
+msgid "Adjusts the frequency scaling logic and energy profiles of the ARM Broadcom processor. Conservative profiles reduce heat and consumption, but can introduce slight latency in network flows."
+msgstr "Regola la logica di scalabilità della frequenza e i profili energetici del processore ARM Broadcom. Profili conservativi riducono calore e consumi, ma possono introdurre una lieve latenza nei flussi di rete."
+
+msgid "Guest Network"
+msgstr "Rete Ospite"
+
+msgid "Guest Network (Guest)"
+msgstr "Rete Ospite (Guest)"
+
+msgid "Restore Driver"
+msgstr "Ripristina Driver"
+
+msgid "Restore original driver"
+msgstr "Ripristina driver originale"
+
+msgid "Active Energy Saving"
+msgstr "Risparmio Energetico Attivo"
+
+msgid "Ethernet Energy Saving"
+msgstr "Risparmio Energetico Ethernet"
+
+msgid "Select which services must be active and verified before turning off the service LEDs:"
+msgstr "Seleziona quali servizi devono essere attivi e verificati prima di spegnere i LED dei servizi:"
+
+msgid "DSLAM Serial"
+msgstr "Seriale DSLAM"
+
+msgid "Local DHCP Server:"
+msgstr "Server DHCP Locale:"
+
+msgid "DNS Server:"
+msgstr "Server DNS:"
+
+msgid "Guest SSID:"
+msgstr "SSID Ospite:"
+
+msgid "Single-Core (1 active core - Saving)"
+msgstr "Single-Core (1 core attivo - Risparmio)"
+
+msgid "Turns off all front LEDs (except the Info LED) when services are operational. Press the Info/Wi-Fi button on the modem to turn them back on temporarily."
+msgstr "Spegne tutti i LED del frontale (tranne il LED Info) quando i servizi sono operativi. Premere il tasto Info/Wi-Fi sul modem per riaccenderli temporaneamente."
+
+msgid "DSL Connection Status"
+msgstr "Stato Connessione DSL"
+
+msgid "Global QoS Status"
+msgstr "Stato Globale QoS"
+
+msgid "Ethernet Ports Status (Switch)"
+msgstr "Stato Porte Ethernet (Switch)"
+
+msgid "QoS Service Status"
+msgstr "Stato Servizio QoS"
+
+msgid "System & Sensors Status"
+msgstr "Stato del Sistema & Sensori"
+
+msgid "Clear RAM Cache (Drop Caches)"
+msgstr "Svuota Cache RAM (Drop Caches)"
+
+msgid "All Ethernet ports and the Wi-Fi network are directly connected to the network bridge (br-lan)."
+msgstr "Tutte le porte Ethernet e la rete Wi-Fi sono collegate direttamente al bridge di rete (br-lan)."
+
+msgid "Value"
+msgstr "Valore"
+
+msgid "Raw value: %s"
+msgstr "Valore grezzo: %s"
+
+msgid "Check Internet Connection"
+msgstr "Verifica Connessione Internet"
+
+msgid "Check IPTV"
+msgstr "Verifica IPTV"
+
+msgid "Check Telephony (VoIP)"
+msgstr "Verifica Telefonia (VoIP)"
+
+msgid "Datapump Version"
+msgstr "Versione Datapump"
+
+msgid "Version not detected"
+msgstr "Versione non rilevata"
+
+msgid "Original system version"
+msgstr "Versione originale di sistema"
+
+msgid "WiFi NSC (Dynamic LEDs)"
+msgstr "WiFi NSC (LED Dinamici)"
+
+msgid "xDSL Connected"
+msgstr "xDSL Connesso"
+
+msgid "xDSL Disconnected"
+msgstr "xDSL Disconnesso"
+
+msgid "xDSL disabled"
+msgstr "xDSL disabilitato"

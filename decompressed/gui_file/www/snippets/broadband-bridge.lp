@@ -41,12 +41,12 @@ local info_alert = {
 }
 
 local html = {}
-html[#html + 1] = ui_helper.createAlertBlock(T"Il modem router sta operando in <strong>Modalità Bridge / Access Point Switch</strong>.<br/>" ..
-    T"I moduli interni xDSL e GPON SFP sono stati spenti per risparmiare energia ed azzerare il calore.<br/>" ..
-    T"Tutte le porte Ethernet e la rete Wi-Fi sono collegate direttamente al bridge di rete (br-lan).", info_alert)
+html[#html + 1] = ui_helper.createAlertBlock(T"The modem router is operating in <strong>Bridge / Access Point Switch Mode</strong>.<br/>" ..
+    T"The internal xDSL and GPON SFP modules have been turned off to save energy and eliminate heat.<br/>" ..
+    T"All Ethernet ports and the Wi-Fi network are directly connected to the network bridge (br-lan).", info_alert)
 
 html[#html + 1] = '<fieldset>'
-html[#html + 1] = '<legend>' .. T"Stato Porte Ethernet (Switch)" .. '</legend>'
+html[#html + 1] = '<legend>' .. T"Ethernet Ports Status (Switch)" .. '</legend>'
 
 local port_map = {
     { id = "eth0", name = "Porta LAN 1" },
@@ -72,13 +72,13 @@ end
 html[#html + 1] = '</fieldset>'
 
 html[#html + 1] = '<fieldset>'
-html[#html + 1] = '<legend>' .. T"Parametri Rete Locale (AP)" .. '</legend>'
-html[#html + 1] = ui_helper.createLabel(T"Indirizzo IP Router/AP:", untaint(lan_info.ipaddr))
+html[#html + 1] = '<legend>' .. T"Local Network Parameters (AP)" .. '</legend>'
+html[#html + 1] = ui_helper.createLabel(T"Router/AP IP Address:", untaint(lan_info.ipaddr))
 html[#html + 1] = ui_helper.createLabel(T"Subnet Mask:", untaint(lan_info.netmask))
-html[#html + 1] = ui_helper.createLabel(T"Gateway Predefinito:", (lan_info.gateway ~= "" and lan_info.gateway ~= nil) and untaint(lan_info.gateway) or "-")
-html[#html + 1] = ui_helper.createLabel(T"Server DNS:", (dns_val ~= "" and dns_val ~= nil) and untaint(dns_val) or "-")
+html[#html + 1] = ui_helper.createLabel(T"Default Gateway:", (lan_info.gateway ~= "" and lan_info.gateway ~= nil) and untaint(lan_info.gateway) or "-")
+html[#html + 1] = ui_helper.createLabel(T"DNS Server:", (dns_val ~= "" and dns_val ~= nil) and untaint(dns_val) or "-")
 html[#html + 1] = ui_helper.createLabel(T"IGMP Snooping (IPTV):", "Attivo sul bridge locale")
-html[#html + 1] = ui_helper.createLabel(T"Server DHCP Locale:", "Disattivato (gestito dal router principale)")
+html[#html + 1] = ui_helper.createLabel(T"Local DHCP Server:", "Disattivato (gestito dal router principale)")
 html[#html + 1] = '</fieldset>'
 
 ngx.print(html)

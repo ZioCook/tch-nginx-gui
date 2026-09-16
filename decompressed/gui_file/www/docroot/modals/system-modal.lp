@@ -338,7 +338,7 @@ ngx.print('\
   <legend>');  ngx.print( T"SSH Access" ); ngx.print('</legend>\
     ');
       local html = {}
-      html[#html + 1] = ui_helper.createAlertBlock(T"L'accesso SSH via LAN consente l'accesso root sulla rete locale (porta 22 predefinita). L'accesso WAN apre la porta specificata sul firewall per la gestione remota.", info_box)
+      html[#html + 1] = ui_helper.createAlertBlock(T"SSH access via LAN allows root access on the local network (default port 22). WAN access opens the specified port on the firewall for remote management.", info_box)
       html[#html + 1] = ui_helper.createSwitch(T"LAN", "ssh_lan", ssh_lan)
       html[#html + 1] = ui_helper.createSwitch(T"WAN", "ssh_wan", ssh_wan)
       html[#html + 1] = ui_helper.createInputText(T"WAN SSH Port", "ssh_wan_port", fwversion_override_content["ssh_wan_port"], nil, fwversion_override_helpmsg["ssh_wan_port"])
