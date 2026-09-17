@@ -102,12 +102,13 @@ end
 	basic.span["data-bind"] = "text: dslam_chipset"
 	html[#html + 1] = ui_helper.createLabel(T"DSLAM Chipset",content.dslam_chipset, basic )
 	basic.span["data-bind"] = "text: dslam_version"
-	if content.dslam_version_raw:sub(0,2) == "0x" then
-		html[#html + 1] = ui_helper.createLabel(T"DSLAM Firmware",format("%s ( %s )", content.dslam_version , content.dslam_version_raw) , basic )
-	elseif content.dslam_version_raw == "" then
+	local dslam_raw = content.dslam_version_raw or ""
+	if dslam_raw:sub(0,2) == "0x" then
+		html[#html + 1] = ui_helper.createLabel(T"DSLAM Firmware",format("%s ( %s )", content.dslam_version , dslam_raw) , basic )
+	elseif dslam_raw == "" then
 		html[#html + 1] = ui_helper.createLabel(T"DSLAM Firmware",T"Can't recover DSLAM version." , basic )
 	else
-		html[#html + 1] = ui_helper.createLabel(T"DSLAM Firmware",format(T"Invalid version, can't convert. Raw value: %s", content.dslam_version_raw) , basic )
+		html[#html + 1] = ui_helper.createLabel(T"DSLAM Firmware",format(T"Invalid version, can't convert. Raw value: %s", dslam_raw) , basic )
 	end
 	if (content.dsl_profile ~= "Not Found") then
 		basic.span["data-bind"] = "text: dsl_profile"

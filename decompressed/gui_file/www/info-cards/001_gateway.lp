@@ -9,6 +9,7 @@ local post_helper = require("web.post_helper")
 local ui_helper = require("web.ui_helper")
 
 local find, sub, format = string.find, string.sub, string.format
+local floor = math.floor
 
 
 local content = {
