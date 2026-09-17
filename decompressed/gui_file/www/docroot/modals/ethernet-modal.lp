@@ -849,6 +849,12 @@ local function validateDHCPStart(value, object)
     end
 end
 
+local function to_uint(n)
+    if not n then return nil end
+    if n < 0 then return n + 4294967296 end
+    return n
+end
+
 -- This function will validate the Modem IP Address and check for
 -- Valid IP Format, Limited Broadcast Address, Public IP Range, Multicast Address Range
 local function validateGWIP(value, object, key)
@@ -871,44 +877,65 @@ local function validateGWIP(value, object, key)
             ipmaxvalue = bit.bor(ipnetwork, bit.bnot(ipnetmask))
         end
         --NG-100782>
+        local sfplocalip_data = proxy.get("uci.network.interface.@"..sfpintf..".ipaddr")
+        local sfplocalip = sfplocalip_data and sfplocalip_data[1] and sfplocalip_data[1].value
+        local sfplocalip_num = sfplocalip and post_helper.validateStringIsIP(sfplocalip) and ipv42num(sfplocalip)
+
+        local u_ip = to_uint(ip)
+        local u_ipnet = to_uint(ipnetwork)
+        local u_ipmaxval = to_uint(ipmaxvalue)
+
         for _,intf in pairs(all_intfs) do
             if intf.paramindex ~= curintf then
-                local ipaddr = proxy.get("uci.network.interface.@" .. intf.paramindex .. ".ipaddr")[1].value
-                local mask = proxy.get("uci.network.interface.@" .. intf.paramindex .. ".netmask")[1].value
-                local baseip = post_helper.validateStringIsIP(ipaddr) and ipv42num(ipaddr)
-                local netmask = post_helper.validateStringIsIP(mask) and ipv42num(mask)
-                local sfplocalip = proxy.get("uci.network.interface.@"..sfpintf..".ipaddr")
+                local auto_data = proxy.get("uci.network.interface.@" .. intf.paramindex .. ".auto")
+                local enabled_data = proxy.get("uci.network.interface.@" .. intf.paramindex .. ".enabled")
+                local is_disabled = (auto_data and auto_data[1] and auto_data[1].value == "0") or
+                                    (enabled_data and enabled_data[1] and enabled_data[1].value == "0")
 
-                if sfplocalip and sfplocalip[1].value then
-                    sfplocalip = sfplocalip[1].value
-                end
+                if not is_disabled then
+                    local ip_data = proxy.get("uci.network.interface.@" .. intf.paramindex .. ".ipaddr")
+                    local mask_data = proxy.get("uci.network.interface.@" .. intf.paramindex .. ".netmask")
+                    local ipaddr = ip_data and ip_data[1] and ip_data[1].value
+                    local mask = mask_data and mask_data[1] and mask_data[1].value
 
-                local network, ipmax
-                if baseip and netmask then
-                    network = bit.band(baseip, netmask)
-                    ipmax = bit.bor(network, bit.bnot(netmask))
-                end
-
-                if network and ipmax then
-                    if ip == sfplocalip then
-                        return nil, T"Gateway IP should not be in SFP interface IP Range, change that first"
-                    end
-                    if ip >= network and ip <= ipmax then
-                        if intf.name ~= "" then
-                            return nil, T"Gateway IP should not be in " .. intf.name .. T" IP Range"
-                        else
-                            return nil, T"Gateway IP should not be in " .. intf.paramindex .. T" IP Range"
+                    if ipaddr and not mask and ipaddr:find("/") then
+                        local cidrip, cidrmask = ipaddr:match("([^/]+)/(%d+)")
+                        if cidrip and cidrmask then
+                            ipaddr = cidrip
+                            local pfx = tonumber(cidrmask)
+                            if pfx and pfx >= 0 and pfx <= 32 then
+                                mask = num2ipv4(bit.lshift(bit.bnot(0), 32 - pfx))
+                            end
                         end
                     end
-                    --<NG-100782
-                    if ipnetwork <= network and network <= ipmaxvalue then
-                        if intf.name ~= "" then
-                            return nil, T"The IP address is part of the "..intf.name.." IP Range"
-                        else
-                            return nil, T"The IP address is part of the "..intf.paramindex.." IP Range"
+
+                    local baseip = ipaddr and post_helper.validateStringIsIP(ipaddr) and ipv42num(ipaddr)
+                    local netmask = mask and post_helper.validateStringIsIP(mask) and ipv42num(mask)
+
+                    local network, ipmax
+                    if baseip and netmask then
+                        network = bit.band(baseip, netmask)
+                        ipmax = bit.bor(network, bit.bnot(netmask))
+                    end
+
+                    if network and ipmax then
+                        if sfplocalip_num and ip == sfplocalip_num then
+                            return nil, T"Gateway IP should not be in SFP interface IP Range, change that first"
+                        end
+                        local intf_label = (intf.name and intf.name ~= "") and intf.name or intf.paramindex
+                        local u_net = to_uint(network)
+                        local u_max = to_uint(ipmax)
+
+                        if u_ip >= u_net and u_ip <= u_max then
+                            return nil, format(T"Gateway IP should not be in %s IP Range", intf_label)
+                        end
+                        -- Subnet overlap check: only active LAN interfaces cannot share overlapping IP address spaces
+                        if intf.type == "lan" and u_ipnet and u_ipmaxval then
+                            if u_ipnet <= u_max and u_net <= u_ipmaxval then
+                                return nil, format(T"[netmask] Subnet overlaps with %s IP Range", intf_label)
+                            end
                         end
                     end
-                    --NG-100782>
                 end
             end
         end
@@ -938,44 +965,65 @@ local function validateSFPIP(value, object, key)
             ipmaxvalue = bit.bor(ipnetwork, bit.bnot(ipnetmask))
         end
         --NG-100782>
+        local lanip_data = proxy.get("uci.network.interface.@lan.ipaddr")
+        local lanip = lanip_data and lanip_data[1] and lanip_data[1].value
+        local lanip_num = lanip and post_helper.validateStringIsIP(lanip) and ipv42num(lanip)
+
+        local u_ip = to_uint(ip)
+        local u_ipnet = to_uint(ipnetwork)
+        local u_ipmaxval = to_uint(ipmaxvalue)
+
         for _,intf in pairs(all_intfs) do
             if intf.paramindex ~= sfpintf then
-                local ipaddr = proxy.get("uci.network.interface.@" .. intf.paramindex .. ".ipaddr")[1].value
-                local mask = proxy.get("uci.network.interface.@" .. intf.paramindex .. ".netmask")[1].value
-                local baseip = post_helper.validateStringIsIP(ipaddr) and ipv42num(ipaddr)
-                local netmask = post_helper.validateStringIsIP(mask) and ipv42num(mask)
-                local lanip = proxy.get("uci.network.interface.@lan.ipaddr")
+                local auto_data = proxy.get("uci.network.interface.@" .. intf.paramindex .. ".auto")
+                local enabled_data = proxy.get("uci.network.interface.@" .. intf.paramindex .. ".enabled")
+                local is_disabled = (auto_data and auto_data[1] and auto_data[1].value == "0") or
+                                    (enabled_data and enabled_data[1] and enabled_data[1].value == "0")
 
-                if lanip and lanip[1].value then
-                    lanip = lanip[1].value
-                end
+                if not is_disabled then
+                    local ip_data = proxy.get("uci.network.interface.@" .. intf.paramindex .. ".ipaddr")
+                    local mask_data = proxy.get("uci.network.interface.@" .. intf.paramindex .. ".netmask")
+                    local ipaddr = ip_data and ip_data[1] and ip_data[1].value
+                    local mask = mask_data and mask_data[1] and mask_data[1].value
 
-                local network, ipmax
-                if baseip and netmask then
-                    network = bit.band(baseip, netmask)
-                    ipmax = bit.bor(network, bit.bnot(netmask))
-                end
-
-                if network and ipmax then
-                    if ip == lanip then
-                        return nil, T"SFP IP should not be in Gateway interface IP Range, change that first"
-                    end
-                    if ip >= network and ip <= ipmax then
-                        if intf.name ~= "" then
-                            return nil, T"SFP IP should not be in " .. intf.name .. T" IP Range"
-                        else
-                            return nil, T"SFP IP should not be in " .. intf.paramindex .. T" IP Range"
+                    if ipaddr and not mask and ipaddr:find("/") then
+                        local cidrip, cidrmask = ipaddr:match("([^/]+)/(%d+)")
+                        if cidrip and cidrmask then
+                            ipaddr = cidrip
+                            local pfx = tonumber(cidrmask)
+                            if pfx and pfx >= 0 and pfx <= 32 then
+                                mask = num2ipv4(bit.lshift(bit.bnot(0), 32 - pfx))
+                            end
                         end
                     end
-                    --<NG-100782
-                    if ipnetwork <= network and network <= ipmaxvalue then
-                        if intf.name ~= "" then
-                            return nil, T"The IP address is part of the "..intf.name.." IP Range"
-                        else
-                            return nil, T"The IP address is part of the "..intf.paramindex.." IP Range"
+
+                    local baseip = ipaddr and post_helper.validateStringIsIP(ipaddr) and ipv42num(ipaddr)
+                    local netmask = mask and post_helper.validateStringIsIP(mask) and ipv42num(mask)
+
+                    local network, ipmax
+                    if baseip and netmask then
+                        network = bit.band(baseip, netmask)
+                        ipmax = bit.bor(network, bit.bnot(netmask))
+                    end
+
+                    if network and ipmax then
+                        if lanip_num and ip == lanip_num then
+                            return nil, T"SFP IP should not be in Gateway interface IP Range, change that first"
+                        end
+                        local intf_label = (intf.name and intf.name ~= "") and intf.name or intf.paramindex
+                        local u_net = to_uint(network)
+                        local u_max = to_uint(ipmax)
+
+                        if u_ip >= u_net and u_ip <= u_max then
+                            return nil, format(T"SFP IP should not be in %s IP Range", intf_label)
+                        end
+                        -- Subnet overlap check: only active LAN interfaces cannot share overlapping IP address spaces
+                        if intf.type == "lan" and u_ipnet and u_ipmaxval then
+                            if u_ipnet <= u_max and u_net <= u_ipmaxval then
+                                return nil, format(T"[netmask] Subnet overlaps with %s IP Range", intf_label)
+                            end
                         end
                     end
-                    --NG-100782>
                 end
             end
         end
@@ -1024,7 +1072,7 @@ local function validatedhcpIgnore(value, object, key)
 end
 
 local mapValid = {
-    domainName = vNES,
+    domainName = post_helper.getOptionalValidation(post_helper.validateStringIsDomainName),
     localdevIP = validateGWIP,
     --localIPv6 = validateIPv6,
     dnsServer = validateDNS,
@@ -1085,10 +1133,18 @@ end
 content, helpmsg = post_helper.handleQuery(mapParams, mapValid)
 
 if (ngx.var.request_method == "POST")  and not next(helpmsg) then
+   local post_data = ngx.req.get_post_args()
+   if post_data["domainName"] then
+      if post_data["domainName"] ~= "" then
+         proxy.set("uci.dhcp.dnsmasq.@dnsmasq.local", "/" .. post_data["domainName"] .. "/")
+      else
+         proxy.set("uci.dhcp.dnsmasq.@dnsmasq.local", "")
+      end
+   end
    local dhcp_options_path = "uci.dhcp.dhcp.@"..cur_dhcp_intf..".dhcp_option."
    local dhcp_options = content_helper.convertResultToObject(dhcp_options_path,proxy.get(dhcp_options_path))
     for _,v in ipairs(dhcp_options) do
-      if v.value:match("^3,") then
+      if v.value:match("^3,") or v.value:match("^15,") then
         proxy.del(dhcp_options_path..v.paramindex..".")
       end
     end
