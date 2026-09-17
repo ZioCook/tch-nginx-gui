@@ -6,8 +6,11 @@ if [ "$(date +'%m%d')" != "1224" ] && [ "$(date +'%m%d')" != "1225" ]; then
     echo "Date not correct cleaning and exiting..."
     sed -i '/christmas_tree/d' /etc/crontabs/root
     rm -f "$PIDFILE"
-    sh -c "sleep 2 && /usr/share/transformer/scripts/restart_leds.sh &"
+    for p in $(pgrep -f christmas_tree.sh 2>/dev/null || ps | grep '[c]hristmas_tree.sh' | awk '{print $1}'); do
+        [ "$p" != "$$" ] && kill -9 "$p" 2>/dev/null
+    done
     killall christmas_tree.sh 2>/dev/null
+    sh -c "sleep 2 && /usr/share/transformer/scripts/restart_leds.sh &"
     exit 0
 fi
 
@@ -24,12 +27,12 @@ randd(){
 }
 
 powerOnOffRandom(){
-	while [ 1 ]; do
+	while [ -f "$PIDFILE" ]; do
 		rand=$(randd)
-		echo 255 > "$1"/brightness
+		echo 255 > "$1"/brightness 2>/dev/null
 		echo powering up "$1" for $rand seconds
 		sleep $(( $rand - 1 ))
-		echo 0 > "$1"/brightness
+		echo 0 > "$1"/brightness 2>/dev/null
 		sleep $(( $rand - 1 ))
 	done
 }
