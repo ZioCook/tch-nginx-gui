@@ -1130,13 +1130,19 @@ end
 -- @param #table column the column description
 -- @param v the current value (string or table, depends on column type)
 -- @return #table
-local function createTableDataColumn(column, v)
+local function createTableDataColumn(column, v, disabled)
     local content = {}
     local attrSwitch = {
         switch = {
-            class = "switch disabled"
+            class = "switch"
         },
     }
+    if column.attr then
+        mergeAttributes(attrSwitch, column.attr)
+    end
+    if disabled then
+        attrSwitch.switch.class = (attrSwitch.switch.class or "switch") .. " disabled"
+    end
 
     if column.type == "select" then
         -- go through the values and insert the "text" that goes with the value
@@ -1326,7 +1332,7 @@ local function createTableDataEdit(columns, data, add, helpmsg)
             aggreg_lines[#aggreg_lines + 1] = { legend = v.legend, columns = v.subcolumns, data = data[i] or v.default or {} }
         else
             if v.readonly then
-                content[#content + 1] = createTableDataColumn(v,data[i])
+                content[#content + 1] = createTableDataColumn(v, data[i], true)
             else
                 content[#content + 1] = createTableDataEditColumn(v, data[i], helpmsg[v.name])
             end
@@ -1417,10 +1423,12 @@ local function createTableData(columns, data, canEdit, canDelete, editing, helpm
         else
             -- If we're just displaying the current line
             content[#content + 1] = "<tr>"
+            local rowCanEdit = canEdit and allowedindexes[i] and allowedindexes[i].canEdit and (editing == 0)
             for j,v in ipairs(l) do
                 content[#content + 1] = format('<td %s %s>', v ~= "" and (' data-title="'..columns[j]["header"]..'"') or "",
 				columns[j]["additional_class"] or "")
-                content[#content + 1] = createTableDataColumn(columns[j], v)
+                local colDisabled = columns[j].readonly or not rowCanEdit
+                content[#content + 1] = createTableDataColumn(columns[j], v, colDisabled)
                 content[#content + 1] = "</td>"
             end
             -- Action column (will be empty if nothing allowed)

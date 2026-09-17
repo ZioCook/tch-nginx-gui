@@ -2204,11 +2204,12 @@ function confirmationDialogue(t, e) {
 		("radio" !== a || !0 === r) && ("checkbox" !== a || "_TRUE_" === i || !0 === r) && ("checkbox" === a && "_TRUE_" === i && (i = !0 === r ? 1 : 0), a = $(".monitor-" + o + ":not(.monitor-" + i + ")"), i = $(".monitor-" + o + ".monitor-" + i), r = "monitor-hidden-" + o, o = "monitor-show-" + o, a.addClass(r), a.removeClass(o), a.filter(':not(.monitor-default-show[class*="monitor-show-"])').hide(n), i.removeClass(r), i.addClass(o), i.filter('.monitor-default-show,:not([class*="monitor-hidden-"])').show(n))
 	}
 	function l(t, e) {
+		count += 1;
 		var i = $(".modal form").attr("action"),
 		o = $(e).closest("table"),
 		r = o.attr("id"),
 		s = $(e).closest("tr").index(),
-		l = o.find(".line-edit :input").serializeArray(),
+		l = (o.find(".line-edit :input").length ? o.find(".line-edit :input") : $(e).closest("tr").find(":input")).serializeArray(),
 		d = o.find(".additional-edit :input").serializeArray();
 		("TABLE-MODIFY" == t || "TABLE-CANCEL" == t) && 0 < d.length && (s -= 2),
 		(l = l.concat(d)).push({
@@ -2269,6 +2270,7 @@ function confirmationDialogue(t, e) {
 		0 < i.length && $(".modal-body").scrollTop(i.position().top)
 	}
 	var lastCardClicked;
+	var count = 0;
 	function u(t, e) {
 		if (!y) {
 			y = !0,
@@ -2472,8 +2474,9 @@ function confirmationDialogue(t, e) {
 		$(t.target).hasClass("modal") && e()
 	}),
 	$(document).on("hidden", ".modal", function (t) {
-		modalToCard = lastCardClicked ? lastCardClicked.find(".settings").data("remote") : null;
+		modalToCard = (lastCardClicked && lastCardClicked.length) ? (lastCardClicked.find(".settings").attr("data-remote") || lastCardClicked.find(".header-title").attr("data-remote") || lastCardClicked.find('[data-toggle="modal"]').attr("data-remote")) : null;
 		if (count > 0 && $(t.target).hasClass("modal")) {
+			count = 0;
 			if (modalToCard != null) {
 				$.get("/ajax/get_card.lua?modal=" + modalToCard, function (data) {
 					$(lastCardClicked).parent().replaceWith(data);
@@ -2486,6 +2489,7 @@ function confirmationDialogue(t, e) {
 	var y = !1;
 	$(document).on("click touchend", '[data-toggle="modal"]', function (t) {
 		t.preventDefault(),
+		lastCardClicked = $(this).closest(".smallcard"),
 		u(t = $(this).attr("data-remote"), $(this).attr("data-id"))
 	}),
 	$(document).on("click touchend", ".smallcard", function (t) {
