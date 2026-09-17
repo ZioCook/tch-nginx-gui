@@ -22,8 +22,12 @@ local function file_check(file_name)
 end
 
 local Syslog = proxy.get("uci.system.system.@system[0].log_ip", "uci.system.system.@system[0].log_filter_ip")
-if Syslog and (Syslog[1].value ~= "" or Syslog[2].value ~= "") then
-    syslog_present = "enabled"
+if Syslog then
+    local log_ip = (Syslog[1] and Syslog[1].value) or ""
+    local log_filter = (Syslog[2] and Syslog[2].value) or ""
+    if log_ip ~= "" or log_filter ~= "" then
+        syslog_present = "enabled"
+    end
 end
 
 local syslog_state_map = {
@@ -62,7 +66,7 @@ local telnet_state = "NotAvailable"
 
 if telnet_available then
 	local TELNET = proxy.get("uci.telnet.general.enable")
-	if TELNET and (TELNET[1].value == "1") then
+	if TELNET and TELNET[1] and (TELNET[1].value == "1") then
 		telnet_state = "enabled"
 	else
 		telnet_state = "disabled"
