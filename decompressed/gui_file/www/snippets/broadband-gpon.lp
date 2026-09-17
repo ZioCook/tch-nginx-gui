@@ -37,6 +37,24 @@ local mapParams = {
 }
 content_helper.getExactContent(mapParams)
 
+local function format_bytes(bytes)
+    local b = tonumber(bytes)
+    if not b or b == 0 then
+        return "0 B"
+    end
+    if b < 1024 then
+        return format("%d B", b)
+    elseif b < 1048576 then
+        return format("%.2f KB", b / 1024)
+    elseif b < 1073741824 then
+        return format("%.2f MB", b / 1048576)
+    elseif b < 1099511627776 then
+        return format("%.2f GB", b / 1073741824)
+    else
+        return format("%.2f TB", b / 1099511627776)
+    end
+end
+
 ajax_helper.handleAjaxQuery({}, function(c)
     local function notnil(path)
         if path == nil or path == "" then
@@ -44,7 +62,7 @@ ajax_helper.handleAjaxQuery({}, function(c)
         end
         return path
     end
-    c.optical_bytes = format("%s %s %s %s", iconUp, notnil(mapParams.bytes_sent), iconDown, notnil(mapParams.bytes_received))
+    c.optical_bytes = format("%s %s %s %s", iconUp, format_bytes(mapParams.bytes_sent), iconDown, format_bytes(mapParams.bytes_received))
     c.optical_packets = format("%s %s %s %s", iconUp, notnil(mapParams.packets_sent), iconDown, notnil(mapParams.packets_received))
     c.optical_discard = format("%s %s %s %s", iconUp, notnil(mapParams.discard_sent), iconDown, notnil(mapParams.discard_received))
     c.optical_errors = format("%s %s %s %s", iconUp, notnil(mapParams.errors_sent), iconDown, notnil(mapParams.errors_received))
@@ -69,8 +87,10 @@ local gpon_light_map = {
     local html = {}
     -- Label that shows gpon status
     html[#html + 1] = ui_helper.createLight(T"Status",nil, T(mapParams["gpon_state"]), { light = { class = gpon_light_map[gpon_status] } })
-    html[#html + 1] = ui_helper.createLabel(T"OpticalSignalLevel",(mapParams["optical_signal_level"]/1000).." dBm")
-    html[#html + 1] = ui_helper.createLabel(T"TransmitOpticalLevel",(mapParams["transmit_optical_level"]/1000).." dBm")
+    local rx_pwr = tonumber(mapParams["optical_signal_level"])
+    local tx_pwr = tonumber(mapParams["transmit_optical_level"])
+    html[#html + 1] = ui_helper.createLabel(T"OpticalSignalLevel", rx_pwr and format("%.2f dBm", rx_pwr / 1000) or "N/A")
+    html[#html + 1] = ui_helper.createLabel(T"TransmitOpticalLevel", tx_pwr and format("%.2f dBm", tx_pwr / 1000) or "N/A")
     html[#html + 1] = ui_helper.createLabel(T"Vendor Name",mapParams["vendor_name"])
     html[#html + 1] = ui_helper.createLabel(T"Interface Alias",mapParams["interface_alias"])
 
@@ -78,7 +98,7 @@ local gpon_light_map = {
     html[#html + 1] =
     ui_helper.createLabel(
             T"Bytes",
-            format("%s %s %s %s", iconUp, mapParams["bytes_sent"], iconDown, mapParams["bytes_received"]),
+            format("%s %s %s %s", iconUp, format_bytes(mapParams["bytes_sent"]), iconDown, format_bytes(mapParams["bytes_received"])),
             ajax_attr
     )
     ajax_attr.span.id="optical_packets"
