@@ -4708,3 +4708,6 @@ msgstr "xDSL getrennt"
 
 msgid "xDSL disabled"
 msgstr "xDSL deaktiviert"
+
+msgid "Managed automatically by regulatory tables (Quantenna 5GHz)"
+msgstr "Automatisch durch Regulierungstabellen verwaltet (Quantenna 5GHz)"

@@ -2690,6 +2690,9 @@ msgstr "Dettagli xDSL"
 msgid "xDSL Disabled"
 msgstr "xDSL disabilitato"
 
+msgid "Managed automatically by regulatory tables (Quantenna 5GHz)"
+msgstr "Gestita automaticamente dalle tabelle di regolamentazione (Quantenna 5GHz)"
+
 msgid "xDSL Enabled"
 msgstr "xDSL abilitato"
 

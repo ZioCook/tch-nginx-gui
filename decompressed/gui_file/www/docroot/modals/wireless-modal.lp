@@ -1239,6 +1239,8 @@ end
                 html[#html + 1] = ui_helper.createInputSelect(T"Cyclic-Delay Diversity", "cdd", cddList, content["cdd"], advanced)
                 html[#html + 1] = ui_helper.createSwitch(T"Space Time Block Code", "stbc", content["stbc"], advanced)
                 html[#html + 1] = ui_helper.createSwitch(T"Frame Bursting", "frame_bursting", content["frame_bursting"], advanced)
+            else
+				html[#html + 1] = ui_helper.createLabel(T"Output Power", T"Managed automatically by regulatory tables (Quantenna 5GHz)", advanced)
             end
         end
     end

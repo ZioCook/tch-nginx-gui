@@ -224,13 +224,17 @@ end
 
 local function getParameterValue(key, paramName, value, radioData)
         radioData = radioData or network.getRadioInfo(key)
-        value = value or radioData[paramName]
+        value = value or (radioData and radioData[paramName])
         if paramName == "requested_channel" then
                 value = getRequestedChannel(key, radioData)
         elseif paramName == "channel" then
                 value = getChannel(key, radioData)
 		elseif paramName == "country" then
 				value = getCounty(key, radioData)
+        elseif paramName == "tx_power_adjust" or paramName == "tx_power_overrule_reg" then
+                wirelessBinding.sectionname = key
+                wirelessBinding.option = paramName
+                value = uci_helper.get_from_uci(wirelessBinding)
         end
         return nilToEmptyString(value)
 end
