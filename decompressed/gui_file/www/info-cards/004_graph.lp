@@ -123,23 +123,28 @@ var InfoGraphCardRefresh = function(ElementBinding) {\
 			$.post("/ajax/traffic_graph.lua?interface=" + interface + \
 				"&oldrx=" + rx_traffic_old + "&oldtx=" + tx_traffic_old +"&auto_update=true" ,\
 				[tch.elementCSRFtoken()], function(data) {\
-					var rx_traffic = data.rx_traffic-data.old_rx_traffic;\
-					var tx_traffic = data.tx_traffic-data.old_tx_traffic;\
-					ElementBinding.rx_traffic_complete(data.rx_traffic);\
-					ElementBinding.tx_traffic_complete(data.tx_traffic);\
-					var date = new Date();\
-					var old_time = Date.parse("01 Jan 1970 "+timelabel.slice(-1).pop()+" GMT");\
-					timelabel.push(date.getHours()+":"+date.getMinutes()+":"+date.getSeconds());\
-					var time = Date.parse("01 Jan 1970 "+timelabel.slice(-1).pop()+" GMT");\
-					var time_diff = (time-old_time > 0) ? ((time-old_time)/1000) : 1;\
-					wanRxdatasets.push(((rx_traffic*8)/time_diff).toFixed(0));\
-					wanTxdatasets.push(((tx_traffic*8)/time_diff).toFixed(0));\
-					if (wanTxdatasets.length > 60) {\
-						wanTxdatasets.shift();\
-						wanRxdatasets.shift();\
-						timelabel.shift();\
-					}\
-					InfoWANChart.update();\
+				var rx_traffic = data.rx_traffic-data.old_rx_traffic;\
+				var tx_traffic = data.tx_traffic-data.old_tx_traffic;\
+				ElementBinding.rx_traffic_complete(data.rx_traffic);\
+				ElementBinding.tx_traffic_complete(data.tx_traffic);\
+				var date = new Date();\
+				var now_ms = date.getTime();\
+				var hh = String(date.getHours()).padStart(2,"0");\
+				var mm = String(date.getMinutes()).padStart(2,"0");\
+				var ss = String(date.getSeconds()).padStart(2,"0");\
+				timelabel.push(hh+":"+mm+":"+ss);\
+				var last_ms = InfoWANChart._lastTimestamp || (now_ms - 10000);\
+				var time_diff = (now_ms - last_ms) / 1000;\
+				if (time_diff <= 0) { time_diff = 1; }\
+				InfoWANChart._lastTimestamp = now_ms;\
+				wanRxdatasets.push(((rx_traffic*8)/time_diff).toFixed(0));\
+				wanTxdatasets.push(((tx_traffic*8)/time_diff).toFixed(0));\
+				if (wanTxdatasets.length > 60) {\
+					wanTxdatasets.shift();\
+					wanRxdatasets.shift();\
+					timelabel.shift();\
+				}\
+				InfoWANChart.update();\
 			}, "json");\
 		};\
 	};\
