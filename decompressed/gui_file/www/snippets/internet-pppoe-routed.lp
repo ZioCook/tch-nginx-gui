@@ -273,18 +273,27 @@ end
 local function IPv6andUsername(value, object, key)
 	local valid, msg = vB(value)
 
-	local ipv6_state = proxy.get("uci.network.interface.@wan.ipv6")[1].value
+	local ipv6_state_raw = proxy.get("uci.network.interface.@wan.ipv6")
+	local ipv6_state = ipv6_state_raw and ipv6_state_raw[1] and ipv6_state_raw[1].value or "0"
 	if valid and ipv6_state ~= value then
-	local ipv6_realm = proxy.get("uci.env.var.ppp_realm_ipv6")[1].value
-	local ipv4_realm = proxy.get("uci.env.var.ppp_realm_ipv4")[1].value
+		local ipv6_realm_raw = proxy.get("uci.env.var.ppp_realm_ipv6")
+		local ipv4_realm_raw = proxy.get("uci.env.var.ppp_realm_ipv4")
+		local ipv6_realm = ipv6_realm_raw and ipv6_realm_raw[1] and ipv6_realm_raw[1].value or ""
+		local ipv4_realm = ipv4_realm_raw and ipv4_realm_raw[1] and ipv4_realm_raw[1].value or ""
 		if value == "1" then
 			proxy.set("uci.network.interface.@wan6.auto", "1")
-			proxy.set("uci.network.interface.@wan.username", ipv6_realm)
+			-- Only overwrite username if ISP has a specific IPv6 realm configured
+			if ipv6_realm ~= "" then
+				proxy.set("uci.network.interface.@wan.username", ipv6_realm)
+			end
 			proxy.set("uci.network.device.@waneth4.ipv6", "1")
 			proxy.set("uci.network.device.@wanptm0.ipv6", "1")
 		else
 			proxy.set("uci.network.interface.@wan6.auto", "0")
-			proxy.set("uci.network.interface.@wan.username", ipv4_realm)
+			-- Only overwrite username if ISP has a specific IPv4 realm configured
+			if ipv4_realm ~= "" then
+				proxy.set("uci.network.interface.@wan.username", ipv4_realm)
+			end
 			proxy.set("uci.network.device.@waneth4.ipv6", "0")
 			proxy.set("uci.network.device.@wanptm0.ipv6", "0")
 		end
