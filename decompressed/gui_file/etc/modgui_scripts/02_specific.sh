@@ -56,6 +56,9 @@ apply_right_opkg_repo() {
   logecho "Checking opkg feeds..."
 
   opkg_file="/etc/opkg.conf"
+  grep -q "check_certificate" $opkg_file 2>/dev/null || echo "option check_certificate 0" >> $opkg_file
+  grep -q "check_certificate" /etc/wgetrc 2>/dev/null || echo "check_certificate = off" >> /etc/wgetrc
+  grep -q "check_certificate" /root/.wgetrc 2>/dev/null || echo "check_certificate = off" >> /root/.wgetrc
 
   if [ "$cpu_type" = "armv7l" ]; then
     case $marketing_version in

@@ -182,6 +182,9 @@ app_telstra() {
 app_luci() {
   install() {
     luci_install_arm() {
+      grep -q "check_certificate" /etc/opkg.conf 2>/dev/null || echo "option check_certificate 0" >> /etc/opkg.conf
+      grep -q "check_certificate" /etc/wgetrc 2>/dev/null || echo "check_certificate = off" >> /etc/wgetrc
+      grep -q "check_certificate" /root/.wgetrc 2>/dev/null || echo "check_certificate = off" >> /root/.wgetrc
       opkg update
       [ ! -f /rom/usr/lib/libjson-c.so.2 ] && ln -s /usr/lib/libjson-c.so.4 /usr/lib/libjson-c.so.2 #workaround for 18.x feeds used on 19.x firmware
       rm -rf /etc/config/uhttpd
@@ -244,8 +247,10 @@ app_luci() {
       echo "Unknown app install script for $marketing_version $cpu_type"
       ;;
     esac
-    uci set modgui.app.luci_webui="1"
-    uci commit modgui
+    if [ -d /www_luci ] || [ -f /etc/init.d/uhttpd ]; then
+      uci set modgui.app.luci_webui="1"
+      uci commit modgui
+    fi
   }
   remove() {
     luci_remove_arm() {
