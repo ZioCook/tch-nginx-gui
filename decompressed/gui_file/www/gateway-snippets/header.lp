@@ -36,6 +36,13 @@ if ngx.req.get_method() == "POST" then
         proxy.apply()
       end
     end
+  elseif post_args.action == "dismiss_reboot_reason" then
+    if proxy.set("uci.modgui.var.reboot_reason_msg", "") then
+      proxy.apply()
+    end
+    ngx.header.content_type = "application/json"
+    ngx.print('{ "success":"true" }')
+    ngx.exit(ngx.HTTP_OK)
   end
 end
 
@@ -205,7 +212,14 @@ ngx.print('\
     }
 
     if cui.reboot_reason_msg ~= "" then
-        html[#html + 1] = ui_helper.createAlertBlock(format(T'A reboot is waiting! Reason: <strong>%s</strong>',cui.reboot_reason_msg),alert_style_upper)
+        local alert_reboot_style = {
+          alert = {
+            class = "alert alert-warning",
+            id = "reboot-reason-alert"
+          },
+        }
+        local dismiss_btn = '<button type="button" class="close" id="dismiss-reboot-msg" data-dismiss="alert">&times;</button>'
+        html[#html + 1] = ui_helper.createAlertBlock(dismiss_btn .. format(T'A reboot is waiting! Reason: <strong>%s</strong>',cui.reboot_reason_msg), alert_reboot_style)
     end
 
     if cui.outdated_ver == "0" then
@@ -283,6 +297,10 @@ ngx.print('\
 	gui_outdated : "'); ngx.print(T"GUI is outdated"); ngx.print('",\
 	gui_updated : "'); ngx.print(T"GUI is updated"); ngx.print('"\
   };\
+\
+  $(document).on("click", "#dismiss-reboot-msg", function() {\
+    $.post("/gateway.lp", [{name: "action", value: "dismiss_reboot_reason"}, tch.elementCSRFtoken()]);\
+  });\
 \
 </script>\
 <script src="/js/shared-script.js?version='); ngx.print(cui.gui_version); ngx.print('" ></script>\

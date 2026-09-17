@@ -449,6 +449,10 @@ local mapValid = {
 
 local modgui_settings, helpmsg = post_helper.handleQuery(mapParams, mapValid)
 
+if ngx.var.request_method == "POST" and not next(helpmsg) then
+    proxy.set("uci.modgui.var.reboot_reason_msg", "")
+end
+
 ngx.print(ui_helper.createHeader(T"GUI Settings & Utility", false, false))
 ngx.print('\
 <div class="modal-body update">\
@@ -618,6 +622,15 @@ local info_box = {
 html[#html + 1] = ui_helper.createAlertBlock(T"Disable CWMP Update. Any firmware update from CWMP will be rejected and not flashed. "..
                         "Consider that CWMP that request a firmware update will keep requesting it until the update is actually installed. "..
                         "Autoconfiguration won't work. Manually set the version in the System Extra tab to spoof a version or upgrade the firmware.")
+local blocked_msg = proxy.get("uci.modgui.var.reboot_reason_msg")
+if blocked_msg and blocked_msg[1] and blocked_msg[1].value ~= "" then
+    local alert_info = {
+        alert = {
+            class = "alert alert-warning",
+        }
+    }
+    html[#html + 1] = ui_helper.createAlertBlock(format(T"Blocked Firmware Update Alert: <strong>%s</strong> (Saving this form will clear the alert)", blocked_msg[1].value), alert_info)
+end
 html[#html + 1] = ui_helper.createSwitch(T"Disable CWMP Update", "disable_cwmp_update", modgui_settings["disable_cwmp_update"])
 html[#html + 1] = ui_helper.createAlertBlock(T"Change the Modem Serial. Consider that the modem serial is the Factory ID + Serial.", info_box)
 html[#html + 1] = ui_helper.createInputText(T"Modem Serial", "modem_serial", modgui_settings["modem_serial"])
