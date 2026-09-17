@@ -12,6 +12,7 @@ local ajax_helper = require("web.ajax_helper")
 local tonumber = tonumber
 local match, format = string.match, string.format
 local post_helper = require("web.post_helper")
+local internethelper = require("internethelper")
 local session = ngx.ctx.session
 -- State data
 local dhcp_state = "connecting"
@@ -53,6 +54,18 @@ local dns_options = {
     createMsg = T"Add new DNS server",
     minEntries = 0,
     maxEntries = 3,
+    onAdd = function()
+        local peerdns = proxy.get("uci.network.interface.@wan.peerdns")
+        internethelper.syncWanDns(peerdns and peerdns[1] and peerdns[1].value)
+    end,
+    onModify = function()
+        local peerdns = proxy.get("uci.network.interface.@wan.peerdns")
+        internethelper.syncWanDns(peerdns and peerdns[1] and peerdns[1].value)
+    end,
+    onDelete = function()
+        local peerdns = proxy.get("uci.network.interface.@wan.peerdns")
+        internethelper.syncWanDns(peerdns and peerdns[1] and peerdns[1].value)
+    end,
 }
 
 local dns_columns = {
@@ -205,12 +218,20 @@ local function IPv6andUsername(value, object, key)
 	return valid, msg
 end
 
+local function validatePeerDNS(value, object, key)
+	local valid, msg = vB(value, object, key)
+	if valid then
+		internethelper.syncWanDns(value)
+	end
+	return valid, msg
+end
+
 local mapValid = {
     uci_wan_auto = vB,
     uci_wan_masq = validateNat,
 	uci_wan_ipv6 = IPv6andUsername,
     uci_wan_mac = gOV(post_helper.validateStringIsMAC),
-    uci_wan_peerdns = vB,
+    uci_wan_peerdns = validatePeerDNS,
 	uci_wan_vendorid = gOV(post_helper.validateNonEmptyString),
 }
 
@@ -292,19 +313,25 @@ end
 ajax_helper.handleAjaxQuery(cs, function(c)
     -- this will add the HTML for the light
     local ds = get_dhcp_state(content["uci_wan_auto"], c["ipaddr"])
-    local dnstab = split(proxy.get("rpc.network.interface.@loopback.dnsservers")[1].value, "[^%,]+")
+    local loop_dns = proxy.get("rpc.network.interface.@loopback.dnsservers")
+    local dnstab = split(loop_dns and loop_dns[1] and loop_dns[1].value or "", "[^%,]+")
     local dnsv4, dnsv6 = dns_filter(dnstab)
     ajax_attr_light.light.class = dhcp_light_map[ds]
     c.wan_status = ui_helper.createSimpleLight(nil, dhcp_state_map[ds], ajax_attr_light)
-	if proxy.get("uci.network.interface.@wan.auto")[1].value == "1" then
-          c.dns = content_helper.getMergedList(proxy.get("rpc.network.interface.@wan.dnsservers")[1].value, dnsv4)
-        else
-		c.dns = dnsv4
-	end
+    local wan_auto = proxy.get("uci.network.interface.@wan.auto")
+    local wan_dns = proxy.get("rpc.network.interface.@wan.dnsservers")
+    local wan_dns_val = wan_dns and wan_dns[1] and wan_dns[1].value or ""
+    if wan_auto and wan_auto[1] and wan_auto[1].value == "1" then
+        c.dns = content_helper.getMergedList(wan_dns_val, dnsv4)
+    else
+        c.dns = dnsv4
+    end
     local ipv6_enabled = proxy.get("uci.network.interface.@wan.ipv6")
-    if ipv6_enabled and ipv6_enabled[1].value == "1" then
-		c.dnsv6 = dnsv6
-	end
+    if ipv6_enabled and ipv6_enabled[1] and ipv6_enabled[1].value == "1" then
+        local wan6_dns = proxy.get("rpc.network.interface.@wan6.dnsservers")
+        local wan6_dns_val = wan6_dns and wan6_dns[1] and wan6_dns[1].value or ""
+        c.dnsv6 = content_helper.getMergedList(wan6_dns_val, dnsv6)
+    end
 	if ds == "connected" then
         content_helper.getExactContent(dhcp_lease)
         c["leaseobtained"], c["leaseexpires"] = getLeaseTime(dhcp_lease["uptime"],  dhcp_lease["lease"], dhcp_lease["lease_expires"])

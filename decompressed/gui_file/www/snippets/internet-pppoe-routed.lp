@@ -15,6 +15,7 @@ local iconUp = "<i class=\"icon-upload icon-large gray\"></i> "
 local iconDown = " <i class=\"icon-download icon-large gray\"></i> "
 -- Process POST query
 local post_helper = require("web.post_helper")
+local internethelper = require("internethelper")
 local session = ngx.ctx.session
 local role = session:getrole()
 
@@ -191,6 +192,18 @@ local dns_options = {
     createMsg = T"Add new DNS server",
     minEntries = 0,
     maxEntries = 3,
+    onAdd = function()
+        local peerdns = proxy.get("uci.network.interface.@wan.peerdns")
+        internethelper.syncWanDns(peerdns and peerdns[1] and peerdns[1].value)
+    end,
+    onModify = function()
+        local peerdns = proxy.get("uci.network.interface.@wan.peerdns")
+        internethelper.syncWanDns(peerdns and peerdns[1] and peerdns[1].value)
+    end,
+    onDelete = function()
+        local peerdns = proxy.get("uci.network.interface.@wan.peerdns")
+        internethelper.syncWanDns(peerdns and peerdns[1] and peerdns[1].value)
+    end,
 }
 
 local dns_columns = {
@@ -302,6 +315,14 @@ local function IPv6andUsername(value, object, key)
 	return valid, msg
 end
 
+local function validatePeerDNS(value, object, key)
+  local valid, msg = vB(value, object, key)
+  if valid then
+    internethelper.syncWanDns(value)
+  end
+  return valid, msg
+end
+
 -- Validation allows empty values if wan access disabled but will stil check for validity if the parameter is set
 -- if wan is enabled then it checks for validaty anyway
 local mapValid = {
@@ -312,7 +333,7 @@ local mapValid = {
   uci_wan_host_uniq = gCV(isWanEnabled, validateHostUniq),
   uci_wan_ipv6 = IPv6andUsername,
   uci_wan_mac = gOV(post_helper.validateStringIsMAC),
-  uci_wan_peerdns = vB,
+  uci_wan_peerdns = validatePeerDNS,
 }
 
 local content, helpmsg = post_helper.handleQuery(mapParams, mapValid)
@@ -339,27 +360,34 @@ local content_rpc = {
   dns_loopback = "rpc.network.interface.@loopback.dnsservers", -- Added to include static dns servers configured on loopback interface (for TI custo)
 }
 
-local internethelper = require("internethelper")
-
 for v6Key, v6Value in pairs(internethelper.getIpv6Content()) do
 	content_rpc[v6Key] = v6Value
 end
 
 ajax_helper.handleAjaxQuery(content_rpc, function(c)
     -- this will add the HTML for the light
-    local ds = get_dhcp_state(content["uci_wan_auto"], proxy.get("rpc.network.interface.@wan.ppp.state")[1].value, proxy.get("rpc.network.interface.@wan.ppp.error")[1].value, c["ipaddr"])
-	local dnstab = split(proxy.get("rpc.network.interface.@loopback.dnsservers")[1].value, "[^%,]+")
-	local dnsv4, dnsv6 = dns_filter(dnstab)
+    local ppp_state = proxy.get("rpc.network.interface.@wan.ppp.state")
+    local ppp_state_val = ppp_state and ppp_state[1] and ppp_state[1].value or ""
+    local ppp_err = proxy.get("rpc.network.interface.@wan.ppp.error")
+    local ppp_err_val = ppp_err and ppp_err[1] and ppp_err[1].value or ""
+    local ds = get_dhcp_state(content["uci_wan_auto"], ppp_state_val, ppp_err_val, c["ipaddr"])
+    local loop_dns = proxy.get("rpc.network.interface.@loopback.dnsservers")
+    local dnstab = split(loop_dns and loop_dns[1] and loop_dns[1].value or "", "[^%,]+")
+    local dnsv4, dnsv6 = dns_filter(dnstab)
     ajax_attr_light.light.class = ppp_light_map[ds]
     c.wan_status = ui_helper.createSimpleLight(nil, ppp_state_map[ds], ajax_attr_light)
-	if proxy.get("rpc.network.interface.@wan.ppp.state")[1].value == "connected" then
-		c.dns = content_helper.getMergedList(proxy.get("rpc.network.interface.@wan.dnsservers")[1].value, dnsv4)
-	else
-		c.dns = dnsv4
+    local wan_dns = proxy.get("rpc.network.interface.@wan.dnsservers")
+    local wan_dns_val = wan_dns and wan_dns[1] and wan_dns[1].value or ""
+    if ppp_state_val == "connected" then
+        c.dns = content_helper.getMergedList(wan_dns_val, dnsv4)
+    else
+        c.dns = dnsv4
     end
     local ipv6_enabled = proxy.get("uci.network.interface.@wan.ipv6")
-    if ipv6_enabled and ipv6_enabled[1].value == "1" then
-        c.dnsv6 = dnsv6
+    if ipv6_enabled and ipv6_enabled[1] and ipv6_enabled[1].value == "1" then
+        local wan6_dns = proxy.get("rpc.network.interface.@wan6.dnsservers")
+        local wan6_dns_val = wan6_dns and wan6_dns[1] and wan6_dns[1].value or ""
+        c.dnsv6 = content_helper.getMergedList(wan6_dns_val, dnsv6)
     end
     c.discard = format("%s %s [Pkt] %s %s [Pkt]", iconUp, mapPPPstats.discardS, iconDown, mapPPPstats.discardR)
 	c.broadcast = format("%s %s [Pkt] %s %s [Pkt]", iconUp, mapPPPstats.broadcastS, iconDown, mapPPPstats.broadcastR)
