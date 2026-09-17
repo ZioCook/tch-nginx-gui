@@ -682,6 +682,10 @@ local function getParamsAndValidation()
         ["0"] = "acl_button_pressed.sh",
     }, untaint_mt)
 
+  -- Only include wps_button_handler if the UCI path actually exists on this device
+  local wps_path = "uci.button.button.@wps.handler"
+  local wps_exists = proxy.get(wps_path) ~= nil
+
   -- rpc parameters list
   local mapParams = {
     ssid = pathiface .. "ssid",
@@ -690,11 +694,13 @@ local function getParamsAndValidation()
     wep_key = pathap .. "security.wep_key",
     wpa_psk = pathap .. "security.wpa_psk_passphrase",
     acl_mode = pathap .. "acl.mode",
-    wps_button_handler = "uci.button.button.@wps.handler",
     standard = pathradio .. "standard",
     requested_channel = pathradio .. "requested_channel",
     requested_channel_width = pathradio .. "requested_channel_width",
     }
+  if wps_exists then
+    mapParams.wps_button_handler = wps_path
+  end
     if isguest=="1" then
         mapParams.ap_enabled = pathap .. "admin_state"
     end
@@ -797,7 +803,6 @@ local function getParamsAndValidation()
     radius_account_port = gOV(VIPIL_port),
     radius_authent_state = gCV(radiusCond, getReplaceValue("1"), getReplaceValue("0")), -- we know that we're enforcing the server ip and port is there
     radius_account_state = gCV(gAV(radiusCond, checkIPandPort), getReplaceValue("1"), getReplaceValue("0")), -- if no server ip or port, don't set to 1
-    wps_button_handler = post_helper.getValidateInEnumSelect(wps_button_mode),
     bsid = getValidateBandSteerPeerFields,
     frame_bursting = vB,
     ap_broadcast_ssid = vB,
@@ -811,6 +816,10 @@ local function getParamsAndValidation()
 	eco_single_rx_chain = vB,
 	eco_fast_radio_toggle = vB,
   }
+  -- Only validate wps_button_handler if path exists on this device
+  if wps_exists then
+    mapValid.wps_button_handler = post_helper.getValidateInEnumSelect(wps_button_mode)
+  end
 
 	if isguest ~= "1" then
 		mapValid.admin_state = validateRadioandAp
@@ -1445,7 +1454,9 @@ if isguest ~= "1"  then
     }
     if radioData[curradio].remotely_managed ~= "1" or radioData[curradio].integrated_ap == "1"  then
      html[#html + 1] = ui_helper.createButton(T"WPS PBC", T"Trigger", "icon-refresh", wps_class)
-	 html[#html + 1] = ui_helper.createInputRadio(T"WPS Buttom Mode", "wps_button_handler" , wps_button_mode , content["wps_button_handler"] , nil)
+	 if content["wps_button_handler"] ~= nil then
+	   html[#html + 1] = ui_helper.createInputRadio(T"WPS Buttom Mode", "wps_button_handler" , wps_button_mode , content["wps_button_handler"] , nil)
+	 end
     end
 end
    if 1 == band_steer_supported then
