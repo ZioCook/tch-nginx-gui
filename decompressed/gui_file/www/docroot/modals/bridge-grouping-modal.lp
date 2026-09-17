@@ -177,7 +177,11 @@ end
 local function validateLANIfname(value, object, key)
     local lanvalue = tabletostring(object["lanintf"])
     local wanvalue = tabletostring(object["wanintf"])
-    object["lanintf"] = format("%s %s", tabletostring(object["lanintf"]), tabletostring(object["wanintf"]))
+    local combined = format("%s %s", lanvalue, wanvalue)
+    if object["paramindex"] == "lan" and not combined:match("%S") then
+        return nil, { lanintf = T"At least one interface must remain in the LAN bridge group" }
+    end
+    object["lanintf"] = combined
     return true
 end
 
@@ -262,16 +266,24 @@ end
 local lanintf_num, wanintf_num = 3, 4
 for _, v in pairs(bridge_data) do
   local lanintf, wanintf = "", ""
+  local lan_selected, wan_selected = {}, {}
   if v[lanintf_num] ~= "" then
     for w in gmatch(v[lanintf_num], "%S+") do
        w = untaint(w)
        if find(w, "^eth") or find(w, "^wl") then
           lanintf = format("%s&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;%s", lanintf, w)
+          lan_selected[#lan_selected + 1] = w
        else
+          lan_selected[#lan_selected + 1] = w
+          wan_selected[#wan_selected + 1] = w
           w = getIntfName(w)
           wanintf = format("%s&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;%s", wanintf, w)
        end
     end
+  end
+  if type(v[5]) == "table" then
+    v[5][2] = lan_selected
+    v[5][3] = wan_selected
   end
   v[lanintf_num] = lanintf
   v[wanintf_num] = wanintf
