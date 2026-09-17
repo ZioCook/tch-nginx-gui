@@ -345,11 +345,18 @@ end
 -- check Protocol used and redirect to HTTPS if requested by option in web config
 local function checkProtocol(address,force_https)
 	if force_https and force_https == "1" then
+		local uri_args = ngx.req.get_uri_args()
+		if uri_args and (uri_args.http == "1" or uri_args.no_https == "1") then
+			return
+		end
 		local http_port = untaint(ngx.var.server_port)
 		local http_request_uri = untaint(ngx.var.request_uri)
 
 		if http_port == "80" then
-			ngx.redirect(format("https://%s%s",address.http_host,http_request_uri))
+			local host = (address.http_host or ""):gsub(":%d+$", "")
+			if host ~= "" then
+				ngx.redirect(format("https://%s%s", host, http_request_uri))
+			end
 		end
 	end
 end

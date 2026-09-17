@@ -311,9 +311,14 @@ if ngx.req.get_method() == "POST" then
                 ngx.exit(ngx.OK)
                 return
         end
-        if proxy.get("uci.web.sessionmgr.@default.force_https")[1].value ~= post_args.gui_forcehttps then
-                local mngr = require("web.sessioncontrol").loadmgr("default")
-                mngr.force_https = post_args.gui_forcehttps
+        if post_args.gui_forcehttps then
+                local cur_force = proxy.get("uci.web.sessionmgr.@default.force_https")
+                if cur_force and cur_force[1] and cur_force[1].value ~= post_args.gui_forcehttps then
+                        local mngr = require("web.sessioncontrol").loadmgr("default")
+                        if mngr then
+                                mngr.force_https = post_args.gui_forcehttps
+                        end
+                end
         end
         if action == "debug_report" then
 
@@ -398,16 +403,22 @@ local spoof_mode_enum = {
         { "manual" , T"Set the version to comunicate to cwmp manually"},
 }
 local function validateVersionSpoofMode(value, object, key)
+        if value == nil or value == "" then
+                return true
+        end
 
-        local valid, msg = post_helper.getValidateInEnumSelect(spoof_mode_enum)
+        local validator = post_helper.getValidateInEnumSelect(spoof_mode_enum)
+        local valid, msg = validator(value)
 
         if valid then
                 local version_path="uci.versioncusto.override.fwversion_override"
-                local version_real=proxy.get(version_path.."_real")[1].value
-                if value == "disabled" then
-                        proxy.set(version_path, version_real)
+                local version_real=proxy.get(version_path.."_real")
+                if version_real and version_real[1] and version_real[1].value then
+                        if value == "disabled" then
+                                proxy.set(version_path, version_real[1].value)
+                        end
+                        proxy.apply()
                 end
-                proxy.apply()
         end
 
         return valid, msg
@@ -441,7 +452,7 @@ local mapValid = {
         gui_forcehttps = vB,
         gui_animation = vB,
         disable_cwmp_update = vB,
-        modem_serial = post_helper.validateNonEmptyString,
+        modem_serial = gOV(post_helper.validateNonEmptyString),
         fwversion_override = gOV(post_helper.validateNonEmptyString),
         version_spoof_mode = validateVersionSpoofMode,
         check_obp = vB
@@ -459,6 +470,11 @@ ngx.print('\
 ');
 ngx.print(ui_helper.createMessages(message_helper.popMessages()))
 
+local info_box = {
+        alert = {
+                class = "alert alert-info",
+        }
+}
 local basic = {
         span = {
                 class = "span5"
@@ -553,6 +569,7 @@ html[#html + 1] = ui_helper.createInputSelect(T"GUI Skin", "gui_skin", gui_skin_
 html[#html + 1] = ui_helper.createInputSelect(T"GUI First Page", "gui_skin_firstpage", gui_skin_firstpage_page, modgui_settings["gui_skin_firstpage"])
 html[#html + 1] = ui_helper.createSwitch(T"Random Color", "gui_randomcolor", modgui_settings["gui_randomcolor"])
 html[#html + 1] = ui_helper.createSwitch(T"Force HTTPS to access the GUI", "gui_forcehttps", modgui_settings["gui_forcehttps"])
+html[#html + 1] = ui_helper.createAlertBlock(T"Note: In case of SSL certificate or browser connection issues, HTTP access can be regained by appending ?http=1 to the URL.", info_box)
 html[#html + 1] = ui_helper.createSwitch(T"Always show advanced options", "gui_alwaysadvanced", modgui_settings["gui_alwaysadvanced"])
 html[#html + 1] = ui_helper.createSwitch(T"GUI animations", "gui_animation", modgui_settings["gui_animation"])
 html[#html + 1] = '</form>'
@@ -614,11 +631,6 @@ end
 
 html[#html + 1] = '<form class="form-horizontal" method="post" action="modals/modgui-modal.lp">'
 html[#html + 1] = '<legend>'.. T"CWMP Spoof Settings" ..'</legend>'
-local info_box = {
-        alert = {
-                class = "alert alert-info",
-        }
-}
 html[#html + 1] = ui_helper.createAlertBlock(T"Disable CWMP Update. Any firmware update from CWMP will be rejected and not flashed. "..
                         "Consider that CWMP that request a firmware update will keep requesting it until the update is actually installed. "..
                         "Autoconfiguration won't work. Manually set the version in the System Extra tab to spoof a version or upgrade the firmware.")
@@ -897,7 +909,6 @@ ngx.print('\
   $("#gui_skin").on("change", function() {\
         var theme = $(this).val();\
         if ( theme.indexOf("Fritz") === -1 ) {\
-                event.preventDefault();\
                 var restyled = theme+"/style.css";\
                 modgui.freshStyle(restyled);\
         }\
