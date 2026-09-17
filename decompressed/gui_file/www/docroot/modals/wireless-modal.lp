@@ -163,20 +163,24 @@ for i,v in ipairs(wl_list) do
   if values ~= nil then
     local ap_iso = proxy.get(v.path .. "ap_isolation")
     local iface_state = proxy.get(path .. ".oper_state")
+    local radio_val = values[1] and values[1].value or ""
+    local ssid_val = values[2] and values[2].value or ""
+    local stb_val = values[3] and values[3].value or "0"
+    local ap_name = values[4] and values[4].value or ""
     wls[#wls+1] = {
-            radio = values[1].value,
-            ssid = values[2].value,
+            radio = radio_val,
+            ssid = ssid_val,
             iface = v.value,
-            stb = values[3].value,
-            ap_display_name = values[4].value,
-            ap_isolation = ap_iso and ap_iso[1].value or "0",
-            oper_state = iface_state and iface_state[1].value or "0",
+            stb = stb_val,
+            ap_display_name = ap_name,
+            ap_isolation = ap_iso and ap_iso[1] and ap_iso[1].value or "0",
+            oper_state = iface_state and iface_state[1] and iface_state[1].value or "0",
         }
     if (v.value == getiface) or (not getiface and v.value == curiface) then
         curiface = v.value
         curap = match(v.path, "rpc%.wireless%.ap%.@([^%.]+)%.")
-        isguest = proxy.get(v.path .. "ap_isolation")[1].value
-        cur_ssid = values[2].value
+        isguest = ap_iso and ap_iso[1] and ap_iso[1].value or "0"
+        cur_ssid = ssid_val
     end
  end
 end
@@ -192,7 +196,7 @@ end)
 local guest_ifaces = { "wl0_1", "wl1_1" }
 local guest_ap_map = { wl0_1 = "ap2", wl1_1 = "ap3" }
 local guest_enabled_raw = proxy.get("uci.wireless.wifi-iface.@wl0_1.state")
-local guest_network_enabled = guest_enabled_raw and untaint(guest_enabled_raw[1].value) == "1" and "1" or "0"
+local guest_network_enabled = guest_enabled_raw and guest_enabled_raw[1] and untaint(guest_enabled_raw[1].value) == "1" and "1" or "0"
 
 
 -- Handle guest network toggle

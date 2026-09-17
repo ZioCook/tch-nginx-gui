@@ -36,30 +36,45 @@ local content = {
 
 content_helper.getExactContent(content)
 
-if not ( content.dsl_linerate_down == "0" ) then
-content.max_upstream = nil
-content.dsl_linerate_up = content.dsl_linerate_up and floor(tonumber(content.dsl_linerate_up) / 10) / 100 .. " Mbps"  or "Can't recover data"
-content.dsl_linerate_down = content.dsl_linerate_down and floor(tonumber(content.dsl_linerate_down) / 10) / 100 .. " Mbps"  or "Can't recover data"
-content.dsl_linerate_up_max = content.dsl_linerate_up_max and (floor(tonumber(content.dsl_linerate_up_max) / 10) / 100 .. " Mbps") or "Can't recover data"
-content.dsl_linerate_down_max = content.dsl_linerate_down_max and floor(tonumber(content.dsl_linerate_down_max) / 10) / 100 .. " Mbps"  or "Can't recover data"
+local function format_rate(rate)
+    local num = tonumber(rate)
+    if num then
+        return floor(num / 10) / 100 .. " Mbps"
+    end
+    return "0 Mbps"
+end
 
-if not ( content.dsl_type:match("ADSL") ) then
+if content.dsl_linerate_down and content.dsl_linerate_down ~= "0" and content.dsl_linerate_down ~= "" then
+    content.max_upstream = nil
+    content.dsl_linerate_up = format_rate(content.dsl_linerate_up)
+    content.dsl_linerate_down = format_rate(content.dsl_linerate_down)
+    content.dsl_linerate_up_max = format_rate(content.dsl_linerate_up_max)
+    content.dsl_linerate_down_max = format_rate(content.dsl_linerate_down_max)
+else
+    content.dsl_linerate_up = "0 Mbps"
+    content.dsl_linerate_down = "0 Mbps"
+    content.dsl_linerate_up_max = "0 Mbps"
+    content.dsl_linerate_down_max = "0 Mbps"
+end
+
+if content.dsl_type and content.dsl_type ~= "" and not content.dsl_type:match("ADSL") then
 	content.dsl_margin_down = content.dsl_margin_SNRM_down
 	content.dsl_margin_up = content.dsl_margin_SNRM_up
 end
 
-if content.dslam_chipset:match("BDCM") then
+if content.dslam_chipset and content.dslam_chipset:match("BDCM") then
 	content.dslam_chipset = "Broadcom" .. " ( " .. content.dslam_chipset .. " )"
-elseif content.dslam_chipset:match("IFTN") then
+elseif content.dslam_chipset and content.dslam_chipset:match("IFTN") then
 	content.dslam_chipset = "Infineon" .. " ( " .. content.dslam_chipset .. " )"
 end
 
-if content["status"]:match("Showtime") then
+local dsl_status = content["status"] or ""
+if dsl_status:match("Showtime") then
 	content["status"] = T"Connected"
-elseif content["status"] == "" then
+elseif dsl_status == "" then
 	content["status"] = T"Disconnected"
 else
-	content["status"] = T(content.status)
+	content["status"] = T(dsl_status)
 end
 
   ngx.print('\

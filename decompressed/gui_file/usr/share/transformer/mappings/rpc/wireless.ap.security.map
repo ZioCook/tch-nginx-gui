@@ -43,7 +43,7 @@ end
 
 local function getDataForAP(ap)
     local result = conn:call("wireless.accesspoint.security", "get", { name = ap })
-    if result == nil then
+    if result == nil or result[ap] == nil then
         log:error("Cannot retrieve security info for ap " .. ap)
         return {}
     end
@@ -51,7 +51,7 @@ local function getDataForAP(ap)
 end
 
 local function getall(mapping, key)
-    local apData = getDataForAP(key)
+    local apData = getDataForAP(key) or {}
     local sanitizedData = {}
     for k,v in pairs(apData) do
         sanitizedData[k] = nilToEmptyString(v)
@@ -60,7 +60,7 @@ local function getall(mapping, key)
 end
 
 local function get(mapping, paramName, key)
-    local apData = getDataForAP(key)
+    local apData = getDataForAP(key) or {}
     return nilToEmptyString(apData[paramName]);
 end
 
