@@ -332,9 +332,18 @@ local function getFileName()
     local usbStatus = getUSBStatus()
     if saveOnUsb == "1" and usbStatus == "Connected" then
       local usbFileName = getUSBFileName()
-      return usbFileName or ""
+      if usbFileName and usbFileName ~= "" then
+        return usbFileName
+      end
     end
-    return tcpdump_info.file
+    if tcpdump_info.file and tcpdump_info.file ~= "" then
+      return tcpdump_info.file
+    end
+    if tcpdump_info.type == "log" then
+      return TCPDUMP_LOG
+    else
+      return TCPDUMP_PCAP
+    end
 end
 
 -- commit function
@@ -344,6 +353,13 @@ local function statecommit()
   if tcpdump_info.state == "Requested" then
     remove(TCPDUMP_PCAP)
     remove(TCPDUMP_LOG)
+    if saveOnUsb == "1" and getUSBStatus() == "Connected" then
+      tcpdump_info.file = createUSBPath() or (type == "log" and TCPDUMP_LOG or TCPDUMP_PCAP)
+    elseif type == "log" then
+      tcpdump_info.file = TCPDUMP_LOG
+    else
+      tcpdump_info.file = TCPDUMP_PCAP
+    end
     local pid = posix.fork()
     if not pid then
       tcpdump_info.state = "Error"
@@ -353,13 +369,6 @@ local function statecommit()
 
       --disable accelerate during tcpdump
       fc_disabled()
-      if saveOnUsb == "1" then
-        tcpdump_info.file = createUSBPath()
-      elseif type == "log" then
-        tcpdump_info.file = TCPDUMP_LOG
-      else
-        tcpdump_info.file = TCPDUMP_PCAP
-      end
       local args = { TCPDUMP_SH, tcpdump_info.type, tcpdump_info.interface, tcpdump_info.count, tcpdump_info.file }
       local _, err = posix.execv("/bin/sh", args)
       -- execv failed; exit the child process.

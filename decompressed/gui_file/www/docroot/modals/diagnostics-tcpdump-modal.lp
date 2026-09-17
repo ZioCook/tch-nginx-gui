@@ -10,7 +10,7 @@ local ui_helper = require("web.ui_helper")
 local post_helper = require("web.post_helper")
 local content_helper = require("web.content_helper")
 local message_helper = require("web.uimessage_helper")
-local format, untaint, gmatch = string.format, string.untaint, string.gmatch
+local format, untaint, gmatch, match = string.format, string.untaint, string.gmatch, string.match
 local open = io.open
 local vB = post_helper.validateBoolean
 local vNES = post_helper.validateNonEmptyString
@@ -70,13 +70,26 @@ local function tcpdump_download()
   content_helper.getExactContent(tcpdump_info)
 
   if tcpdump_info.state == "Complete" then
-    ngx.header.content_disposition = "attachment; filename=" .. (string.match(untaint(tcpdump_info.file), ".+/([^/]*%.%w+)$"))
-    ngx.header.content_type = "application/octet-stream"
-    ngx.header.set_cookie = "fileDownload=true; Path=/"  -- the JS download code requires this cookie
+    local filepath = untaint(tcpdump_info.file or "")
+    if filepath == "" then
+      if tcpdump_info.type == "log" then
+        filepath = "/tmp/tcpdumpGUI.log"
+      else
+        filepath = "/tmp/tcpdumpGUI.pcap"
+      end
+    end
 
-    local file = open(untaint(tcpdump_info.file), "r")
-    -- buffer read for large file
+    local filename = match(filepath, ".+/([^/]+)$")
+    if not filename or filename == "" then
+      filename = (tcpdump_info.type == "log") and "tcpdumpGUI.log" or "tcpdumpGUI.pcap"
+    end
+
+    local file = open(filepath, "rb")
     if file then
+      ngx.header.content_disposition = "attachment; filename=" .. filename
+      ngx.header.content_type = "application/octet-stream"
+      ngx.header.set_cookie = "fileDownload=true; Path=/"  -- the JS download code requires this cookie
+
       local data
       while true do
         data = file:read(1024)
@@ -86,10 +99,14 @@ local function tcpdump_download()
         ngx.print(data)
         ngx.flush(true)
       end
+      file:close()
+      return ngx.exit(ngx.HTTP_OK)
+    else
+      ngx.header.set_cookie = "fileDownload=true; Path=/"
+      ngx.status = ngx.HTTP_NOT_FOUND
+      ngx.print("File not found")
+      return ngx.exit(ngx.HTTP_NOT_FOUND)
     end
-    file:close()
-
-    ngx.exit(ngx.HTTP_OK)
   end
 end
 
@@ -233,6 +250,7 @@ ngx.print(ui_helper.createMessages(message_helper.popMessages()))
   }
   local attrText = {input = { ["data-for"] = "START"}}
   local attrSelect = {select = { ["data-for"] = "START"}}
+  local attrCheckbox = {input = { ["data-for"] = "START"}}
   local attributes = { span = { class = "span8" } }
   local statusText = ""
   local statusIcon = ""
@@ -258,8 +276,12 @@ ngx.print(ui_helper.createMessages(message_helper.popMessages()))
 
   html = {}
   if(tcpdump_data.state == "Complete") then
-    local size = lfs.attributes (untaint(tcpdump_data.file), "size")
-    if size ~= 0 and tcpdump_data.saveonusb == "0" then
+    local filePath = untaint(tcpdump_data.file or "")
+    if filePath == "" then
+      filePath = (tcpdump_data.type == "log") and "/tmp/tcpdumpGUI.log" or "/tmp/tcpdumpGUI.pcap"
+    end
+    local size = lfs.attributes(filePath, "size")
+    if size and size > 0 and tcpdump_data.saveonusb == "0" then
       html[#html + 1] = ui_helper.createButton(T"", T"Download", "icon-download-alt", tcpdump_download)
       html[#html + 1] = ui_helper.createAlertBlock(T"Downloading TCPDump file, please wait...", downloading_alert)
       html[#html + 1] = ui_helper.createAlertBlock(T"Download failed; please try again.", downloading_fail)
@@ -275,7 +297,11 @@ ngx.print(ui_helper.createMessages(message_helper.popMessages()))
 
   -- tcpdump log content
   if(tcpdump_data.state == "Complete" and tcpdump_data.type == "log") then
-    local f = open(untaint(tcpdump_data.file), "r")
+    local logPath = untaint(tcpdump_data.file or "")
+    if logPath == "" then
+      logPath = "/tmp/tcpdumpGUI.log"
+    end
+    local f = open(logPath, "r")
     if f then
       ngx.print(ui_helper.createLabel(T"TCPDump Log:", ""))
       ngx.print("<div class='control-group'><label class='control-label'></label><div class='controls'>")
