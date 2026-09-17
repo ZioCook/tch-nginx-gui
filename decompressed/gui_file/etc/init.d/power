@@ -14,27 +14,33 @@ uci2onoff() {
 
 setup_eee() {
     config_get eee ethernet eee 1
-    pwrctl config --eee `uci2onoff $eee`
+    pwrctl config --eee `uci2onoff $eee` 2>/dev/null
 }
 
 setup_autogreeen() {
     config_get autogreeen ethernet autogreeen 1
-    pwrctl config --autogreeen `uci2onoff $autogreeen`
+    pwrctl config --autogreeen `uci2onoff $autogreeen` 2>/dev/null
 }
 
 setup_ethapd() {
     config_get ethapd ethernet ethapd 1
-    pwrctl config --ethapd `uci2onoff $ethapd`
+    pwrctl config --ethapd `uci2onoff $ethapd` 2>/dev/null
 }
 
 setup_wait() {
     config_get wait cpu wait 1
-    pwrctl config --wait `uci2onoff $wait`
+    pwrctl config --cpuwait `uci2onoff $wait` 2>/dev/null
 }
 
 setup_cpuspeed() {
-    config_get cpuspeed cpu cpuspeed
-    pwrctl config --cpuspeed $cpuspeed
+    config_get cpuspeed cpu cpuspeed ""
+    if [ -n "$cpuspeed" ]; then
+        if [ "$cpuspeed" = "0" ] || [ "$cpuspeed" = "off" ]; then
+            pwrctl config --cpuspeed off 2>/dev/null
+        else
+            pwrctl config --cpuspeed on "$cpuspeed" 2>/dev/null
+        fi
+    fi
 }
 
 setup_governor() {
