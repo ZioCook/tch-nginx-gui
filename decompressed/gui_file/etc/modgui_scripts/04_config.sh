@@ -472,9 +472,11 @@ cumulative_check_gui() {
           move_gui_to_root
         elif ping -q -c 1 -W 1 8.8.8.8 >/dev/null 2>&1; then
           logecho "Downloading stable..."
-          curl -k -L -s https://github.com/ZioCook/tch-nginx-gui/releases/latest/download/GUI.tar.bz2 --output /tmp/GUI.tar.bz2 || \
-          curl -k -s https://raw.githubusercontent.com/Ansuel/gui-dev-build-auto/master/GUI.tar.bz2 --output /tmp/GUI.tar.bz2
-          move_gui_to_root
+          if /usr/share/transformer/scripts/checkver DownloadStable /tmp/GUI.tar.bz2; then
+            move_gui_to_root
+          else
+            logecho "Cannot download a verified recovery GUI."
+          fi
         else
           logecho "Can't download stable GUI!"
         fi

@@ -80,10 +80,9 @@ local function updateLanCache()
     --Update the hosts cache from hostmanager
     --Request "ext_info" as well while invoking conn:call on "hostmanager.device"
     local newCache = conn:call("hostmanager.device", "get", { ["ext-info"] = true })
-    if newCache ~= nil then
-      hostsCache = newCache
-    elseif hostsCache == nil then
-      hostsCache = {}
+    if newCache ~= nil then hostsCache = newCache end
+    if hostsCache == nil then
+      error("retrieving hosts failed")
     end
     --Update the lan interfaces cache
     local newLan = nwcommon.findLanWanInterfaces(false)

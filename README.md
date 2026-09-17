@@ -60,12 +60,12 @@ General GUI Topic: https://www.ilpuntotecnico.com/forum/index.php/topic,81461.0.
 <h3>Then execute these commands (Active WAN/Internet connection required):</h3>
 
 ```bash
-curl -k https://raw.githubusercontent.com/ZioCook/tch-nginx-gui/master/compressed/GUI_dev.tar.bz2 --output /tmp/GUI.tar.bz2
+curl -kfL https://github.com/Ansuel/tch-nginx-gui/releases/latest/download/GUI.tar.bz2 --output /tmp/GUI.tar.bz2
 bzcat /tmp/GUI.tar.bz2 | tar -C / -xvf -
 /etc/init.d/rootdevice force
 ```
 
-Tutti i pacchetti compilati (inclusi archivi `.zip` e `.tar.bz2`) e il changelog dettagliato sono disponibili nella sezione **[Releases](https://github.com/ZioCook/tch-nginx-gui/releases)**.
+Tutti i pacchetti compilati (inclusi archivi `.zip` e `.tar.bz2`) e il changelog dettagliato sono disponibili nella sezione **[Releases](https://github.com/ZioCook/tch-nginx-gui/releases)** (o upstream su [Ansuel Releases](https://github.com/Ansuel/tch-nginx-gui/releases)).
 
 Se riscontri errori durante il download o il modem non ha accesso a Internet, scarica manualmente il pacchetto dalla pagina Releases, trasferiscilo in `/tmp/GUI.tar.bz2` via SCP ed esegui i comandi `bzcat` e `rootdevice`.
 
@@ -80,3 +80,7 @@ Cards:
 If you want to donate to the original developer of this modified GUI (Ansuel):
 
 [![paypal](https://www.paypalobjects.com/en_US/i/btn/btn_donateCC_LG.gif)](https://www.paypal.me/AnsuelS)
+
+## Continuous integration
+
+Builds and releases run with GitHub Actions. See the [setup and manual build instructions](docs/github-actions.md).

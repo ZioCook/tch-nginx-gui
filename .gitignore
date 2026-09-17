@@ -6,3 +6,5 @@ total/*
 .idea
 compressed/*.zip
 tar_tmp/
+__pycache__/
+modular/*.tar.bz2

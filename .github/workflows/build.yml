@@ -1,144 +1,136 @@
-name: Build & Release GUI
+name: Build and release GUI
 
 on:
   push:
-    branches:
-      - master
-      - stable
-      - dev
-    tags:
-      - 'v*'
+    branches: [master, preview, stable]
   pull_request:
-    branches:
-      - master
+    branches: [master, preview, stable]
   workflow_dispatch:
     inputs:
-      publish_release:
-        description: 'Publish / Update GitHub Release'
-        required: true
+      publish:
+        description: Publish the build, release and translation updates
         type: boolean
-        default: true
+        default: false
 
+permissions:
+  contents: read
+
+# PRs cannot cancel or block publication; publishing channels share one queue.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: gui-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.number) || 'release' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  BUILD_IMAGE: ansuel/gui-autobuild-image:4@sha256:b2a001505945a1c703ca2840b64d521515f5785f38f596a1866fead88578b19c
+  MINIFY_IMAGE: thekevjames/minify:latest@sha256:936addc1a5c96f5c94b55e0889f5606a159a777d7c22afda20755e9be8f1f3a2
 
 jobs:
   build:
-    name: Build GUI Packages
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-
+    if: github.event_name == 'pull_request' || (contains(fromJSON('["master", "preview", "stable"]'), github.ref_name) && github.ref_type == 'branch')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+        working-directory: gui_build
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4.2.2
+      - uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          path: gui_build
+          persist-credentials: false
 
-      - name: Install build dependencies
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y bzip2 dos2unix zip python3
+      - name: Test release updates and archive verification
+        run: python3 -m unittest discover -s tests -v
 
-      - name: Fix file line endings
+      - name: Prepare sources and translations
         run: |
-          echo "Scanning and normalizing line endings with dos2unix..."
-          find decompressed -type f -exec dos2unix -q {} +
+          docker run --rm --user "$(id -u):$(id -g)" \
+            -v "$GITHUB_WORKSPACE:/workspace" -w /workspace/gui_build \
+            -e HOME=/workspace -e CI=true -e GITHUB_REF_NAME -e GITHUB_BASE_REF \
+            --entrypoint bash "$BUILD_IMAGE" -e -c '
+              bash -e scripts/1-check_file_ending.sh
+              bash scripts/0-detect-build-type.sh
+              bash -e scripts/0-copy-file-to-parse.sh
+              cd data/po_files
+              python3 ../../scripts/update_po.py
+            '
 
       - name: Determine version
-        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          SHORT_HASH=$(git rev-parse --short HEAD 2>/dev/null || echo "dev")
-          echo "SHORT_HASH=${SHORT_HASH}" >> $GITHUB_ENV
-          
-          if [[ "${{ github.ref }}" == refs/tags/v* ]]; then
-            VER="${GITHUB_REF_NAME#v}"
-            IS_TAG="true"
-          else
-            DEFAULT_VER=$(grep -oE 'version_gui=[0-9]+\.[0-9]+\.[0-9]+' decompressed/base/etc/init.d/rootdevice | cut -d= -f2 || echo "9.7.9")
-            VER="${DEFAULT_VER}"
-            IS_TAG="false"
-          fi
-          
-          FULL_VER="${VER}-${SHORT_HASH}"
-          echo "VERSION=${VER}" >> $GITHUB_ENV
-          echo "FULL_VER=${FULL_VER}" >> $GITHUB_ENV
-          echo "IS_TAG=${IS_TAG}" >> $GITHUB_ENV
-          echo "Building GUI version: ${FULL_VER}"
+          export HOME="$GITHUB_WORKSPACE"
+          cd data
+          bash ../scripts/1-increment_autobuild_ver.sh
 
-      - name: Build DEV GUI package (.tar.bz2 & .zip)
+      - name: Minify CSS and JavaScript
         run: |
-          chmod +x inizialize_gui.sh
-          VERSION="${{ env.VERSION }}" ./inizialize_gui.sh dev
+          docker run --rm --user "$(id -u):$(id -g)" \
+            -v "$GITHUB_WORKSPACE:/workspace" -w /workspace/gui_build/data \
+            --entrypoint sh "$MINIFY_IMAGE" -e ../scripts/1-compress_css_javascript.sh
 
-      - name: Build STABLE GUI package (.tar.bz2 & .zip)
+      - name: Minify Lua
         run: |
-          VERSION="${{ env.VERSION }}" ./inizialize_gui.sh
+          docker run --rm --user "$(id -u):$(id -g)" \
+            -v "$GITHUB_WORKSPACE:/workspace" -w /workspace/gui_build/data \
+            --entrypoint bash "$BUILD_IMAGE" -e ../scripts/1-compress_lua_scripts.sh
 
-      - name: Generate Checksums
+      - name: Package and verify GUI
         run: |
-          cd compressed
-          md5sum GUI*.tar.bz2 GUI*.zip > MD5SUMS
-          sha256sum GUI*.tar.bz2 GUI*.zip > SHA256SUMS
-          echo "=== MD5SUMS ==="
-          cat MD5SUMS
-          echo "=== SHA256SUMS ==="
-          cat SHA256SUMS
+          export HOME="$GITHUB_WORKSPACE"
+          bash -e scripts/2-apply-new-file.sh
+          bash -e scripts/2-set_new_version.sh
+          bash -e inizialize_gui.sh
+          python3 scripts/verify_archives.py
+          (cd compressed && sha256sum -- *.tar.bz2 > SHA256SUMS && md5sum -- *.tar.bz2 > MD5SUMS)
 
-      - name: Generate Release Notes & Changelog
-        run: |
-          python3 .github/scripts/generate_release_notes.py
-
-      - name: Upload Build Artifacts
-        uses: actions/upload-artifact@v4.6.2
+      - name: Save verified build and translations
+        uses: actions/upload-artifact@v4
         with:
-          name: gui-packages-${{ env.SHORT_HASH }}
+          name: gui-${{ github.run_id }}
+          overwrite: true
           path: |
-            compressed/GUI.tar.bz2
-            compressed/GUI.zip
-            compressed/GUI_dev.tar.bz2
-            compressed/GUI_dev.zip
-            compressed/MD5SUMS
-            compressed/SHA256SUMS
-            modular/*.tar.bz2
-          retention-days: 30
+            gui_build/compressed/*
+            gui_build/data/version
+            gui_build/data/type
+            gui_build/data/po_files/
+          if-no-files-found: error
 
-      - name: Publish GitHub Release (Tags)
-        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
-        uses: softprops/action-gh-release@v2.3.2
+  publish:
+    needs: build
+    if: (github.repository == 'Ansuel/tch-nginx-gui' || github.repository == 'ZioCook/tch-nginx-gui') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish))
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    defaults:
+      run:
+        shell: bash
+        working-directory: gui_build
+    steps:
+      - uses: actions/checkout@v4
         with:
-          tag_name: ${{ github.ref_name }}
-          name: Technicolor Nginx GUI ${{ github.ref_name }}
-          body_path: release_notes.md
-          files: |
-            compressed/GUI.tar.bz2
-            compressed/GUI.zip
-            compressed/GUI_dev.tar.bz2
-            compressed/GUI_dev.zip
-            compressed/MD5SUMS
-            compressed/SHA256SUMS
-          draft: false
-          prerelease: false
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          path: gui_build
+          fetch-depth: 0
+          persist-credentials: false
 
-      - name: Publish/Update Rolling Dev Release
-        if: (github.event_name == 'push' && github.ref == 'refs/heads/master') || (github.event_name == 'workflow_dispatch' && inputs.publish_release == true)
-        uses: softprops/action-gh-release@v2.3.2
+      - uses: actions/download-artifact@v4
         with:
-          tag_name: dev-latest
-          name: "Technicolor Nginx GUI ${{ env.FULL_VER }} (Dev)"
-          body_path: release_notes.md
-          files: |
-            compressed/GUI.tar.bz2
-            compressed/GUI.zip
-            compressed/GUI_dev.tar.bz2
-            compressed/GUI_dev.zip
-            compressed/MD5SUMS
-            compressed/SHA256SUMS
-          prerelease: false
-          make_latest: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          name: gui-${{ github.run_id }}
+          path: gui_build
 
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          export HOME="$GITHUB_WORKSPACE"
+          bash scripts/7-push-release.sh
+
+      - name: Commit updated translations
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          export HOME="$GITHUB_WORKSPACE"
+          cp -a data/po_files/decompressed/gui_file/www/lang/. decompressed/gui_file/www/lang/
+          gh auth setup-git
+          bash scripts/6-commit_po.sh
