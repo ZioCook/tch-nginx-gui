@@ -74,15 +74,22 @@ if success then
 --      wanintfs[index] = {v, format("%s-VLAN%s", wanintfs_name[v], getContent[v.."vlan"])}
       wanintfs[index] = {v, format("%s", wanintfs_name[v] or v)}
    else
-      if find(getContent[v.."ifname"], "eth") then
-        wanintfs[index] = {v, format("%s-%s", wanintfs_name[v] or v, upper(getContent[v.."ifname"]))}
-      else
-        local wanintf_path = format("%s@%s.vid", "uci.network.device.", getContent[v.."ifname"])
-        local result = proxy.get(wanintf_path)
-        if type(result) == "table" then
---          wanintfs[index] = {v,format("%s-VLAN%s", wanintfs_name[v], result[1]["value"])}
-          wanintfs[index] = {v,format("%s", wanintfs_name[v] or v)}
+      local ifname = getContent[v.."ifname"]
+      if ifname and ifname ~= "" then
+        if find(ifname, "eth") then
+          wanintfs[index] = {v, format("%s-%s", wanintfs_name[v] or v, upper(ifname))}
+        else
+          local wanintf_path = format("%s@%s.vid", "uci.network.device.", ifname)
+          local result = proxy.get(wanintf_path)
+          if type(result) == "table" then
+  --          wanintfs[index] = {v,format("%s-VLAN%s", wanintfs_name[v], result[1]["value"])}
+            wanintfs[index] = {v,format("%s", wanintfs_name[v] or v)}
+          else
+            wanintfs[index] = {v,format("%s", wanintfs_name[v] or v)}
+          end
         end
+      else
+        wanintfs[index] = {v,format("%s", wanintfs_name[v] or v)}
       end
    end
   end
@@ -244,21 +251,12 @@ end
 
 local bridge_data, bridge_helpmsg = post_helper.handleTableQuery(bridge_columns, bridge_options, bridge_filter, nil, bridge_validate)
 local function getIntfName(intf)
-  local returnval = ""
-  if intf == "wan1" then
-    returnval = wanintfs[1][2]
-  elseif intf == "wan2" then
-    returnval = wanintfs[2][2]
-  elseif intf == "wan3" then
-    returnval = wanintfs[3][2]
-  elseif intf == "wan4" then
-    returnval = wanintfs[4][2]
-  elseif intf == "voip" then
-    returnval = wanintfs[#wanintfs - 1][2]
-  elseif intf == "wan" then
-    returnval = wanintfs[#wanintfs][2]
+  for _, entry in ipairs(wanintfs) do
+    if entry[1] == intf then
+      return entry[2] or intf
+    end
   end
-  return returnval
+  return wanintfs_name[intf] or intf
 end
 
 local lanintf_num, wanintf_num = 3, 4
