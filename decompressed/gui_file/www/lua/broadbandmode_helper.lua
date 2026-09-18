@@ -96,18 +96,22 @@ tablecontent[#tablecontent + 1] = {
         end
     end,
     operations = function()
-		local interface = findwan("atm") or "@wanatmwan"
-        local difname = proxy.get("uci.network.device." .. interface .. ".ifname")
-        if difname then
-            local dname = proxy.get("uci.network.device." .. interface .. ".name")[1].value
-            difname = proxy.get("uci.network.device." .. interface .. ".ifname")[1].value
-            if difname ~= "" and difname ~= nil then
-                proxy.set("uci.network.interface.@wan.ifname", dname)
+        local current_ifname = proxy.get("uci.network.interface.@wan.ifname")
+        local cur_val = current_ifname and current_ifname[1] and current_ifname[1].value or ""
+        if not match(cur_val, "^atm[%w_]*%.%d+$") then
+            local interface = findwan("atm") or "@wanatmwan"
+            local difname = proxy.get("uci.network.device." .. interface .. ".ifname")
+            if difname then
+                local dname = proxy.get("uci.network.device." .. interface .. ".name")[1].value
+                difname = proxy.get("uci.network.device." .. interface .. ".ifname")[1].value
+                if difname ~= "" and difname ~= nil then
+                    proxy.set("uci.network.interface.@wan.ifname", dname)
+                else
+                    proxy.set("uci.network.interface.@wan.ifname", "atmwan")
+                end
             else
                 proxy.set("uci.network.interface.@wan.ifname", "atmwan")
             end
-        else
-            proxy.set("uci.network.interface.@wan.ifname", "atmwan")
         end
         if sfp == 1 then
             proxy.set("uci.ethernet.globals.eth4lanwanmode", "1")
@@ -145,18 +149,22 @@ tablecontent[#tablecontent + 1] = {
         end
     end,
     operations = function()
-		local interface = findwan("ptm") or "@wanptm0"
-        local difname = proxy.get("uci.network.device." .. interface .. ".ifname")
-        if difname then
-            local dname = proxy.get("uci.network.device." .. interface .. ".name")[1].value
-            difname = proxy.get("uci.network.device." .. interface .. ".ifname")[1].value
-            if difname ~= "" and difname ~= nil then
-                proxy.set("uci.network.interface.@wan.ifname", dname)
+        local current_ifname = proxy.get("uci.network.interface.@wan.ifname")
+        local cur_val = current_ifname and current_ifname[1] and current_ifname[1].value or ""
+        if not match(cur_val, "^ptm[%w_]*%.%d+$") then
+            local interface = findwan("ptm") or "@wanptm0"
+            local difname = proxy.get("uci.network.device." .. interface .. ".ifname")
+            if difname then
+                local dname = proxy.get("uci.network.device." .. interface .. ".name")[1].value
+                difname = proxy.get("uci.network.device." .. interface .. ".ifname")[1].value
+                if difname ~= "" and difname ~= nil then
+                    proxy.set("uci.network.interface.@wan.ifname", dname)
+                else
+                    proxy.set("uci.network.interface.@wan.ifname", "ptm0")
+                end
             else
                 proxy.set("uci.network.interface.@wan.ifname", "ptm0")
             end
-        else
-            proxy.set("uci.network.interface.@wan.ifname", "ptm0")
         end
         if sfp == 1 then
             proxy.set("uci.ethernet.globals.eth4lanwanmode", "1")
@@ -201,18 +209,22 @@ tablecontent[#tablecontent + 1] = {
         end
     end,
     operations = function()
-		local interface = findwan(ethname) or "@waneth4"
-        local difname = proxy.get("uci.network.device." .. interface .. ".ifname")
-        if difname then
-            local dname = proxy.get("uci.network.device." .. interface .. ".name")[1].value
-            difname = proxy.get("uci.network.device." .. interface .. ".ifname")[1].value
-            if difname ~= "" and difname ~= nil then
-                proxy.set("uci.network.interface.@wan.ifname", dname)
+        local current_ifname = proxy.get("uci.network.interface.@wan.ifname")
+        local cur_val = current_ifname and current_ifname[1] and current_ifname[1].value or ""
+        if not match(cur_val, "^eth[%w_]*%.%d+$") then
+            local interface = findwan(ethname) or "@waneth4"
+            local difname = proxy.get("uci.network.device." .. interface .. ".ifname")
+            if difname then
+                local dname = proxy.get("uci.network.device." .. interface .. ".name")[1].value
+                difname = proxy.get("uci.network.device." .. interface .. ".ifname")[1].value
+                if difname ~= "" and difname ~= nil then
+                    proxy.set("uci.network.interface.@wan.ifname", dname)
+                else
+                    proxy.set("uci.network.interface.@wan.ifname", ethname)
+                end
             else
                 proxy.set("uci.network.interface.@wan.ifname", ethname)
             end
-        else
-            proxy.set("uci.network.interface.@wan.ifname", ethname)
         end
         if sfp == 1 then
             proxy.set("uci.ethernet.globals.eth4lanwanmode", "0")

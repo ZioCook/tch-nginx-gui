@@ -56,7 +56,13 @@ setup_network() {
     [ "$(uci -q get network.vlan_wan.vid)" = "835" ] && uci -q set network.wanptm0.vid=836
   fi
   [ ! "$(uci -q get network.wanptm0.vid)" ] && uci -q set network.wanptm0.vid=835
-  [ ! "$(uci -q get network.wanptm0.ifname)" ] && uci -q set network.wanptm0.ifname=ptm0
+  wan_if="$(uci -q get network.wan.ifname)"
+  if ! echo "$wan_if" | grep -q '\.'; then
+    [ ! "$(uci -q get network.wanptm0.ifname)" ] && uci -q set network.wanptm0.ifname=ptm0
+  else
+    # If dot notation is used on WAN interface, ensure wansensing does not overwrite it on boot
+    [ "$(uci -q get wansensing.global.enable)" = "1" ] && uci -q set wansensing.global.enable=0
+  fi
 
   #Set a SSH_wan firewall rule if not found (fix SSH Wan not working)
   if [ ! "$(uci -q get firewall.SSH_wan)" ]; then

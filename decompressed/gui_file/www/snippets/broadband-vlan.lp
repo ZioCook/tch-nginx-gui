@@ -14,17 +14,13 @@ local proxy = require("datamodel")
 local bmh = require("broadbandmode_helper")
 
 local session = ngx.ctx.session
-local tech = false
-if session:getrole() == "engineer" then
-   tech = true
-end
+local role = session:getrole()
+local tech = (role == "engineer" or role == "ispuser" or role == "admin")
 
 --Support ethernet mode for devices with no eth4 port
-local ethname = proxy.get("sys.eth.port.@eth4.status")
-if ethname and ethname[1].value then
-	ethname =  "eth4"
-else
-	ethname =  "eth3"
+local ethname = "eth4"
+if not proxy.get("uci.ethernet.port.@eth4.") and not proxy.get("sys.eth.port.@eth4.status") then
+	ethname = "eth3"
 end
 
 function getValidateNumberInRange(min, max, value)
@@ -39,185 +35,131 @@ function getValidateNumberInRange(min, max, value)
         helptext = string.format(T"Input must be a number greater than %d included", min)
     end
 
-
-        local num = tonumber(value)
-        if not num then
-            return nil, helptext
-        end
-        if min and num < min then
-            return nil, helptext
-        end
-        if max and num > max then
-            return nil, helptext
-        end
-        return true
-
+    local num = tonumber(value)
+    if not num then
+        return nil, helptext
+    end
+    if min and num < min then
+        return nil, helptext
+    end
+    if max and num > max then
+        return nil, helptext
+    end
+    return true
 end
 
 local pathifname = "uci.network.interface.@wan.ifname"
-local iface = proxy.get(pathifname)
+local iface = ""
 local connection = ""
 local path = ""
 local vid = ""
 local dname = ""
 local difname = ""
+local check = "devnot"
+local b = "ptm0"
+local intf_state = "disabled"
 
-if iface and iface[1].value then
-	iface = iface[1].value
-else
-	iface = ""
+local function refresh_state()
+	local ifacedata = proxy.get(pathifname)
+	if ifacedata and ifacedata[1] and ifacedata[1].value then
+		iface = ifacedata[1].value
+	else
+		iface = ""
+	end
+
+	if string.match(iface, "eth") then
+		connection = ethname
+		path = "uci.network.device.@waneth4."
+	elseif string.match(iface, "atm") then
+		connection = "atmwan"
+		path = "uci.network.device.@wanatmwan."
+	else
+		connection = "ptm0"
+		path = "uci.network.device.@wanptm0."
+	end
+
+	if string.match(iface, "%.(%d+)$") then
+		check = "dotnot"
+		vid = string.match(iface, "%.(%d+)$") or ""
+		difname = connection
+		intf_state = "connected"
+	else
+		local dev_ifname_data = proxy.get(path.."ifname")
+		local dev_ifname = (dev_ifname_data and dev_ifname_data[1] and dev_ifname_data[1].value) or ""
+		local dev_vid_data = proxy.get(path.."vid")
+		local dev_vid = (dev_vid_data and dev_vid_data[1] and dev_vid_data[1].value) or ""
+		local dev_name_data = proxy.get(path.."name")
+		dname = (dev_name_data and dev_name_data[1] and dev_name_data[1].value) or ""
+
+		if iface ~= "" and iface == dname and dev_ifname ~= "" then
+			check = "devnot"
+			vid = dev_vid
+			difname = connection
+			intf_state = "connected"
+		else
+			check = "devnot"
+			vid = (dev_vid ~= "" and dev_vid) or "835"
+			difname = ""
+			intf_state = "disabled"
+		end
+	end
+	b = connection
 end
 
-if string.match(iface, "eth") then
-	connection = ethname
-	path = "uci.network.device.@waneth4."
-	if string.match(iface, "%.") then
-		difname = string.match(iface, ethname .. "%.[%d]+")
-		vid = string.match(difname, "[^"..ethname.."%.]+")
-	else
-		if proxy.get(path) then
-			vid = proxy.get(path.."vid")[1].value
-			dname = proxy.get(path.."name")[1].value
-			difname = proxy.get(path.."ifname")[1].value
-		end
-	end
-elseif string.match(iface, "atm") then
-	connection = "atmwan"
-	path = "uci.network.device.@wanatmwan."
-	if string.match(iface, "%.") then
-		difname = string.match(iface, "atmwan%.[%d]+")
-		vid = string.match(difname, "[^atmwan%.]+")
-	else
-		if proxy.get(path) then
-			vid = proxy.get(path.."vid")[1].value
-			dname = proxy.get(path.."name")[1].value
-			difname = proxy.get(path.."ifname")[1].value
-		end
-	end
-else
-	connection = "ptm0"
-	path = "uci.network.device.@wanptm0."
-	if string.match(iface, "%.") then
-		difname = string.match(iface, "ptm0%.[%d]+")
-		vid = string.match(difname, "[^ptm0%.]+")
-	else
-		if proxy.get(path) then
-			vid = proxy.get(path.."vid")[1].value
-			dname = proxy.get(path.."name")[1].value
-			difname = proxy.get(path.."ifname")[1].value
-		end
-	end
-end	
+refresh_state()
 
-if ngx.var.request_method == "POST" then
+if ngx.var.request_method == "POST" and tech then
     local content = ngx.req.get_post_args()
-	if content["action"]=="SAVE" then
-		range, helpmes = getValidateNumberInRange(2, 2048, content["intf_vlanid"])
-		if content["auswahlliste"] == "devnot" then
-			if range and (content["intf_vlanid"]~=vid or content["intf_vlan"]~="0") then
+	if content["action"] == "SAVE" then
+		local range, helpmes = getValidateNumberInRange(2, 4094, content["intf_vlanid"])
+		local vlan_enabled = (content["intf_vlan"] and content["intf_vlan"] ~= "" and content["intf_vlan"] ~= "0")
+		if vlan_enabled and range then
+			if content["auswahlliste"] == "devnot" then
 				if proxy.get(path) then
 					dname = proxy.get(path.."name")[1].value
 					proxy.set(path.."vid", content["intf_vlanid"])
 					proxy.set(pathifname, dname)
-					ngx.print(dname)
 					proxy.set(path.."ifname", connection)
 				else
-					proxy.add("uci.network.device.", string.format("%s%s","wan",connection ))
-					proxy.set(path.."type","8021q")
-					proxy.set(path.."name","wan"..connection)
-					proxy.set(path.."macaddr", proxy.get("uci.env.rip.eth_mac")[1].value)
-					dname = proxy.get(path.."name")[1].value
+					proxy.add("uci.network.device.", string.format("%s%s", "wan", connection))
+					proxy.set(path.."type", "8021q")
+					proxy.set(path.."name", "wan"..connection)
+					local eth_mac = proxy.get("uci.env.rip.eth_mac")
+					if eth_mac and eth_mac[1] then
+						proxy.set(path.."macaddr", eth_mac[1].value)
+					end
+					dname = "wan"..connection
 					proxy.set(path.."vid", content["intf_vlanid"])
 					proxy.set(pathifname, dname)
 					proxy.set(path.."ifname", connection)
 				end
+				if proxy.get("uci.wansensing.global.enable") and proxy.get("uci.wansensing.global.enable")[1].value == "1" then
+					proxy.set("uci.wansensing.global.enable", "0")
+				end
 				proxy.apply()
-			end
-		elseif content["auswahlliste"] == "dotnot" then
-			if range and (content["intf_vlanid"]~=vid or content["intf_vlan"]~="0") then
-				if proxy.get(path) and proxy.get(path.."ifname")[1].value ~="" then
+				os.execute("uci commit network; uci commit wansensing 2>/dev/null")
+			elseif content["auswahlliste"] == "dotnot" then
+				if proxy.get(path) and proxy.get(path.."ifname") and proxy.get(path.."ifname")[1].value ~= "" then
 					proxy.set(path.."ifname", "")
-				end				
-				proxy.set(pathifname, string.format("%s.%s",connection, content["intf_vlanid"]))
+				end
+				proxy.set(pathifname, string.format("%s.%s", connection, content["intf_vlanid"]))
+				if proxy.get("uci.wansensing.global.enable") and proxy.get("uci.wansensing.global.enable")[1].value == "1" then
+					proxy.set("uci.wansensing.global.enable", "0")
+				end
 				proxy.apply()
+				os.execute("uci commit network; uci commit wansensing 2>/dev/null")
 			end
-		end
-		if content["intf_vlan"]=="0" then
+		elseif not vlan_enabled or content["intf_vlan"] == "0" then
 			if proxy.get(path) then
 				proxy.set(path.."ifname", "")
 			end
 			proxy.set(pathifname, connection)
 			proxy.apply()
+			os.execute("uci commit network")
 		end
-		if string.match(iface, "eth") then
-			connection = ethname
-			path = "uci.network.device.@waneth4."
-			if string.match(iface, "%.") then
-				difname = string.match(iface, ethname.."%.[%d]+")
-				vid = string.match(difname, "[^"..ethname.."%.]+")
-			else
-				if proxy.get(path) then
-					vid = proxy.get(path.."vid")[1].value
-					dname = proxy.get(path.."name")[1].value
-					difname = proxy.get(path.."ifname")[1].value
-				end
-			end
-		elseif string.match(iface, "ptm") then
-			connection = "ptm0"
-			path = "uci.network.device.@wanptm0."
-			if string.match(iface, "%.") then
-				difname = string.match(iface, "ptm0%.[%d]+")
-				vid = string.match(difname, "[^ptm0%.]+")
-			else
-				if proxy.get(path) then
-					vid = proxy.get(path.."vid")[1].value
-					dname = proxy.get(path.."name")[1].value
-					difname = proxy.get(path.."ifname")[1].value
-				end
-			end
-		else
-			connection = "atmwan"
-			path = "uci.network.device.@wanatmwan."
-			if string.match(iface, "%.") then
-				difname = string.match(iface, "atmwan%.[%d]+")
-				vid = string.match(difname, "[^atmwan%.]+")
-			else
-				if proxy.get(path) then
-					vid = proxy.get(path.."vid")[1].value
-					dname = proxy.get(path.."name")[1].value
-					difname = proxy.get(path.."ifname")[1].value
-				end
-			end
-		end
+		refresh_state()
 	end
 end
-
-local check
-
-if string.match(iface, "%.") then
-	check = "dotnot"
-else
-	check = "devnot"
-end
-
-local b
-
-if check == "dotnot" then
-	if string.match(difname, "%.") then
-		b = string.match(difname, "[%w]+")
-		difname = string.match(difname, "[%w]+")
-	else
-		b="empty"
-	end
-else
-	if string.match(difname,"[%w]+") then
-		b = string.match(difname,"[%w]+")
-	else 
-		b="empty"
-	end
-end
-
-local intf_state = "disabled"
 
 local intf_state_map = {
     disabled = T"VLAN disabled",
@@ -230,12 +172,6 @@ local intf_light_map = {
   disconnected = "red",
   connected = "green",
 }
-
-if difname ~= "" then
-        intf_state = "connected"
-else
-    intf_state = "disabled"
-end
 
 ngx.print('\
 <fieldset>\
@@ -259,7 +195,7 @@ ngx.print('\
 	
     local vlanidclass = {
         group = {
-            class =string.format("monitor-intf_vlan monitor-%s",b),
+            class = string.format("monitor-intf_vlan monitor-%s", b),
         },
     }
 	if tech then
