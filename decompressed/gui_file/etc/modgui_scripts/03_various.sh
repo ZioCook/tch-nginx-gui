@@ -143,6 +143,9 @@ create_symlink() {
 	if [ -f /etc/init.d/wol ] && [ ! -f /etc/rc.d/S70wol ]; then
 		/etc/init.d/wol enable
 	fi
+	if [ -f /etc/init.d/ra ] && [ ! -f /etc/rc.d/S*ra ]; then
+		/etc/init.d/ra enable
+	fi
 }
 
 device_type="$(uci get -q env.var.prod_friendly_name)"

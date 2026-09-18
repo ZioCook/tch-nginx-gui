@@ -18,9 +18,9 @@ load_value()
 {
   local DATAFILE=$1
   local KEY=$2
-  local L=$(grep $KEY $DATAFILE)
-  if [ -n $L ]; then
-    echo $L | cut -d'=' -f 2 | tr -d ' '
+  local L=$(grep "^$KEY=" "$DATAFILE" 2>/dev/null || grep "$KEY" "$DATAFILE" 2>/dev/null)
+  if [ -n "$L" ]; then
+    echo "$L" | head -n 1 | cut -d'=' -f 2 | tr -d ' '
   fi  
 }
 
@@ -137,11 +137,18 @@ redirect()
   LAN_PORT=$(load_value $DATAFILE lanport)
   local WAN_PORT=$(load_value $DATAFILE wanport)
 
-  if [ -z $IFNAME ]; then
+  if [ -z "$IFNAME" ]; then
     return
   fi
   WAN_IP=$(lua -e "dm=require'datamodel';r=dm.get('rpc.network.interface.@$IFNAME.ipaddr'); \
-           if r and r[1] then print(r[1].value) end")
+           if r and r[1] then print(r[1].value) end" 2>/dev/null)
+  if [ -z "$WAN_IP" ]; then
+    . /lib/functions/network.sh 2>/dev/null
+    network_get_ipaddr WAN_IP "$IFNAME" 2>/dev/null
+  fi
+  if [ -z "$WAN_IP" ]; then
+    WAN_IP=$(ubus call network.interface.$IFNAME status 2>/dev/null | jsonfilter -e '@["ipv4-address"][0].address' 2>/dev/null)
+  fi
 
   #if status_changed ; then
     disable
@@ -194,10 +201,13 @@ if [ $COMMIT_FIREWALL -ne 0 ]; then
   uci commit firewall
 fi
 
-for datafile in $(ls /var/run/assistance/*); do
-  RA_NAME=$(basename $datafile)
-  lock
-  redirect $datafile
-  unlock
-done
+if [ -d /var/run/assistance ]; then
+  for datafile in /var/run/assistance/*; do
+    [ -f "$datafile" ] || continue
+    RA_NAME=$(basename "$datafile")
+    lock
+    redirect "$datafile"
+    unlock
+  done
+fi
 
