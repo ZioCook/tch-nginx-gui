@@ -2318,8 +2318,8 @@ msgstr "Timeout"
 msgid "Timezone"
 msgstr "Fuso orario"
 
-msgid "To disable Port Forward Rules, you can turn it off using the switch or delete using cross."
-msgstr "Per disabilitare le regole della mappatura porte, modifica la regola sulla destra e poi usa l'interruttore sulla sinistra."
+msgid "To disable a port forwarding rule, click Edit, turn the switch off and save. The switch in the list only shows the current state."
+msgstr "Per disabilitare una regola di port forwarding, clicca su Modifica, spegni l'interruttore e salva. L'interruttore nell'elenco mostra soltanto lo stato attuale."
 
 msgid "Total"
 msgstr "Totale"
@@ -4711,3 +4711,16 @@ msgstr "xDSL Disconnesso"
 
 msgid "xDSL disabled"
 msgstr "xDSL disabilitato"
+
+msgid "An ACS firmware update was blocked. Dismissing this notice does not allow firmware updates; a new request will show it again."
+msgstr "Un aggiornamento firmware richiesto dall'ACS è stato bloccato. Rimuovere questo avviso non autorizza gli aggiornamenti firmware; una nuova richiesta lo farà ricomparire."
+
+msgid "Dismiss blocked update notice"
+msgstr "Rimuovi avviso di aggiornamento bloccato"
+
+msgid "No capture file is available. Run a new capture and try again."
+msgstr "Non è disponibile alcun file di cattura. Esegui una nuova cattura e riprova."
+
+msgid "Download failed. The capture may no longer be available; run a new capture and try again."
+msgstr "Download non riuscito. La cattura potrebbe non essere più disponibile; esegui una nuova cattura e riprova."
+

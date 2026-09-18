@@ -212,20 +212,15 @@ ngx.print('\
     }
 
     if cui.reboot_reason_msg ~= "" then
-        local alert_reboot_style = {
-          alert = {
-            class = "alert alert-warning",
-            id = "reboot-reason-alert"
-          },
-        }
-        local dismiss_btn = '<button type="button" class="close" id="dismiss-reboot-msg" data-dismiss="alert">&times;</button>'
-        html[#html + 1] = ui_helper.createAlertBlock(dismiss_btn .. format(T'A reboot is waiting! Reason: <strong>%s</strong>',cui.reboot_reason_msg), alert_reboot_style)
+        alert_style_upper.alert.id = "reboot-reason-alert"
+        html[#html + 1] = ui_helper.createAlertBlock(format(T'A reboot is waiting! Reason: <strong>%s</strong>',cui.reboot_reason_msg),alert_style_upper)
     end
 
     if cui.outdated_ver == "0" then
       alert_style_upper.alert.class = "alert hide"
     end
-    html[#html + 1] = ui_helper.createAlertBlock(format(T'Update available! Version: <strong id="new-version-text"><a target=\"_blank\" href=https://github.com/ZioCook/tch-nginx-gui/releases>%s</a></strong>',cui.new_ver),alert_style_upper)
+    alert_style_upper.alert.id = "upgrade-alert"
+    html[#html + 1] = ui_helper.createAlertBlock(format(T'Update available! Version: <strong id="new-version-text"><a target=\"_blank\" href=https://github.com/Ansuel/tch-nginx-gui/releases/tag/%s>%s</a></strong>',cui.new_ver,cui.new_ver),alert_style_upper)
 
     local autoupgrade_view = cui.autoupgrade_view
     if not ( autoupgrade_view == "none" ) and not ( autoupgrade_view == "" ) then

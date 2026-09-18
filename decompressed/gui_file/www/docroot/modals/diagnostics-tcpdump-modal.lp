@@ -61,53 +61,78 @@ local tcpdump_types = {
 "Error",      => { Start }
   -- Requested
 --]]
+local capture_unavailable = T"No capture file is available. Run a new capture and try again."
+
+local function captureFileInfo(path)
+  path = untaint(path)
+  if type(path) ~= "string" then
+    return nil
+  end
+  -- The backend generates a simple basename, including for USB captures.
+  local name = path:match("^/.*/([%w_.%-]+)$")
+  local attributes = name and lfs.attributes(path)
+  if not attributes or attributes.mode ~= "file" or
+      type(attributes.size) ~= "number" or attributes.size <= 0 then
+    return nil
+  end
+  return name, attributes.size, path
+end
+
+local function downloadUnavailable(status)
+  ngx.status = status
+  ngx.header.content_type = "text/html; charset=utf-8"
+  -- A nonempty HTML response without the success cookie triggers fileDownload's
+  -- failCallback, instead of leaving the browser waiting for a download.
+  ngx.print("<html><body>" .. capture_unavailable .. "</body></html>")
+  return ngx.exit(ngx.HTTP_OK)
+end
+
 local function tcpdump_download()
   local tcpdump_info = {
     state = path_tcpdump .. "state",
     file = path_tcpdump .. "file",
-    type = path_tcpdump.. "type",
   }
-  content_helper.getExactContent(tcpdump_info)
+  if not content_helper.getExactContent(tcpdump_info) then
+    return downloadUnavailable(ngx.HTTP_SERVICE_UNAVAILABLE)
+  end
+  if untaint(tcpdump_info.state) ~= "Complete" then
+    return downloadUnavailable(ngx.HTTP_CONFLICT)
+  end
 
-  if tcpdump_info.state == "Complete" then
-    local filepath = untaint(tcpdump_info.file or "")
-    if filepath == "" then
-      if tcpdump_info.type == "log" then
-        filepath = "/tmp/tcpdumpGUI.log"
-      else
-        filepath = "/tmp/tcpdumpGUI.pcap"
-      end
-    end
+  local name, size, path = captureFileInfo(tcpdump_info.file)
+  if not name then
+    return downloadUnavailable(ngx.HTTP_NOT_FOUND)
+  end
+  local file = open(path, "rb")
+  if not file then
+    return downloadUnavailable(ngx.HTTP_NOT_FOUND)
+  end
+  local data = file:read(1024)
+  if not data then
+    file:close()
+    return downloadUnavailable(ngx.HTTP_NOT_FOUND)
+  end
 
-    local filename = match(filepath, ".+/([^/]+)$")
-    if not filename or filename == "" then
-      filename = (tcpdump_info.type == "log") and "tcpdumpGUI.log" or "tcpdumpGUI.pcap"
-    end
-
-    local file = open(filepath, "rb")
-    if file then
-      ngx.header.content_disposition = "attachment; filename=" .. filename
-      ngx.header.content_type = "application/octet-stream"
-      ngx.header.set_cookie = "fileDownload=true; Path=/"  -- the JS download code requires this cookie
-
-      local data
-      while true do
-        data = file:read(1024)
-        if nil == data then
-          break
-        end
-        ngx.print(data)
-        ngx.flush(true)
-      end
+  -- Only signal success after the capture has actually been opened and read.
+  ngx.header.content_disposition = 'attachment; filename="' .. name .. '"'
+  ngx.header.content_type = "application/octet-stream"
+  ngx.header.content_length = size
+  ngx.header.set_cookie = "fileDownload=true; Path=/"
+  while data do
+    local ok = ngx.print(data)
+    if not ok or not ngx.flush(true) then
       file:close()
-      return ngx.exit(ngx.HTTP_OK)
-    else
-      ngx.header.set_cookie = "fileDownload=true; Path=/"
-      ngx.status = ngx.HTTP_NOT_FOUND
-      ngx.print("File not found")
-      return ngx.exit(ngx.HTTP_NOT_FOUND)
+      return ngx.exit(ngx.ERROR)
+    end
+    local err
+    data, err = file:read(1024)
+    if err then
+      file:close()
+      return ngx.exit(ngx.ERROR)
     end
   end
+  file:close()
+  return ngx.exit(ngx.HTTP_OK)
 end
 
 
@@ -275,16 +300,13 @@ ngx.print(ui_helper.createMessages(message_helper.popMessages()))
   end
 
   html = {}
-  if(tcpdump_data.state == "Complete") then
-    local filePath = untaint(tcpdump_data.file or "")
-    if filePath == "" then
-      filePath = (tcpdump_data.type == "log") and "/tmp/tcpdumpGUI.log" or "/tmp/tcpdumpGUI.pcap"
-    end
-    local size = lfs.attributes(filePath, "size")
-    if size and size > 0 and tcpdump_data.saveonusb == "0" then
+  if(tcpdump_data.state == "Complete" and tcpdump_data.saveonusb == "0") then
+    if captureFileInfo(tcpdump_data.file) then
       html[#html + 1] = ui_helper.createButton(T"", T"Download", "icon-download-alt", tcpdump_download)
       html[#html + 1] = ui_helper.createAlertBlock(T"Downloading TCPDump file, please wait...", downloading_alert)
-      html[#html + 1] = ui_helper.createAlertBlock(T"Download failed; please try again.", downloading_fail)
+      html[#html + 1] = ui_helper.createAlertBlock(T"Download failed. The capture may no longer be available; run a new capture and try again.", downloading_fail)
+    else
+      html[#html + 1] = ui_helper.createAlertBlock(capture_unavailable)
     end
   end
   html[#html + 1] = ui_helper.createInputCheckbox(T"Save on USB", "saveonusb", untaint(tcpdump_data.saveonusb), attrCheckbox)
