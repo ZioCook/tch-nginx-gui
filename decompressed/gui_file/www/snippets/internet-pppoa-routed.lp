@@ -146,6 +146,7 @@ local mapParams = {
   uci_wan_password = "uci.network.interface.@wan.password",
   uci_wan_masq = "uci.firewall.zone."..zonenum..".masq",
   uci_wan_ipv6 = "uci.network.interface.@wan.ipv6",
+  uci_wan_mtu = "uci.network.interface.@wan.mtu",
   uci_wan_peerdns = "uci.network.interface.@wan.peerdns",
 }
 
@@ -298,6 +299,7 @@ local mapValid = {
   uci_wan_password = gCV(isWanEnabled, gVP(vNES), gVP()),
   uci_wan_masq = validateNat,
   uci_wan_ipv6 = IPv6andUsername,
+  uci_wan_mtu = gOV(post_helper.getValidateNumberInRange(576, 9200)),
   uci_wan_peerdns = validatePeerDNS,
 }
 
@@ -453,6 +455,7 @@ ngx.print(ui_helper.createMessages(message_helper.popMessages()))
     -- PPP password
     local class_password = class_username
     html[#html + 1] = ui_helper.createInputText(T"Password", "uci_wan_password", content["uci_wan_password"], class_username, helpmsg["uci_wan_password"])
+    html[#html + 1] = ui_helper.createInputText(T"MTU", "uci_wan_mtu", content["uci_wan_mtu"], nil, helpmsg["uci_wan_mtu"])
 end
 ajax_attr.span.id = "ipaddr"
 html[#html+1] = ui_helper.createLabel(T"IP address", content_rpc["ipaddr"],ajax_attr)

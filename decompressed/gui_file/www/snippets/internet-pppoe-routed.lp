@@ -150,6 +150,7 @@ local mapParams = {
   uci_wan_ipv6 = "uci.network.interface.@wan.ipv6",
   uci_wan_host_uniq = "uci.network.interface.@wan.host_uniq",
   uci_wan_mac = "uci.network.interface.@wan.macaddr",
+  uci_wan_mtu = "uci.network.interface.@wan.mtu",
   uci_wan_peerdns = "uci.network.interface.@wan.peerdns",
 }
 
@@ -333,6 +334,7 @@ local mapValid = {
   uci_wan_host_uniq = gCV(isWanEnabled, validateHostUniq),
   uci_wan_ipv6 = IPv6andUsername,
   uci_wan_mac = gOV(post_helper.validateStringIsMAC),
+  uci_wan_mtu = gOV(post_helper.getValidateNumberInRange(576, 9200)),
   uci_wan_peerdns = validatePeerDNS,
 }
 
@@ -519,6 +521,7 @@ if tech then
     html[#html + 1] = ui_helper.createInputText(T"Password", "uci_wan_password", content["uci_wan_password"], class_username, helpmsg["uci_wan_password"])
     html[#html + 1] = ui_helper.createInputText(T"Host Uniq Tag","uci_wan_host_uniq", content["uci_wan_host_uniq"], nil, helpmsg["uci_wan_host_uniq"])
     html[#html + 1] = ui_helper.createInputText(T"MAC Spoof (Wan MAC)","uci_wan_mac", content["uci_wan_mac"], nil, helpmsg["uci_wan_mac"])
+    html[#html + 1] = ui_helper.createInputText(T"MTU","uci_wan_mtu", content["uci_wan_mtu"], nil, helpmsg["uci_wan_mtu"])
 end
 	ajax_attr.span.id = "ipaddr"
     html[#html+1] = ui_helper.createLabel(T"IPv4 address", content_rpc["ipaddr"], ajax_attr)

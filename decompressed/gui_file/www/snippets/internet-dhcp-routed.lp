@@ -181,6 +181,7 @@ local mapParams = {
     uci_wan_masq = "uci.firewall.zone."..zonenum..".masq",
 	uci_wan_ipv6 = "uci.network.interface.@wan.ipv6",
     uci_wan_mac = "uci.network.interface.@wan.macaddr",
+    uci_wan_mtu = "uci.network.interface.@wan.mtu",
     uci_wan_peerdns = "uci.network.interface.@wan.peerdns",
 	uci_wan_vendorid = "uci.network.interface.@wan.vendorid",
 }
@@ -231,6 +232,7 @@ local mapValid = {
     uci_wan_masq = validateNat,
 	uci_wan_ipv6 = IPv6andUsername,
     uci_wan_mac = gOV(post_helper.validateStringIsMAC),
+    uci_wan_mtu = gOV(post_helper.getValidateNumberInRange(576, 9200)),
     uci_wan_peerdns = validatePeerDNS,
 	uci_wan_vendorid = gOV(post_helper.validateNonEmptyString),
 }
@@ -382,6 +384,7 @@ ngx.print(ui_helper.createMessages(message_helper.popMessages()))
     html[#html + 1] = ui_helper.createSwitch(T"NAT", "uci_wan_masq", content.uci_wan_masq)
     html[#html + 1] = ui_helper.createSwitch(T"IPv6", "uci_wan_ipv6", content.uci_wan_ipv6)
     html[#html + 1] = ui_helper.createInputText(T"MAC Spoof (Wan MAC)","uci_wan_mac", content["uci_wan_mac"], nil, helpmsg["uci_wan_mac"])
+    html[#html + 1] = ui_helper.createInputText(T"MTU","uci_wan_mtu", content["uci_wan_mtu"], nil, helpmsg["uci_wan_mtu"])
 	html[#html + 1] = ui_helper.createInputText(T"VendorID","uci_wan_vendorid", content["uci_wan_vendorid"], nil, helpmsg["uci_wan_vendorid"])
     ajax_attr.span.id = "leaseobtained"
     html[#html+1] = ui_helper.createLabel(T"Lease obtained", cs["leaseobtained"], ajax_attr)
