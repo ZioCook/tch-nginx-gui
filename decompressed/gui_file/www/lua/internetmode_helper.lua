@@ -12,6 +12,18 @@ local function get_wan_ifname()
     return (wan_ifname and wan_ifname[1].value) or "eth4"
 end
 
+local function clean_wan_from_lan(ifnames)
+    local wan_patterns = { "wanptm0", "waneth4", "wanatmwan", "ptm0%.%d+", "eth4%.%d+", "eth3%.%d+", "atmwan%.%d+", "ptm0", "atmwan" }
+    local result = ifnames
+    for _, pat in ipairs(wan_patterns) do
+        result = gsub(result, "%f[%w_]" .. pat .. "%f[^%w_]", "")
+    end
+    result = gsub(result, "%s+", " ")
+    result = gsub(result, "^%s+", "")
+    result = gsub(result, "%s+$", "")
+    return result
+end
+
 return {
     {
         name = "dhcp",
@@ -24,10 +36,9 @@ return {
         },
         operations = function()
             local ifnames = get_ifnames()
-            local wan_ifname = get_wan_ifname()
             proxy.set("uci.network.interface.@wan.proto", "dhcp")
             proxy.set("uci.network.config.wan_mode", "dhcp")
-            proxy.set("uci.network.interface.@lan.ifname", gsub(gsub(ifnames, wan_ifname, ""), "%s$", ""))
+            proxy.set("uci.network.interface.@lan.ifname", clean_wan_from_lan(ifnames))
             os.execute("/usr/share/transformer/scripts/apply_service_modes.sh &")
             return true
         end,
@@ -43,10 +54,9 @@ return {
         },
         operations = function()
             local ifnames = get_ifnames()
-            local wan_ifname = get_wan_ifname()
             proxy.set("uci.network.interface.@wan.proto", "pppoe")
             proxy.set("uci.network.config.wan_mode", "pppoe")
-            proxy.set("uci.network.interface.@lan.ifname", gsub(gsub(ifnames, wan_ifname, ""), "%s$", ""))
+            proxy.set("uci.network.interface.@lan.ifname", clean_wan_from_lan(ifnames))
             os.execute("/usr/share/transformer/scripts/apply_service_modes.sh &")
             return true
         end,
@@ -62,10 +72,9 @@ return {
         },
         operations = function()
             local ifnames = get_ifnames()
-            local wan_ifname = get_wan_ifname()
             proxy.set("uci.network.interface.@wan.proto", "pppoa")
             proxy.set("uci.network.config.wan_mode", "pppoa")
-            proxy.set("uci.network.interface.@lan.ifname", gsub(gsub(ifnames, wan_ifname, ""), "%s$", ""))
+            proxy.set("uci.network.interface.@lan.ifname", clean_wan_from_lan(ifnames))
             os.execute("/usr/share/transformer/scripts/apply_service_modes.sh &")
             return true
         end,
@@ -81,10 +90,9 @@ return {
         },
         operations = function()
             local ifnames = get_ifnames()
-            local wan_ifname = get_wan_ifname()
             proxy.set("uci.network.interface.@wan.proto", "static")
             proxy.set("uci.network.config.wan_mode", "static")
-            proxy.set("uci.network.interface.@lan.ifname", gsub(gsub(ifnames, wan_ifname, ""), "%s$", ""))
+            proxy.set("uci.network.interface.@lan.ifname", clean_wan_from_lan(ifnames))
             os.execute("/usr/share/transformer/scripts/apply_service_modes.sh &")
             return true
         end,
@@ -103,9 +111,8 @@ return {
             local wan_ifname = get_wan_ifname()
             proxy.set("uci.network.interface.@wan.proto", "bridge")
             proxy.set("uci.network.config.wan_mode", "bridge")
-            if not string.find(ifnames, wan_ifname) then
-                proxy.set("uci.network.interface.@lan.ifname", ifnames .. ' ' .. wan_ifname)
-            end
+            local clean_ifnames = clean_wan_from_lan(ifnames)
+            proxy.set("uci.network.interface.@lan.ifname", clean_ifnames .. ' ' .. wan_ifname)
             os.execute("/usr/share/transformer/scripts/apply_service_modes.sh &")
             return true
         end,

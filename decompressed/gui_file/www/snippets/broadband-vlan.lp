@@ -113,6 +113,7 @@ if ngx.var.request_method == "POST" and tech then
 	if content["action"] == "SAVE" then
 		local range, helpmes = getValidateNumberInRange(2, 4094, content["intf_vlanid"])
 		local vlan_enabled = (content["intf_vlan"] and content["intf_vlan"] ~= "" and content["intf_vlan"] ~= "0")
+		local new_ifname = connection
 		if vlan_enabled and range then
 			if content["auswahlliste"] == "devnot" then
 				if proxy.get(path) then
@@ -133,6 +134,7 @@ if ngx.var.request_method == "POST" and tech then
 					proxy.set(pathifname, dname)
 					proxy.set(path.."ifname", connection)
 				end
+				new_ifname = dname
 				if proxy.get("uci.wansensing.global.enable") and proxy.get("uci.wansensing.global.enable")[1].value == "1" then
 					proxy.set("uci.wansensing.global.enable", "0")
 				end
@@ -142,7 +144,8 @@ if ngx.var.request_method == "POST" and tech then
 				if proxy.get(path) and proxy.get(path.."ifname") and proxy.get(path.."ifname")[1].value ~= "" then
 					proxy.set(path.."ifname", "")
 				end
-				proxy.set(pathifname, string.format("%s.%s", connection, content["intf_vlanid"]))
+				new_ifname = string.format("%s.%s", connection, content["intf_vlanid"])
+				proxy.set(pathifname, new_ifname)
 				if proxy.get("uci.wansensing.global.enable") and proxy.get("uci.wansensing.global.enable")[1].value == "1" then
 					proxy.set("uci.wansensing.global.enable", "0")
 				end
@@ -153,10 +156,47 @@ if ngx.var.request_method == "POST" and tech then
 			if proxy.get(path) then
 				proxy.set(path.."ifname", "")
 			end
+			new_ifname = connection
 			proxy.set(pathifname, connection)
 			proxy.apply()
 			os.execute("uci commit network")
 		end
+
+		-- Sync with bridge mode if bridge is active or if lan.ifname contains a WAN interface (fixes #1068)
+		local wm = proxy.get("uci.network.config.wan_mode")
+		local wp = proxy.get("uci.network.interface.@wan.proto")
+		local is_bridge = (wm and wm[1] and wm[1].value == "bridge") or (wp and wp[1] and wp[1].value == "bridge")
+
+		local lan_data = proxy.get("uci.network.interface.@lan.ifname")
+		local lan_ifnames = (lan_data and lan_data[1] and lan_data[1].value) or ""
+		if lan_ifnames ~= "" then
+			local wan_pats = { "wanptm0", "waneth4", "wanatmwan", "ptm0%.%d+", "eth4%.%d+", "eth3%.%d+", "atmwan%.%d+", "ptm0", "atmwan" }
+			local has_wan_in_lan = false
+			for _, pat in ipairs(wan_pats) do
+				if string.match(lan_ifnames, "%f[%w_]" .. pat .. "%f[^%w_]") then
+					has_wan_in_lan = true
+					break
+				end
+			end
+			if is_bridge or has_wan_in_lan then
+				local clean_lan = lan_ifnames
+				for _, pat in ipairs(wan_pats) do
+					clean_lan = string.gsub(clean_lan, "%f[%w_]" .. pat .. "%f[^%w_]", "")
+				end
+				clean_lan = string.gsub(clean_lan, "%s+", " ")
+				clean_lan = string.gsub(clean_lan, "^%s+", "")
+				clean_lan = string.gsub(clean_lan, "%s+$", "")
+				if is_bridge and new_ifname ~= "" then
+					clean_lan = clean_lan .. " " .. new_ifname
+				end
+				if clean_lan ~= lan_ifnames then
+					proxy.set("uci.network.interface.@lan.ifname", clean_lan)
+					proxy.apply()
+					os.execute("uci commit network; /usr/share/transformer/scripts/apply_service_modes.sh &")
+				end
+			end
+		end
+
 		refresh_state()
 	end
 end

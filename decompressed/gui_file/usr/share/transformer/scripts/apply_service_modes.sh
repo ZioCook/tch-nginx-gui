@@ -48,16 +48,27 @@ logger -t "ServiceModeManager" "Active detected mode: $detected_mode"
 case "$detected_mode" in
     bridge)
         # --- BRIDGE / DUMB AP SWITCH MODE ---
-        # 1. Disable & Stop xDSL and XTM PHY/driver
-        if [ -x /etc/init.d/xdsl ]; then
-            /etc/init.d/xdsl stop 2>/dev/null
-            /etc/init.d/xdsl disable 2>/dev/null
+        # 1. Disable & Stop xDSL and XTM PHY/driver ONLY if not bridging a DSL connection (ptm/atm) (fixes #1068)
+        if ! echo "$wan_ifname" | grep -qE "ptm|atm"; then
+            if [ -x /etc/init.d/xdsl ]; then
+                /etc/init.d/xdsl stop 2>/dev/null
+                /etc/init.d/xdsl disable 2>/dev/null
+            fi
+            if [ -x /etc/init.d/xtm ]; then
+                /etc/init.d/xtm stop 2>/dev/null
+                /etc/init.d/xtm disable 2>/dev/null
+            fi
+            killall -9 xdslctl xdslctl1 2>/dev/null
+        else
+            if [ -x /etc/init.d/xdsl ]; then
+                /etc/init.d/xdsl enable 2>/dev/null
+                /etc/init.d/xdsl start 2>/dev/null
+            fi
+            if [ -x /etc/init.d/xtm ]; then
+                /etc/init.d/xtm enable 2>/dev/null
+                /etc/init.d/xtm start 2>/dev/null
+            fi
         fi
-        if [ -x /etc/init.d/xtm ]; then
-            /etc/init.d/xtm stop 2>/dev/null
-            /etc/init.d/xtm disable 2>/dev/null
-        fi
-        killall -9 xdslctl xdslctl1 2>/dev/null
 
         # 2. Disable & Stop WAN Sensing
         if [ -x /etc/init.d/wansensing ]; then
@@ -118,6 +129,21 @@ case "$detected_mode" in
         if [ "$qos_pref" != "1" ]; then
             /usr/share/transformer/scripts/toggle_qos.sh 0
         fi
+
+        # 8. Ensure the active WAN interface is attached to br-lan in bridge mode (fixes #1068)
+        if [ -n "$wan_ifname" ] && [ "$wan_ifname" != "br-lan" ]; then
+            lan_ifnames=$(uci -q get network.lan.ifname)
+            new_lan_ifnames=$(echo "$lan_ifnames" | sed -E 's/\b(wanptm0|waneth4|wanatmwan|ptm0\.[0-9]+|eth4\.[0-9]+|eth3\.[0-9]+|atmwan\.[0-9]+|ptm0|atmwan)\b//g')
+            if ! echo "$new_lan_ifnames" | grep -qw "$wan_ifname"; then
+                new_lan_ifnames="$new_lan_ifnames $wan_ifname"
+            fi
+            new_lan_ifnames=$(echo "$new_lan_ifnames" | tr -s ' ' | sed 's/^ //;s/ $//')
+            if [ "$lan_ifnames" != "$new_lan_ifnames" ]; then
+                uci -q set network.lan.ifname="$new_lan_ifnames"
+                uci commit network
+                /etc/init.d/network reload 2>/dev/null
+            fi
+        fi
         ;;
 
     ftth|gpon)
@@ -155,6 +181,15 @@ case "$detected_mode" in
             uci commit dhcp
             /etc/init.d/dnsmasq restart 2>/dev/null
         fi
+
+        # Ensure no WAN interface is erroneously attached to br-lan in routed mode
+        lan_ifnames=$(uci -q get network.lan.ifname)
+        new_lan_ifnames=$(echo "$lan_ifnames" | sed -E 's/\b(wanptm0|waneth4|wanatmwan|ptm0\.[0-9]+|eth4\.[0-9]+|eth3\.[0-9]+|atmwan\.[0-9]+|ptm0|atmwan)\b//g' | tr -s ' ' | sed 's/^ //;s/ $//')
+        if [ "$lan_ifnames" != "$new_lan_ifnames" ]; then
+            uci -q set network.lan.ifname="$new_lan_ifnames"
+            uci commit network
+            /etc/init.d/network reload 2>/dev/null
+        fi
         ;;
 
     vdsl|adsl)
@@ -190,6 +225,15 @@ case "$detected_mode" in
         if [ "$dhcp_changed" = "1" ]; then
             uci commit dhcp
             /etc/init.d/dnsmasq restart 2>/dev/null
+        fi
+
+        # Ensure no WAN interface is erroneously attached to br-lan in routed mode
+        lan_ifnames=$(uci -q get network.lan.ifname)
+        new_lan_ifnames=$(echo "$lan_ifnames" | sed -E 's/\b(wanptm0|waneth4|wanatmwan|ptm0\.[0-9]+|eth4\.[0-9]+|eth3\.[0-9]+|atmwan\.[0-9]+|ptm0|atmwan)\b//g' | tr -s ' ' | sed 's/^ //;s/ $//')
+        if [ "$lan_ifnames" != "$new_lan_ifnames" ]; then
+            uci -q set network.lan.ifname="$new_lan_ifnames"
+            uci commit network
+            /etc/init.d/network reload 2>/dev/null
         fi
         ;;
 esac
