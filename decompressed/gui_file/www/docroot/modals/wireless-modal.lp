@@ -370,13 +370,15 @@ end
 -- We're defining the listbox enums here to be able to use them to validate the input
 -- Listbox that shows the supported WiFi standards
 local wifi_standard_24GHz = {
+      { "n", T'802.11n'},
       { "bg", T'802.11b/g'},
       { "bgn", T'802.11b/g/n'},
 }
 
 local wifi_standard_5GHz = {
-    ["an"]= T'802.11a/n',
-    ["anac"]= T'802.11a/n/ac',
+    { "an", T'802.11a/n'},
+    { "ac", T'802.11ac'},
+    { "anac", T'802.11a/n/ac'},
 }
 
 local wifiStandard = {
@@ -385,14 +387,9 @@ local wifiStandard = {
 
 local wifi_standard={}
 if radioData[curradio].supported_frequency_bands == "5GHz" then
-  content_helper.getExactContent(wifiStandard)
-  if wifiStandard.standard and wifiStandard.standard ~= "" then
-    wifi_standard[1] = {wifiStandard.standard,wifi_standard_5GHz[untaint(wifiStandard.standard)]}
-  else
-    wifi_standard[1] = {"",""}
-  end
+  wifi_standard = wifi_standard_5GHz
 else
-    wifi_standard = wifi_standard_24GHz
+  wifi_standard = wifi_standard_24GHz
 end
 
 local bandsteer_rssi_threshold = {}
@@ -421,8 +418,10 @@ local cw_80 = {
 
 local cw = {
   ["bg"] = "channelwidth20",
+  ["n"] = "channelwidth40",
   ["bgn"] = "channelwidth40",
   ["an"] = "channelwidth40",
+  ["ac"] = "channelwidth80",
   ["anac"] = "channelwidth80",
 }
 
@@ -1148,11 +1147,7 @@ end
         html[#html + 1] = ui_helper.createLabel(T"Frequency band", content["supported_frequency_bands"])
         -- Label that shows the MAC address of the Wifi interface
         html[#html + 1] = ui_helper.createLabel(T"MAC address", content["macaddress"])
-    if radioData[curradio].supported_frequency_bands == "5GHz" then
-      html[#html + 1] = ui_helper.createLabel(T"Standard", listboxToText(wifi_standard, wifiStandard.standard), advanced)
-    else
-      html[#html + 1] = ui_helper.createLabel(T"Standard", listboxToText(wifi_standard, content["standard"]), advanced)
-    end
+        html[#html + 1] = ui_helper.createLabel(T"Standard", listboxToText(wifi_standard, content["standard"]), advanced)
         -- Current speed of the Wifi interface
         html[#html + 1] = ui_helper.createLabel(T"Speed", content["phy_rate"] / 1000 .. "Mbps", { span = {
             id = "phy_rate",
@@ -1189,17 +1184,11 @@ end
                 class = "monitor-changes"
             }
         }
-   if radioData[curradio].supported_frequency_bands == "5GHz" then
-     html[#html + 1] = ui_helper.createLabel(T"Standard", listboxToText(wifi_standard, wifiStandard.standard), stdattributes)
-     stdattributes.select={class = "monitor-changes",style="display:none"}
-     html[#html + 1] = ui_helper.createSimpleInputSelect("standard", wifi_standard, wifiStandard.standard,stdattributes)
-   else
-    if not stbLimit then
-        html[#html + 1] = ui_helper.createInputSelect(T"Standard", "standard", wifi_standard, content["standard"], stdattributes)
-    else
-        html[#html + 1] = ui_helper.createLabel(T"Standard", listboxToText(wifi_standard, content["standard"]), stdattributes)
-    end
-   end
+        if not stbLimit then
+            html[#html + 1] = ui_helper.createInputSelect(T"Standard", "standard", wifi_standard, content["standard"], stdattributes)
+        else
+            html[#html + 1] = ui_helper.createLabel(T"Standard", listboxToText(wifi_standard, content["standard"]), stdattributes)
+        end
 
         -- Current speed of the Wifi interface
         html[#html + 1] = ui_helper.createLabel(T"Speed", content["phy_rate"] / 1000 .. "Mbps", { span = {
@@ -1230,7 +1219,7 @@ end
 
             local cw40attributes  = {
                 group = {
-                    class ="hide monitor-standard monitor-bgn monitor-an",
+                    class ="hide monitor-standard monitor-bgn monitor-n monitor-an",
                 },
 
             }
@@ -1239,7 +1228,7 @@ end
 
             local cw80attributes  = {
                 group = {
-                    class ="hide monitor-standard monitor-anac",
+                    class ="hide monitor-standard monitor-anac monitor-ac",
                 },
             }
 
