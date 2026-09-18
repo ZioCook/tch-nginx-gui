@@ -24,19 +24,25 @@ for (const action of ['TABLE-ADD', 'TABLE-DELETE', 'TABLE-MODIFY', 'TABLE-EDIT',
 // An asynchronous refresh must retain its original target, even if another card opens.
 let handler, complete, replaced = [], requests = 0, modalToCard;
 const originalParent = {replaceWith: data => replaced.push(['original', data])};
-let lastCardClicked = {find: () => ({data: () => '/modals/wanservices-modal.lp'}), parent: () => originalParent};
-$ = selector => selector === document ? {on: (event, target, callback) => {handler = callback;}} : {hasClass: () => true};
+const modalCard = {find: () => ({data: () => '/modals/broadband-modal.lp', attr: () => '/modals/broadband-modal.lp'}), parent: () => ({replaceWith: data => replaced.push(['modalCard', data])}), length: 1};
+let lastCardClicked = {find: () => ({data: () => '/modals/wanservices-modal.lp', attr: () => '/modals/wanservices-modal.lp'}), parent: () => originalParent, length: 1};
+$ = selector => {
+  if (selector === document) return {on: (event, target, callback) => {handler = callback;}};
+  if (selector && selector.isModal) return selector;
+  return {hasClass: () => true, data: () => null, length: 1};
+};
 $.get = (url, callback) => {requests++; complete = callback;};
 const document = {}, window = {location: {reload: () => {throw Error('unexpected reload');}}};
 const start = source.indexOf('\t$(document).on("hidden", ".modal"');
 eval(source.slice(start, source.indexOf('\n\tvar y = !1;', start)));
 count = 1;
-handler({target: {}});
+handler({target: {isModal: true, hasClass: () => true, data: (k) => k === 'sourceCard' ? modalCard : null}});
 assert.strictEqual(count, 0);
-lastCardClicked = {parent: () => ({replaceWith: () => {throw Error('wrong card');}})};
-complete('updated');
-assert.deepStrictEqual(replaced, [['original', 'updated']]);
+lastCardClicked = {parent: () => ({replaceWith: () => {throw Error('wrong card');}}), length: 1};
+complete('updatedModalCard');
+assert.deepStrictEqual(replaced, [['modalCard', 'updatedModalCard']]);
 lastCardClicked = null;
-handler({target: {}});
+handler({target: {hasClass: () => true, data: () => null}});
 assert.strictEqual(requests, 1);
 console.log('Card refresh: 20 table cases and asynchronous target/reset checks passed');
+

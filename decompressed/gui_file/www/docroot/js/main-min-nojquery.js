@@ -2286,7 +2286,7 @@ function confirmationDialogue(t, e) {
 			}
 			$.get(t, function (t) {
 				var n = $(t);
-				0 < n.find("#sign-me-in").length ? (p(loginMsg), window.location = "/login.lp") : ("1" === $("meta[name=Advanced]").attr("content") && (n.find(".advanced.hide").removeClass("hide"), n.find(".modal-action-advanced").parent().remove()), $('<div class="modal fade" id="' + e + '">' + t + "</div>").modal(), m(), y = !1, i())
+				0 < n.find("#sign-me-in").length ? (p(loginMsg), window.location = "/login.lp") : ("1" === $("meta[name=Advanced]").attr("content") && (n.find(".advanced.hide").removeClass("hide"), n.find(".modal-action-advanced").parent().remove()), (function () { var $m = $('<div class="modal fade" id="' + e + '">' + t + "</div>"); if (lastCardClicked && lastCardClicked.length) $m.data("sourceCard", lastCardClicked); $m.modal(); })(), m(), y = !1, i())
 			}).fail(function (t) {
 				if (y = !1, 403 === t.status)
 					p(loginMsg), window.location = "/login.lp";
@@ -2294,9 +2294,10 @@ function confirmationDialogue(t, e) {
 					httpErrorMessage(t)
 					window.location = "/error.lp?err=" + t.getResponseHeader("error-msg") + "&status=" + t.status;
 				} else {
-					$(".header-title").filter('[data-id="' + e + '"]').children().html(),
-					$(n).modal();
-					var n = '<div class="modal fade" id="' + e + '"></div>';
+					$(".header-title").filter('[data-id="' + e + '"]').children().html();
+					var $m = $('<div class="modal fade" id="' + e + '"></div>');
+					if (lastCardClicked && lastCardClicked.length) $m.data("sourceCard", lastCardClicked);
+					$m.modal();
 					httpErrorMessage(t)
 				}
 			})
@@ -2478,11 +2479,13 @@ function confirmationDialogue(t, e) {
 		$(t.target).hasClass("modal") && e()
 	}),
 	$(document).on("hidden", ".modal", function (t) {
-		modalToCard = (lastCardClicked && lastCardClicked.length) ? (lastCardClicked.find(".settings").attr("data-remote") || lastCardClicked.find(".header-title").attr("data-remote") || lastCardClicked.find('[data-toggle="modal"]').attr("data-remote")) : null;
-		if (count > 0 && $(t.target).hasClass("modal")) {
+		var $modal = $(t.target);
+		var currentCard = ($modal.data && $modal.data("sourceCard") && $modal.data("sourceCard").length) ? $modal.data("sourceCard") : lastCardClicked;
+		modalToCard = (currentCard && currentCard.length) ? (currentCard.find(".settings").attr("data-remote") || currentCard.find(".settings").data("remote") || currentCard.find(".header-title").attr("data-remote") || currentCard.find(".header-title").data("remote") || currentCard.find('[data-toggle="modal"]').attr("data-remote") || currentCard.find('[data-toggle="modal"]').data("remote")) : null;
+		if (count > 0 && $modal.hasClass("modal")) {
 			count = 0;
-			if (modalToCard != null) {
-				var cardToRefresh = lastCardClicked.parent();
+			if (modalToCard != null && currentCard && currentCard.length) {
+				var cardToRefresh = currentCard.parent();
 				$.get("/ajax/get_card.lua?modal=" + encodeURIComponent(modalToCard), function (data) {
 					cardToRefresh.replaceWith(data);
 				});
