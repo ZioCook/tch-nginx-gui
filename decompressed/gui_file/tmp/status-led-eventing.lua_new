@@ -186,7 +186,11 @@ events['infobutton'] = function(msg)
 end
 
 local function ambient_status_update()
-    if info_ambient_led_active == '0' then
+    local lcur = uci.cursor()
+    lcur:load('ledfw')
+    local cur_ambient = lcur:get('ledfw', 'ambient', 'active')
+    lcur:close()
+    if cur_ambient == '0' then
         local packet = {}
         packet["state"] = "inactive"
         conn:send(ubus_led_name, packet)
