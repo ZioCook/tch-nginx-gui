@@ -191,5 +191,4 @@ $(document).ready(function () {\
 	new modgui.createAjaxUpdateCard("xdsltab","/ajax/internet.lua?datatype=xdsl","InfoXdslCardInterval",5000);\
 })\
 </script>\
-'); 
-end
+');

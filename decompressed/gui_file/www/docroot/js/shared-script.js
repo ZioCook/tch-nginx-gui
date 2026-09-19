@@ -20,6 +20,44 @@ module.postAction=postAction,module.createAjaxUpdateCard=createAjaxUpdateCard,mo
 (modgui);window.onscroll=function(){modgui.scrollFunction()};$(function(){$("a[href*=\'#\']").on("click",function(e){e.preventDefault();$("html, body").animate({scrollTop:$($(this).attr("href")).offset().top},500,"linear");});$(document).on('mouseenter','td[data-toggle="tooltip_mac"]',function(){var elem=this;var mac=$(elem).children("#mac_data").text();$(elem).append('<div class="tooltip bottom fade in"><div class="tooltip-arrow"></div><div class="tooltip-inner">'+
 mac+'</br>'+'<div data-type="vendor"></div>'
 +'</div></div>');modgui.getVendorFromMac(mac,$(elem).children('.tooltip').children('.tooltip-inner').children('div[data-type="vendor"]'));}).on('mouseleave','td[data-toggle="tooltip_mac"]',function(){$('.tooltip').remove();});if(gui_var.randomcolor=="1"){setInterval(function(){var colorR=Math.floor((Math.random()*256));var colorG=Math.floor((Math.random()*256));var colorB=Math.floor((Math.random()*256));$(":root").get(0).style.setProperty("--first-color-accent","rgb("+colorR+","+colorG+","+colorB+")");$(":root").get(0).style.setProperty("--first-color-accent-50","rgba("+colorR+","+colorG+","+colorB+", 0.5)");$(":root").get(0).style.setProperty("--first-color-accent-80","rgba("+colorR+","+colorG+","+colorB+", 0.8)");},750);}
-var pathname=document.location.pathname;var page=gui_var.pageselector_page;var text=gui_var.pageselector_text;if(pathname=="/stats.lp"){$("#cards-text").text(gui_var.cards_text);document.title="Gateway - "+gui_var.stats_text;}else if(pathname=="/cards.lp"){$("#cards-text").text(gui_var.stats_text);document.title="Gateway - "+gui_var.cards_text;}else if(pathname=="/"){document.title="Gateway - "+gui_var.pageselector_othertext;}
-$("#switchViewButton").on("click",function(){var pathname=document.location.pathname;var text=gui_var.pageselector_othertext;var view=gui_var.pageselector_text;if(pathname=="/stats.lp"){page="cards.lp";text=gui_var.stats_text;view=gui_var.cards_text;}else if(pathname=="/cards.lp"){page="stats.lp";text=gui_var.cards_text;view=gui_var.stats_text;}
-$("#cards-text").text(openMsg);$("#refresh-cards").show();$("#refresh-cards").css("margin-right","5px");$("#refresh-cards").addClass("fa fa-sync fa-spin");modgui.clearKoInterval();KoRequest={};$.get(page+"?contentonly=true").done(function(data){$(".dynamic-content").replaceWith(data);$("#cards-text").text(text);$("#refresh-cards").hide();window.history.pushState("gateway","Gateway - "+view,page);document.title="Gateway - "+view;$("#switchViewButton").trigger("switchcard");});});$("#upgradebtn").on("hover",function(){$("#upgradebtn").css("color","white");},function(){$("#upgradebtn").css("color","orangered");});if((gui_var.autoupgradeview!="")&&(gui_var.autoupgradeview!="none")){modgui.postAction("autoupgrade_view");};if(gui_var.gui_animation=="1"){AOS.init();};});$(document).ready(function(){ko.bindingHandlers.text={init:function(element,valueAccessor){$(element).text(ko.unwrap(valueAccessor()));},update:function(element,valueAccessor){var value=ko.unwrap(valueAccessor());if(value!=$(element).text()){if(!$(element).hasClass("hide")&&gui_var.gui_animation=="1"){$(element).fadeOut(function(){$(this).text(value).fadeIn();});}else{$(element).text(value);}}}};ko.bindingHandlers.log_text={init:function(element,valueAccessor){$(element).text(ko.unwrap(valueAccessor()));},update:function(element,valueAccessor){var value=ko.unwrap(valueAccessor());$(element).text(value);$(element).parent().parent().parent().scrollTop($(element).parent().parent().parent()[0].scrollHeight);}};ko.bindingHandlers.html={init:function(element,valueAccessor){$(element).html(ko.unwrap(valueAccessor()));},update:function(element,valueAccessor){var value=ko.unwrap(valueAccessor());if(value!=$(element).html()){if(!$(element).hasClass("hide")&&gui_var.gui_animation=="1"){$(element).fadeOut(function(){$(this).html(value).fadeIn();});}else{$(element).html(value);}}}};});
+var currentPath = document.location.pathname;
+var activeView = (currentPath == "/stats.lp" || (currentPath == "/" && gui_var.pageselector_othertext == gui_var.stats_text)) ? "stats" : "cards";
+
+function updateSwitchButtonUI() {
+    if (activeView == "stats") {
+        $("#cards-text").text(gui_var.cards_text);
+        document.title = "Gateway - " + gui_var.stats_text;
+    } else {
+        $("#cards-text").text(gui_var.stats_text);
+        document.title = "Gateway - " + gui_var.cards_text;
+    }
+}
+updateSwitchButtonUI();
+
+$("#switchViewButton").on("click", function() {
+    var targetPage = (activeView == "stats") ? "cards.lp" : "stats.lp";
+    var nextView = (activeView == "stats") ? "cards" : "stats";
+    var buttonNextText = (nextView == "stats") ? gui_var.cards_text : gui_var.stats_text;
+    var pageTitle = "Gateway - " + ((nextView == "stats") ? gui_var.stats_text : gui_var.cards_text);
+
+    $("#cards-text").text(openMsg);
+    $("#refresh-cards").show();
+    $("#refresh-cards").css("margin-right", "5px");
+    $("#refresh-cards").addClass("fa fa-sync fa-spin");
+    modgui.clearKoInterval();
+    KoRequest = {};
+
+    $.get(targetPage + "?contentonly=true").done(function(data) {
+        $(".dynamic-content").replaceWith(data);
+        activeView = nextView;
+        $("#cards-text").text(buttonNextText);
+        $("#refresh-cards").hide();
+        window.history.pushState("gateway", pageTitle, targetPage);
+        document.title = pageTitle;
+        $("#switchViewButton").trigger("switchcard");
+    }).fail(function() {
+        $("#refresh-cards").hide();
+        updateSwitchButtonUI();
+    });
+});
+$("#upgradebtn").on("hover",function(){$("#upgradebtn").css("color","white");},function(){$("#upgradebtn").css("color","orangered");});if((gui_var.autoupgradeview!="")&&(gui_var.autoupgradeview!="none")){modgui.postAction("autoupgrade_view");};if(gui_var.gui_animation=="1"){AOS.init();};});$(document).ready(function(){ko.bindingHandlers.text={init:function(element,valueAccessor){$(element).text(ko.unwrap(valueAccessor()));},update:function(element,valueAccessor){var value=ko.unwrap(valueAccessor());if(value!=$(element).text()){if(!$(element).hasClass("hide")&&gui_var.gui_animation=="1"){$(element).fadeOut(function(){$(this).text(value).fadeIn();});}else{$(element).text(value);}}}};ko.bindingHandlers.log_text={init:function(element,valueAccessor){$(element).text(ko.unwrap(valueAccessor()));},update:function(element,valueAccessor){var value=ko.unwrap(valueAccessor());$(element).text(value);$(element).parent().parent().parent().scrollTop($(element).parent().parent().parent()[0].scrollHeight);}};ko.bindingHandlers.html={init:function(element,valueAccessor){$(element).html(ko.unwrap(valueAccessor()));},update:function(element,valueAccessor){var value=ko.unwrap(valueAccessor());if(value!=$(element).html()){if(!$(element).hasClass("hide")&&gui_var.gui_animation=="1"){$(element).fadeOut(function(){$(this).html(value).fadeIn();});}else{$(element).html(value);}}}};});
