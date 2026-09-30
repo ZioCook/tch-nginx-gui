@@ -79,7 +79,15 @@ end
               </span>\
               ');  
               if #active_helpers > 0 then
-                  ngx.print('<p class="subinfos">' .. table.concat(active_helpers, ", ") .. '</p>')
+                  local str_helpers = {}
+                  for _, h in ipairs(active_helpers) do
+                      if h and h ~= "" then
+                          str_helpers[#str_helpers + 1] = tostring(h)
+                      end
+                  end
+                  if #str_helpers > 0 then
+                      ngx.print('<p class="subinfos">' .. table.concat(str_helpers, ", ") .. '</p>')
+                  end
               end
             end
             if disabled_count ~= 0 then  ngx.print('\

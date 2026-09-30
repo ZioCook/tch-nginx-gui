@@ -98,7 +98,7 @@ end
 if cputype:match("^armv7") then
 	mapParams.dumaos_application = "uci.modgui.app.dumaos_app"
 end
-if marketing_version >= 17.3 then
+if m_ver >= 17.3 or (m_ver >= 2.0 and m_ver < 10.0) then
 	mapParams.xupnp_application = "uci.modgui.app.xupnp_app"
 end
 content_helper.getExactContent(mapParams)
