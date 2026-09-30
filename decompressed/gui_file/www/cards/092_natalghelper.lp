@@ -21,6 +21,8 @@ local helper_uci_path = is_modern and "uci.firewall_helpers.helper." or "uci.fir
 local helper_uci_content = proxy.get(helper_uci_path)
 helper_uci_content = content_helper.convertResultToObject(helper_uci_path, helper_uci_content)
 
+local untaint = string.untaint or function(s) return s end
+
 local enabled_count = 0
 local disabled_count = 0
 local active_helpers = {}
@@ -32,9 +34,9 @@ if helper_uci_content and #helper_uci_content > 0 then
                 disabled_count = disabled_count + 1
             else
                 enabled_count = enabled_count + 1
-                local hname = v.name or v.helper
+                local hname = untaint(v.name or v.helper)
                 if hname and hname ~= "" then
-                    active_helpers[#active_helpers + 1] = hname:lower()
+                    active_helpers[#active_helpers + 1] = tostring(hname):lower()
                 end
             end
         end
@@ -49,9 +51,10 @@ else
             if z['.name'] ~= "loopback" and z.helper then
                 local hlist = type(z.helper) == "table" and z.helper or { z.helper }
                 for _, h in ipairs(hlist) do
-                    if not seen[h] then
-                        seen[h] = true
-                        active_helpers[#active_helpers + 1] = h:lower()
+                    local uh = tostring(untaint(h))
+                    if not seen[uh] then
+                        seen[uh] = true
+                        active_helpers[#active_helpers + 1] = uh:lower()
                     end
                 end
             end
@@ -81,8 +84,9 @@ end
               if #active_helpers > 0 then
                   local str_helpers = {}
                   for _, h in ipairs(active_helpers) do
-                      if h and h ~= "" then
-                          str_helpers[#str_helpers + 1] = tostring(h)
+                      local uh = tostring(untaint(h))
+                      if uh and uh ~= "" then
+                          str_helpers[#str_helpers + 1] = uh
                       end
                   end
                   if #str_helpers > 0 then

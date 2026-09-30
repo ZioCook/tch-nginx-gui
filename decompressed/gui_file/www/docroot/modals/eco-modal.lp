@@ -44,7 +44,6 @@ local mapValid = {
   cores = vS,
 
   -- VM / Memory
-  swappiness = vP,
   vfs_cache_pressure = vP,
 
   -- LED
@@ -67,7 +66,6 @@ local mapParams = {
   max_freq = "uci.power.cpu.max_freq",
   cores = "uci.power.cpu.cores",
 
-  swappiness = "uci.power.vm.swappiness",
   vfs_cache_pressure = "uci.power.vm.vfs_cache_pressure",
 
   ledfw_internet = "uci.ledfw.internet.check",
@@ -117,9 +115,6 @@ end
 if not content["cores"] or content["cores"] == "" then
   content["cores"] = tostring(cpu_status.cores_online)
 end
-if not content["swappiness"] or content["swappiness"] == "" then
-  content["swappiness"] = tostring(mem_info.swappiness)
-end
 if not content["vfs_cache_pressure"] or content["vfs_cache_pressure"] == "" then
   content["vfs_cache_pressure"] = tostring(mem_info.vfs_cache_pressure)
 end
@@ -165,14 +160,14 @@ local cpu_display = format("<strong>%s</strong> &mdash; Governor: %s (%d core at
 html[#html + 1] = ui_helper.createLabel(T"Processor (CPU)", cpu_display, span5)
 
 -- Temperature info
-local temp_parts = {}
 if #temperatures > 0 then
+  local temp_parts = {}
   for _, t in ipairs(temperatures) do
     temp_parts[#temp_parts + 1] = format("%s: <strong>%d %s</strong>", t.sensor, t.temp, t.unit)
   end
+  local temp_display = table.concat(temp_parts, " &nbsp;|&nbsp; ")
+  html[#html + 1] = ui_helper.createLabel(T"Temperature Radio / SoC", temp_display, span5)
 end
-local temp_display = (#temp_parts > 0) and table.concat(temp_parts, " &nbsp;|&nbsp; ") or T"No sensor available"
-html[#html + 1] = ui_helper.createLabel(T"Temperature Radio / SoC", temp_display, span5)
 
 -- RAM info
 local ram_total_mb = math.floor(mem_info.mem_total / 1024)
@@ -189,7 +184,6 @@ end
 
 -- SEZIONE 2: Configurazione CPU & Prestazioni
 html[#html + 1] = '<legend>' .. T"CPU & Performance Configuration" .. '</legend>'
-html[#html + 1] = ui_helper.createAlertBlock(T"Adjusts the frequency scaling logic and energy profiles of the ARM Broadcom processor. Conservative profiles reduce heat and consumption, but can introduce slight latency in network flows.", info_box)
 
 html[#html + 1] = ui_helper.createInputSelect(T"Governor CPU", "governor", available_governors, content["governor"])
 if #available_freqs > 0 then
@@ -202,7 +196,6 @@ html[#html + 1] = ui_helper.createInputSelect(T"CPU Core Mode", "cores", cpu_cor
 
 -- SEZIONE 3: Risparmio Energetico Ethernet
 html[#html + 1] = '<legend>' .. T"Ethernet Energy Saving" .. '</legend>'
-html[#html + 1] = ui_helper.createAlertBlock(T"Configure power saving features for the integrated Broadcom switch and physical LAN port transceivers (802.3az).", info_box)
 
 html[#html + 1] = ui_helper.createSwitch(T"Ethernet EEE (802.3az)", "eee", content["eee"])
 html[#html + 1] = ui_helper.createSwitch(T"Ethernet AutoGrEEEn", "autogreeen", content["autogreeen"])
@@ -211,9 +204,7 @@ html[#html + 1] = ui_helper.createSwitch(T"PHY Power Down", "phy_down", content[
 
 -- SEZIONE 4: Gestione Memoria RAM & Cache
 html[#html + 1] = '<legend>' .. T"RAM & Cache Memory Management" .. '</legend>'
-html[#html + 1] = ui_helper.createAlertBlock(T"Adjusts the virtual memory parameters of the Linux kernel. Low swappiness values keep processes active in physical RAM and avoid aggressive swapping.", info_box)
 
-html[#html + 1] = ui_helper.createInputText(T"VM Swappiness (0-100)", "swappiness", content["swappiness"], span5, helpmsg["swappiness"])
 html[#html + 1] = ui_helper.createInputText(T"VM Cache Pressure (0-200)", "vfs_cache_pressure", content["vfs_cache_pressure"], span5, helpmsg["vfs_cache_pressure"])
 
 local drop_cache_btn = {
@@ -227,20 +218,17 @@ html[#html + 1] = ui_helper.createButton(T"Cache Memory", T"Clear RAM Cache (Dro
 html[#html + 1] = '<legend>' .. T"LED Indicator Settings" .. '</legend>'
 
 if prod_name:match("4130") or prod_name:match("4132") or prod_name:match("TG789") then
-  html[#html + 1] = ui_helper.createAlertBlock(T"Turns on the front Wi-Fi LEDs only when at least one client is connected to the radio network.", info_box)
   html[#html + 1] = ui_helper.createSwitch(T"WiFi NSC (Dynamic LEDs)", "ledfw_wifinsc", content["ledfw_wifinsc"])
 end
 
 if prod_name:match("DGA4131") then
   html[#html + 1] = ui_helper.createSwitch(T"Ambient LED", "ledfw_ambient", content["ledfw_ambient"])
 else
-  html[#html + 1] = ui_helper.createAlertBlock(T"Turns off all front LEDs (except the Info LED) when services are operational. Press the Info/Wi-Fi button on the modem to turn them back on temporarily.", info_box)
   html[#html + 1] = ui_helper.createSwitch(T"Eco LED Mode", "eco_led", content["eco_led"])
 end
 
 html[#html + 1] = ui_helper.createInputText(T"Timeout Spegnimento LED (ms)", "eco_led_timeout", content["eco_led_timeout"], span5, helpmsg["eco_led_timeout"])
 
-html[#html + 1] = ui_helper.createAlertBlock(T"Select which services must be active and verified before turning off the service LEDs:", info_box)
 html[#html + 1] = ui_helper.createSwitch(T"Check Telephony (VoIP)", "ledfw_voip", content["ledfw_voip"])
 html[#html + 1] = ui_helper.createSwitch(T"Check IPTV", "ledfw_iptv", content["ledfw_iptv"])
 html[#html + 1] = ui_helper.createSwitch(T"Check Internet Connection", "ledfw_internet", content["ledfw_internet"])

@@ -94,14 +94,16 @@ local html = {}
 
 html[#html + 1] = ui_helper.createSimpleLight(overall_eco, overall_text, nil, "fas fa-leaf")
 html[#html + 1] = '<p class="subinfos">'
-html[#html + 1] = format('<span class="simple-desc"><i class="fas fa-microchip" aria-hidden="true">&nbsp;</i>CPU: <strong>%s</strong> (%s, %d core)</span><br/>', cpu_status.cur_freq, cpu_status.governor:upper(), cpu_status.cores_online)
+html[#html + 1] = format('<span class="simple-desc"><i class="fas fa-microchip" aria-hidden="true">&nbsp;</i>CPU: <strong>%s</strong> &bull; %s</span><br/>', cpu_status.cur_freq, cpu_status.governor:upper())
 
 if temp_text then
 	html[#html + 1] = format('<span class="simple-desc"><i class="fas fa-thermometer-half" aria-hidden="true">&nbsp;</i>%s</span><br/>', temp_text)
 end
 
-html[#html + 1] = format('<span class="simple-desc"><i class="fas fa-network-wired" aria-hidden="true">&nbsp;</i>Ethernet EEE: <strong>%s</strong></span><br/>', (content.eee == "1") and T"Active" or T"Disabled")
-html[#html + 1] = format('<span class="simple-desc"><i class="fas fa-lightbulb" aria-hidden="true">&nbsp;</i>Eco LED: <strong>%s</strong></span>', (content.eco_led == "1") and T"Active" or T"Disabled")
+html[#html + 1] = format('<span class="simple-desc"><i class="fas fa-network-wired" aria-hidden="true">&nbsp;</i>Ethernet EEE: <strong>%s</strong></span>', (content.eee == "1") and T"Active" or T"Disabled")
+if content.eco_led == "1" then
+	html[#html + 1] = format('<br/><span class="simple-desc"><i class="fas fa-lightbulb" aria-hidden="true">&nbsp;</i>Eco LED: <strong>%s</strong></span>', T"Active")
+end
 html[#html + 1] = '</p>'
 
 ngx.print(html)
