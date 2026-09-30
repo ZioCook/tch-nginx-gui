@@ -2503,6 +2503,7 @@ function confirmationDialogue(t, e) {
 		u(t = $(this).attr("data-remote"), $(this).attr("data-id"))
 	}),
 	$(document).on("click touchend", ".smallcard", function (t) {
+		if ($(t.target).closest(".card-direct-link").length) return;
 		if (767 < window.innerWidth) {
 			t.preventDefault();
 			lastCardClicked = $(this);

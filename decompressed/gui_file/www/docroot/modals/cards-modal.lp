@@ -28,31 +28,47 @@ local cards_meta = {
   lte_card          = { title = T"Mobile",              category = 1, order = 10 },
   speedservice_card = { title = T"Speed Test",          category = 1, order = 11 },
   -- Category 2: Security & Routing
-  firewall_card     = { title = T"Firewall",            category = 2, order = 12 },
-  qos_card          = { title = T"QoS",                 category = 2, order = 13 },
-  natalghelper_card = { title = T"NAT Helpers",         category = 2, order = 14 },
-  iproutes_card     = { title = T"IP Extras",           category = 2, order = 15 },
-  parental_card     = { title = T"Parental Controls",   category = 2, order = 16 },
-  tod_card          = { title = T"Time of Day",         category = 2, order = 17 },
-  relaysetup_card   = { title = T"Relay Setup",         category = 2, order = 18 },
+  firewall_card       = { title = T"Firewall",            category = 2, order = 12 },
+  qos_card            = { title = T"QoS",                 category = 2, order = 13 },
+  wireguard_card      = { title = T"WireGuard",           category = 2, order = 14 },
+  openvpnserver_card  = { title = T"OpenVPN",             category = 2, order = 15 },
+  tailscale_card      = { title = T"Tailscale",           category = 2, order = 16 },
+  dumaos_card         = { title = T"DumaOS",              category = 2, order = 17 },
+  l2tpipsec_card      = { title = T"L2TP/IPsec VPN",      category = 2, order = 18 },
+  natalghelper_card   = { title = T"NAT Helpers",         category = 2, order = 19 },
+  iproutes_card       = { title = T"IP Extras",           category = 2, order = 20 },
+  parental_card       = { title = T"Parental Controls",   category = 2, order = 21 },
+  tod_card            = { title = T"Time of Day",         category = 2, order = 22 },
+  relaysetup_card     = { title = T"Relay Setup",         category = 2, order = 23 },
   -- Category 3: System & Services
-  usermgr_card      = { title = T"Management",          category = 3, order = 19 },
-  system_card       = { title = T"System Extras",       category = 3, order = 20 },
-  diagnostics_card  = { title = T"Diagnostics",         category = 3, order = 21 },
-  eco_card          = { title = T"Eco",                 category = 3, order = 22 },
-  contentsharing_card  = { title = T"Content Sharing",  category = 3, order = 23 },
-  printersharing_card  = { title = T"Printer Sharing",  category = 3, order = 24 },
-  telephony_card    = { title = T"Telephony",           category = 3, order = 25 },
-  extensions_card   = { title = T"Extensions",          category = 3, order = 26 },
-  assistance_card   = { title = T"Assistance",          category = 3, order = 27 },
-  cwmpconf_card     = { title = T"CWMP",                category = 3, order = 28 },
-  nfc_card          = { title = T"NFC",                 category = 3, order = 29 },
+  usermgr_card        = { title = T"Management",          category = 3, order = 24 },
+  system_card         = { title = T"System Extras",       category = 3, order = 25 },
+  diagnostics_card    = { title = T"Diagnostics",         category = 3, order = 26 },
+  eco_card            = { title = T"Eco",                 category = 3, order = 27 },
+  contentsharing_card = { title = T"Content Sharing",     category = 3, order = 28 },
+  printersharing_card = { title = T"Printer Sharing",     category = 3, order = 29 },
+  telephony_card      = { title = T"Telephony",           category = 3, order = 30 },
+  asterisk_card       = { title = T"Asterisk PBX",        category = 3, order = 31 },
+  extensions_card     = { title = T"Extensions",          category = 3, order = 32 },
+  assistance_card     = { title = T"Assistance",          category = 3, order = 33 },
+  cwmpconf_card       = { title = T"CWMP",                category = 3, order = 34 },
+  nfc_card            = { title = T"NFC",                 category = 3, order = 35 },
 }
 
 local categories = {
   [1] = T"Network and Connectivity",
   [2] = T"Security and Routing",
   [3] = T"System and Services",
+}
+
+-- Mapping of optional application cards to their UCI app enable flag
+local app_cards_check = {
+  wireguard_card      = "wireguard_app",
+  openvpnserver_card  = "openvpn_app",
+  openvpn_card        = "openvpn_app",
+  tailscale_card      = "tailscale_app",
+  dumaos_card         = "dumaos_app",
+  l2tpipsec_card      = "l2tpipsec_app",
 }
 
 -- Build card list from UCI, only include cards whose .lp file actually exists on disk
@@ -64,6 +80,19 @@ uci:foreach('web', 'card', function(s)
   local card_file = s.card
   if sec_name == "nfc_card" and prod_name ~= "DJN2130" and prod_name ~= "Technicolor TG800vac" then
     return
+  end
+  if sec_name == "asterisk_card" then
+    if lfs.attributes("/etc/init.d/asterisk", 'mode') ~= 'file' or
+       lfs.attributes("/etc/init.d/pbx-asterisk", 'mode') ~= 'file' then
+      return
+    end
+  end
+  local app_opt = app_cards_check[sec_name]
+  if app_opt then
+    local app_installed = uci:get("modgui", "app", app_opt)
+    if app_installed ~= "1" then
+      return
+    end
   end
   if card_file and lfs.attributes(cards_path .. "/" .. card_file, 'mode') == 'file' then
     local meta = cards_meta[sec_name] or {
