@@ -4711,3 +4711,75 @@ msgstr "xDSL deaktiviert"
 
 msgid "Managed automatically by regulatory tables (Quantenna 5GHz)"
 msgstr "Automatisch durch Regulierungstabellen verwaltet (Quantenna 5GHz)"
+
+msgid "Adblock"
+msgstr "Werbeblocker"
+
+msgid "Blocks advertising domains at router level. Requires working opkg feeds."
+msgstr "Blockiert Werbedomänen auf Routerebene. Erfordert funktionierende opkg-Paketquellen."
+
+msgid "Rsync daemon"
+msgstr "Rsync-Dienst"
+
+msgid "Installs the rsync daemon. Configure authenticated shares before starting the service."
+msgstr "Installiert den Rsync-Dienst. Richten Sie authentifizierte Freigaben ein, bevor Sie den Dienst starten."
+
+msgid "Ookla Speedtest"
+msgstr "Ookla Speedtest"
+
+msgid "Runs an internet speed test on this ARM gateway. Start runs a new test; reopen this window to see its result."
+msgstr "Führt einen Internet-Geschwindigkeitstest auf diesem ARM-Gateway aus. Start führt einen neuen Test aus; öffnen Sie dieses Fenster erneut, um das Ergebnis zu sehen."
+
+msgid "AdGuard Home"
+msgstr "AdGuard Home"
+
+msgid "Installs AdGuard Home without changing dnsmasq or port 53. Complete the safe first-run setup in its web interface."
+msgstr "Installiert AdGuard Home, ohne dnsmasq oder Port 53 zu ändern. Schließen Sie die sichere Ersteinrichtung in der Weboberfläche ab."
+
+msgid "OpenSpeedTest"
+msgstr "OpenSpeedTest"
+
+msgid "Runs a browser-based LAN and Wi-Fi speed test directly against this gateway without using internet traffic."
+msgstr "Führt im Browser einen LAN- und WLAN-Geschwindigkeitstest direkt gegen dieses Gateway aus, ohne Internetverkehr zu verwenden."
+
+msgid "WireGuard"
+msgstr "WireGuard"
+
+msgid "Installs the checksum-verified userspace WireGuard runtime and a native card to configure the tunnel interface, peers and firewall rules. Everything stays disabled until configured."
+msgstr "Installiert die per Prüfsumme verifizierte WireGuard-Userspace-Laufzeit und eine native Karte zum Konfigurieren der Tunnel-Schnittstelle, der Peers und der Firewall-Regeln. Alles bleibt bis zur Konfiguration deaktiviert."
+
+msgid "Installs the checksum-verified userspace WireGuard runtime. It does not create tunnels, routes, keys or firewall rules."
+msgstr "Installiert die per Prüfsumme verifizierte WireGuard-Userspace-Laufzeit. Es werden keine Tunnel, Routen, Schlüssel oder Firewall-Regeln erstellt."
+
+msgid "Unavailable: this firmware kernel was built without TUN support. WireGuard cannot run safely on this device."
+msgstr "Nicht verfügbar: Der Kernel dieser Firmware wurde ohne TUN-Unterstützung erstellt. WireGuard kann auf diesem Gerät nicht sicher ausgeführt werden."
+
+msgid "L2TP/IPsec VPN"
+msgstr "L2TP/IPsec-VPN"
+
+msgid "Installs the legacy strongSwan and xl2tpd VPN server card. The server stays disabled after installation; prefer IKEv2 or WireGuard for new deployments."
+msgstr "Installiert die ältere strongSwan- und xl2tpd-VPN-Serverkarte. Der Server bleibt nach der Installation deaktiviert; für neue Installationen werden IKEv2 oder WireGuard empfohlen."
+
+msgid "OpenVPN Server"
+msgstr "OpenVPN-Server"
+
+msgid "OpenVPN"
+msgstr "OpenVPN"
+
+msgid "Installs OpenVPN server and client management. Both modes and the server WAN rule remain disabled until explicitly enabled."
+msgstr "Installiert die OpenVPN-Server- und Clientverwaltung. Beide Modi und die WAN-Regel des Servers bleiben bis zur ausdrücklichen Aktivierung deaktiviert."
+
+msgid "Installs the OpenVPN server runtime and its management card. The server and WAN rule stay disabled until explicitly enabled."
+msgstr "Installiert OpenVPN und die Verwaltungskarte. Server und WAN-Regel bleiben deaktiviert, bis sie ausdrücklich aktiviert werden."
+
+msgid "Unavailable: this firmware kernel was built without TUN support."
+msgstr "Nicht verfügbar: Dieser Firmware-Kernel unterstützt TUN nicht."
+
+msgid "Unavailable: no reviewed TUN module is available for this firmware."
+msgstr "Nicht verfügbar: Für diese Firmware ist kein geprüftes TUN-Modul verfügbar."
+
+msgid "DumaOS"
+msgstr "DumaOS"
+
+msgid "Installs the pinned DumaOS UI and QoS stack for ARMv7 Technicolor gateways. Installation replaces core ubus components; reboot the gateway after installation and after removal."
+msgstr "Installiert die geprüfte DumaOS-Benutzeroberfläche und den QoS-Stack für ARMv7 Technicolor-Gateways. Die Installation ersetzt wichtige ubus-Komponenten; starten Sie das Gateway nach der Installation und Deinstallation neu."

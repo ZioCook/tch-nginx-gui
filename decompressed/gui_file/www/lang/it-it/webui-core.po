@@ -4724,3 +4724,84 @@ msgstr "Non è disponibile alcun file di cattura. Esegui una nuova cattura e rip
 msgid "Download failed. The capture may no longer be available; run a new capture and try again."
 msgstr "Download non riuscito. La cattura potrebbe non essere più disponibile; esegui una nuova cattura e riprova."
 
+msgid "No authentication"
+msgstr "Nessuna autenticazione"
+
+msgid "Undetected"
+msgstr "Non rilevato"
+
+msgid "Select at least one interface for the bridge."
+msgstr "Seleziona almeno un’interfaccia per il bridge."
+
+msgid "Adblock"
+msgstr "Blocco pubblicità"
+
+msgid "Blocks advertising domains at router level. Requires working opkg feeds."
+msgstr "Blocca i domini pubblicitari a livello del router. Richiede repository opkg funzionanti."
+
+msgid "Rsync daemon"
+msgstr "Servizio rsync"
+
+msgid "Installs the rsync daemon. Configure authenticated shares before starting the service."
+msgstr "Installa il servizio rsync. Configurare condivisioni autenticate prima di avviare il servizio."
+
+msgid "Ookla Speedtest"
+msgstr "Speedtest Ookla"
+
+msgid "Runs an internet speed test on this ARM gateway. Start runs a new test; reopen this window to see its result."
+msgstr "Esegue un test della velocità Internet su questo gateway ARM. Avvia esegue un nuovo test; riaprire questa finestra per visualizzare il risultato."
+
+msgid "AdGuard Home"
+msgstr "AdGuard Home"
+
+msgid "Installs AdGuard Home without changing dnsmasq or port 53. Complete the safe first-run setup in its web interface."
+msgstr "Installa AdGuard Home senza modificare dnsmasq o la porta 53. Completare la configurazione iniziale in sicurezza dalla sua interfaccia web."
+
+msgid "OpenSpeedTest"
+msgstr "OpenSpeedTest"
+
+msgid "Runs a browser-based LAN and Wi-Fi speed test directly against this gateway without using internet traffic."
+msgstr "Esegue dal browser un test di velocità LAN e Wi-Fi direttamente verso questo gateway, senza utilizzare traffico Internet."
+
+msgid "WireGuard"
+msgstr "WireGuard"
+
+msgid "Installs the checksum-verified userspace WireGuard runtime and a native card to configure the tunnel interface, peers and firewall rules. Everything stays disabled until configured."
+msgstr "Installa il runtime WireGuard userspace verificato tramite checksum e una scheda nativa per configurare l'interfaccia del tunnel, i peer e le regole firewall. Tutto resta disabilitato fino alla configurazione."
+
+msgid "Installs the checksum-verified userspace WireGuard runtime. It does not create tunnels, routes, keys or firewall rules."
+msgstr "Installa il runtime WireGuard userspace verificato tramite checksum. Non crea tunnel, rotte, chiavi o regole firewall."
+
+msgid "Unavailable: this firmware kernel was built without TUN support. WireGuard cannot run safely on this device."
+msgstr "Non disponibile: il kernel di questo firmware è stato compilato senza supporto TUN. WireGuard non può funzionare in sicurezza su questo dispositivo."
+
+msgid "L2TP/IPsec VPN"
+msgstr "VPN L2TP/IPsec"
+
+msgid "Installs the legacy strongSwan and xl2tpd VPN server card. The server stays disabled after installation; prefer IKEv2 or WireGuard for new deployments."
+msgstr "Installa la scheda del server VPN legacy strongSwan e xl2tpd. Il server resta disabilitato dopo l’installazione; per nuove configurazioni preferire IKEv2 o WireGuard."
+
+msgid "OpenVPN Server"
+msgstr "Server OpenVPN"
+
+msgid "OpenVPN"
+msgstr "OpenVPN"
+
+msgid "Installs OpenVPN server and client management. Both modes and the server WAN rule remain disabled until explicitly enabled."
+msgstr "Installa la gestione server e client OpenVPN. Entrambe le modalità e la regola WAN del server restano disabilitate fino all'attivazione esplicita."
+
+msgid "Installs the OpenVPN server runtime and its management card. The server and WAN rule stay disabled until explicitly enabled."
+msgstr "Installa OpenVPN e la relativa scheda di gestione. Il server e la regola WAN restano disabilitati finché non vengono attivati esplicitamente."
+
+msgid "Unavailable: this firmware kernel was built without TUN support."
+msgstr "Non disponibile: il kernel di questo firmware non supporta TUN."
+
+msgid "Unavailable: no reviewed TUN module is available for this firmware."
+msgstr "Non disponibile: per questo firmware non è disponibile un modulo TUN verificato."
+
+msgid "DumaOS"
+msgstr "DumaOS"
+
+msgid "Installs the pinned DumaOS UI and QoS stack for ARMv7 Technicolor gateways. Installation replaces core ubus components; reboot the gateway after installation and after removal."
+msgstr "Installa l'interfaccia e lo stack QoS DumaOS verificati per i gateway Technicolor ARMv7. L'installazione sostituisce componenti ubus di base; riavviare il gateway dopo l'installazione e dopo la rimozione."
+
