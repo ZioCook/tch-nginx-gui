@@ -38,6 +38,7 @@ with many fixes and features like:
 <li>Ability to install LuCI GUI or sharing services like transmission / aria2</li>
 <li>Spoofing of firmware version to bypass CWMP controls</li>
 <li>Select many skins for the GUI, like the Fritz!Box one</li>
+<li>Install extensions like: Telstra Basic GUI, LuCI, Transmission, Aria2, Adblock, rsyncd, Ookla Speedtest, OpenSpeedTest, AdGuard Home, WireGuard, OpenVPN and Tailscale on TUN-capable firmware, DumaOS on ARMv7 gateways, and the legacy L2TP/IPsec VPN server</li>
 <li>And many others...</li>
 </ul>
 
@@ -84,3 +85,5 @@ If you want to donate to the original developer of this modified GUI (Ansuel):
 ## Continuous integration
 
 Builds and releases run with GitHub Actions. See the [setup and manual build instructions](docs/github-actions.md).
+
+The Extensions card includes architecture-aware installation and service controls. See the [extension compatibility and safety notes](docs/extensions.md).
