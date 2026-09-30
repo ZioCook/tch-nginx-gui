@@ -36,6 +36,18 @@ local content = {
 
 content_helper.getExactContent(content)
 
+-- xDSL is not available on this device (fibre/gpon): skip the card instead of crashing the stats page
+local xdslAvailable = false
+for _, value in pairs(content) do
+	if value ~= nil and value ~= "" then
+		xdslAvailable = true
+		break
+	end
+end
+if not xdslAvailable then
+	return
+end
+
 local function format_rate(rate)
     local num = tonumber(rate)
     if num then

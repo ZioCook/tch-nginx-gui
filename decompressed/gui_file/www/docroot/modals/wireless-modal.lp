@@ -688,8 +688,9 @@ local function validateRadioandAp(value, object, key)
 end
 
 local wps_button_mode = {
+	{ "pairing_button.sh wps_button_pressed.sh" , T"Pairing + WPS Mode" },
 	{ "wps_button_pressed.sh" , T"WPS Mode" },
-	{ "acl_button_pressed" , T"ACL Mode" },
+	{ "acl_button_pressed.sh" , T"ACL Mode" },
 	{ "" , T"Disabled" },
   }
 

@@ -88,6 +88,14 @@ d1ae358e154f32cb33607ae7f5072f9c  A2pvfbH046y
 90cc6b3354c22965b4e6c4b716cae682  B2pvfbH046y
 58bf11929814bc104f977ccfd526755a  A2pvfbH046u
 35375a69ccd7a4deb1d4880c06d19117  A2pvfbH045s
+c6156a65bbad3591836529a9645c64f9  A2pvfbH043f
+cfe5efe139d0b4ca0fc286213d3fbf74  A2pvbH042j1
+c04fee8cf102d7d0b07df13fbd1b79c9  A2pvbH042e
+e7762e69a272061225fe72ea7a16cfd6  A2pv6L046o
+2ee8e6500e6b84e3079bae21ef0b2045  A2pv6F037b
+49807db00759f43c75ac8d4621cb1241  A2pG039n1
+77d564fd7d67c7b8ec28feccb38c2b48  A2pvI042e
+6ff79c59091161129b1131c1b82b9bd4  A2pvI042j1
 "
 
 if [ -z "$1" ]; then
@@ -97,7 +105,7 @@ else
 	[ "$1" = "clean" ] && CLEAN=1
 fi
 
-installed_driver=$(xdslctl --version 2>&1 | grep 'version -' | awk '{print $6}' | sed 's/\..*//')
+installed_driver=$(xdslctl --version 2>&1 >/dev/null | grep 'version -' | awk '{print $6}' | sed 's/\..*//')
 request_driver="$1"
 
 if [ "$(grep </proc/cpuinfo Processor | grep ARM)" ]; then
@@ -108,48 +116,43 @@ fi
 
 download_Driver() {
 	log "Downloading driver $request_driver"
-	curl -sk "https://raw.githubusercontent.com/ZioCook/tch-nginx-gui/master/xdsl_driver/$arch/$request_driver" --output "/tmp/$request_driver"
+	curl -sk "https://raw.githubusercontent.com/Ansuel/tch-nginx-gui/master/xdsl_driver/$arch/$request_driver" --output "/tmp/$request_driver"
 }
 
 test_apply() {
 	if [ -f "/tmp/$request_driver" ]; then
-		rm -f "/tmp/$request_driver"
+		rm "/tmp/$request_driver"
 	fi
 	connectivity="yes"
-	if ping -q -c 1 -W 1 8.8.8.8 >/dev/null 2>&1; then
+	if ping -q -c 1 -W 1 8.8.8.8 >/dev/null; then
 		connectivity="yes"
 	else
 		connectivity="no"
 	fi
 
-	if [ "$connectivity" = "yes" ]; then
+	if [ $connectivity == "yes" ]; then
 		if [ "$installed_driver" != "$request_driver" ]; then
 			download_Driver
-			if [ -f "/tmp/$request_driver" ]; then
-				driver_md5=$(md5sum "/tmp/$request_driver" 2>/dev/null | awk '{print $1}')
-			else
-				driver_md5=""
-			fi
-			if [ -n "$driver_md5" ] && echo "$checksums" | grep -q "$driver_md5"; then
+			if [ "$(echo $checksums | grep $(md5sum /tmp/$request_driver | awk '{print $1}'))" ]; then
 
 				log "Testing driver $request_driver... If the modem crash, reset the driver on next boot"
-				rm -f /etc/adsl/adsl_phy.bin
-				ln -sf /tmp/$request_driver /etc/adsl/adsl_phy.bin
+				rm /etc/adsl/adsl_phy.bin
+				ln -s /tmp/$request_driver /etc/adsl/adsl_phy.bin
 				log "Restarting xDSL..."
 				xdslctl stop
-				/etc/init.d/xdsl restart >/dev/null 2>&1
+				/etc/init.d/xdsl restart >/dev/null
 				sleep 5
 				log "Reading version with xdslctl..."
 				xdslctl --version
 				log "Moving driver to permantent dir"
-				rm -f /etc/adsl/adsl_phy.bin
+				rm /etc/adsl/adsl_phy.bin
 				mv /tmp/$request_driver /etc/adsl/adsl_phy.bin
 
 				if [ -f "/tmp/$request_driver" ]; then
-					rm -f "/tmp/$request_driver"
+					rm "/tmp/$request_driver"
 				fi
 			else
-				log "Download corrupted or file missing, retrying..."
+				log "Download corrupted, retrying..."
 				try=$((try + 1))
 				download_Driver
 				if [ $try -lt 2 ]; then
@@ -164,16 +167,16 @@ test_apply() {
 	fi
 }
 
-if [ "$CLEAN" = "0" ]; then
+if [ $CLEAN -eq 0 ]; then
 	log "Trying to download and apply driver $request_driver..."
 	test_apply
 	log "Process done"
 else
 	log "Restoring original driver"
-	rm -f /etc/adsl/adsl_phy.bin
-	[ -f /rom/etc/adsl/adsl_phy.bin ] && cp /rom/etc/adsl/adsl_phy.bin /etc/adsl/adsl_phy.bin
+	rm /etc/adsl/adsl_phy.bin
+	cp /rom/etc/adsl/adsl_phy.bin /etc/adsl/adsl_phy.bin
 	log "Restarting xDSL..."
 	xdslctl stop
-	/etc/init.d/xdsl restart >/dev/null 2>&1
+	/etc/init.d/xdsl restart >/dev/null
 	log "Process done"
 fi

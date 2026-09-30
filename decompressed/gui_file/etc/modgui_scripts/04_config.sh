@@ -410,6 +410,12 @@ adds_dnd_config() {
   fi
 }
 
+apply_nginx_compatibility() {
+  if [ -x /usr/share/transformer/scripts/compat_nginx.sh ]; then
+    /usr/share/transformer/scripts/compat_nginx.sh apply
+  fi
+}
+
 if ! type safe_mv >/dev/null 2>&1; then
   safe_mv() { # <src file path> <dest file path>
     [ ! -f "$1" ] && return 1
@@ -675,6 +681,8 @@ logecho "Disabling coredump reboot..."
 disable_upload_coredump_and_reboot
 logecho "Restoring nginx additional options if needed..."
 restore_nginx
+logecho "Checking nginx compatibility..."
+apply_nginx_compatibility
 logecho "Adding missing voicednd rule if needed"
 adds_dnd_config
 logecho "Doing various checks and generating hashes..."
