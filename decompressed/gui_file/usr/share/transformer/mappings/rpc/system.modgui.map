@@ -328,6 +328,16 @@ local app_list = {
   "xupnp",
   "telstra",
   "amule",
+  "adblock",
+  "rsyncd",
+  "speedtest",
+  "adguardhome",
+  "openspeedtest",
+  "wireguard",
+  "l2tpipsec",
+  "openvpn",
+  "tailscale",
+  "dumaos",
   "specificapp"
 }
 

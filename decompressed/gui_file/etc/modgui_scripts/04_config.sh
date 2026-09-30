@@ -179,6 +179,126 @@ create_gui_type() {
     logecho "Reinstalling blacklist app after upgrade..."
     /usr/share/transformer/scripts/appInstallRemoveUtility.sh install blacklist >/dev/null
   fi
+  if [ ! "$(uci get -q modgui.app.adblock_app)" ]; then
+    if [ -x /etc/init.d/adblock ]; then
+      uci set modgui.app.adblock_app="1"
+    else
+      uci set modgui.app.adblock_app="0"
+    fi
+  fi
+  if [ ! "$(uci get -q modgui.app.rsyncd_app)" ]; then
+    if [ -x /etc/init.d/rsyncd ]; then
+      uci set modgui.app.rsyncd_app="1"
+    else
+      uci set modgui.app.rsyncd_app="0"
+    fi
+  fi
+  if [ ! "$(uci get -q modgui.app.speedtest_app)" ]; then
+    if [ -x /opt/ookla/speedtest ]; then
+      uci set modgui.app.speedtest_app="1"
+    else
+      uci set modgui.app.speedtest_app="0"
+    fi
+  fi
+  if [ ! "$(uci get -q modgui.app.adguardhome_app)" ]; then
+    if [ -x /opt/AdGuardHome/AdGuardHome ]; then
+      uci set modgui.app.adguardhome_app="1"
+    else
+      uci set modgui.app.adguardhome_app="0"
+    fi
+  fi
+  if [ ! "$(uci get -q modgui.app.openspeedtest_app)" ]; then
+    if [ -f /usr/share/nginx/OpenSpeedTest/index.html ] &&
+      { [ -f /etc/nginx/server_openspeedtest.conf ] || [ -f /etc/nginx/server_openspeedtest.disabled ]; }; then
+      uci set modgui.app.openspeedtest_app="1"
+    else
+      uci set modgui.app.openspeedtest_app="0"
+    fi
+  fi
+  if [ ! "$(uci get -q modgui.app.wireguard_app)" ]; then
+    if [ -x /usr/bin/wireguard-go ] && [ -x /usr/bin/wg-go ] &&
+      [ -x /lib/netifd/proto/wireguard.sh ]; then
+      uci set modgui.app.wireguard_app="1"
+    else
+      uci set modgui.app.wireguard_app="0"
+    fi
+  fi
+  if [ ! "$(uci get -q modgui.app.l2tpipsec_app)" ]; then
+    if opkg list-installed | grep -q '^modgui-vpn '; then
+      uci set modgui.app.l2tpipsec_app="1"
+    else
+      uci set modgui.app.l2tpipsec_app="0"
+    fi
+  fi
+  if [ ! "$(uci get -q modgui.app.openvpn_app)" ]; then
+    if [ -f /etc/.modgui-openvpn-installed ] && opkg list-installed | grep -q '^openvpn-openssl '; then
+      uci set modgui.app.openvpn_app="1"
+    else
+      uci set modgui.app.openvpn_app="0"
+    fi
+  fi
+  if [ ! "$(uci get -q modgui.app.tailscale_app)" ]; then
+    tailscale_archive_path="$(uci get -q tailscale.service.archive_path)"
+    tailscale_download_url="$(uci get -q tailscale.service.download_url)"
+    if [ -f /etc/.modgui-tailscale-installed ] &&
+      { { [ -x /usr/sbin/tailscale ] && [ -x /usr/sbin/tailscaled ]; } ||
+        { [ -n "$tailscale_archive_path" ] && [ -s "$tailscale_archive_path" ]; } ||
+        [ -n "$tailscale_download_url" ]; }; then
+      uci set modgui.app.tailscale_app="1"
+    else
+      uci set modgui.app.tailscale_app="0"
+    fi
+  fi
+  # Reconcile the UI state on every upgrade: DumaOS can also be installed or
+  # removed directly with opkg, outside the Extensions modal.
+  if opkg status dumaos-repack 2>/dev/null | grep -q '^Status:.*installed'; then
+    uci set modgui.app.dumaos_app="1"
+  else
+    uci set modgui.app.dumaos_app="0"
+  fi
+  if [ "$(uci get -q modgui.app.dumaos_app)" = "1" ] &&
+    [ -f /usr/share/modgui-dumaos/015_dumaos.lp ] &&
+    { [ ! -f /www/cards/015_dumaos.lp ] ||
+      [ ! -s /www/data/shorthash ] ||
+      [ ! -f /www/docroot/modals/dumaos-modal.lp ] ||
+      [ "$(uci -q get web.dumaos_card.modal)" != "dumaosmodal" ] ||
+      ! cmp -s /usr/share/modgui-dumaos/015_dumaos.lp /www/cards/015_dumaos.lp; }; then
+    logecho "Restoring the DumaOS card after upgrade..."
+    /usr/share/transformer/scripts/appInstallRemoveUtility.sh refresh dumaos >/dev/null 2>&1
+  fi
+  if [ "$(uci get -q modgui.app.wireguard_app)" = "1" ] &&
+    [ -f /opt/modgui-wireguard-gui.tar.gz ] &&
+    { [ ! -f /www/cards/016_wireguard.lp ] ||
+      [ ! -f /www/docroot/modals/wireguard-modal.lp ] ||
+      [ ! -f /usr/share/transformer/mappings/uci/wireguard.map ] ||
+      [ ! -f /usr/share/transformer/mappings/uci/wireguard.peer.map ]; }; then
+    logecho "Restoring WireGuard GUI files after upgrade..."
+    /usr/share/transformer/scripts/appInstallRemoveUtility.sh refresh wireguard >/dev/null 2>&1
+  fi
+  if [ "$(uci get -q modgui.app.tailscale_app)" = "1" ] &&
+    [ -f /opt/modgui-tailscale-gui.tar.gz ] &&
+    { [ ! -f /www/cards/016_tailscale.lp ] ||
+      [ ! -f /www/docroot/modals/tailscale-modal.lp ] ||
+      [ ! -f /usr/share/transformer/mappings/uci/tailscale.map ]; }; then
+    logecho "Restoring Tailscale GUI files after upgrade..."
+    /usr/share/transformer/scripts/appInstallRemoveUtility.sh refresh tailscale >/dev/null 2>&1
+  fi
+  if [ "$(uci get -q modgui.app.openvpn_app)" = "1" ] &&
+    [ -f /opt/modgui-openvpn-gui.tar.gz ] &&
+    { [ ! -f /www/cards/015_openvpn-server.lp ] ||
+      [ ! -f /usr/share/transformer/mappings/rpc/openvpn.map ] ||
+      [ ! -f /usr/share/transformer/mappings/rpc/openvpn.client.map ] ||
+      [ ! -f /usr/share/transformer/mappings/rpc/openvpn.client.ssid.map ]; }; then
+    logecho "Restoring OpenVPN GUI files after upgrade..."
+    /usr/share/transformer/scripts/appInstallRemoveUtility.sh refresh openvpn >/dev/null 2>&1
+  fi
+  if [ "$(uci get -q modgui.app.l2tpipsec_app)" = "1" ] &&
+    [ -f /opt/modgui-l2tp-ipsec-gui.tar.gz ] &&
+    { [ ! -f /www/cards/014_l2tp-ipsec-server.lp ] ||
+      [ ! -f /usr/share/transformer/mappings/rpc/l2tp_ipsec_server.map ]; }; then
+    logecho "Restoring L2TP/IPsec GUI files after upgrade..."
+    /usr/share/transformer/scripts/appInstallRemoveUtility.sh refresh l2tpipsec >/dev/null 2>&1
+  fi
 }
 
 add_new_web_rule() {
