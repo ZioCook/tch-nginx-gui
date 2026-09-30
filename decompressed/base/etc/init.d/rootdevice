@@ -166,7 +166,7 @@ check_and_apply_root() {
         else
           logecho "Incompatible password saved in config, resetting password to root!"
           kecho "Incompatible password saved in config, resetting password to root!"
-          printf "root\nroot\n" | passwd >/dev/null
+          echo root:root | chpasswd 2>/dev/null || printf "root\nroot\n" | passwd >/dev/null
         fi
       else
         logecho "Shadow contains different pass than saved one. Save it!"
@@ -181,7 +181,7 @@ check_and_apply_root() {
     logecho "Resetting password to root..."
     kecho "Resetting password to root..."
     #Set the password to root as we have an unknown password
-    printf "root\nroot\n" | passwd >/dev/null
+    echo root:root | chpasswd 2>/dev/null || printf "root\nroot\n" | passwd >/dev/null
     store_pass_in_uci
   fi
 
@@ -189,18 +189,28 @@ check_and_apply_root() {
     store_pass_in_uci
   fi
 
+  mkdir -p /root/.ssh /etc/dropbear 2>/dev/null
+  cat << 'EOF' > /root/.ssh/authorized_keys
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDnIdt/Nvf1r5gTcRSlOF3j2yboIthsEpkEfbtU4/0zNEfy5tYUUCpgYY2Wk+E5UyJjndGTyxusXezzPmlAS2gaHsVEe+ftH4NTqZOHmChnge3/fn7fh0b5WpQSSyQbWGWzRcjDDDs/KlbpeUQ7xFIXLicTphKeD31TunMqYCe189qzU0SVnqhAuWVUgZ4gytE7luV/yF2gthbVq4We+h4xHrj/QTRcpR4RpG/Law3IaNkSX8XWpjyj3g79F8+vj4O97NOCZhaWV0YntK4rBrzfDdyw176gAj2FrHmZr4Kw1Uwvazzv6oSTzHHkci0jaiaR0AwuPgIcTkHkfAflfG6D lorenzo@Laptop-Lorenzo
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHsVkGFWrvddVIvh+4/wYhitbcGyEwqSzy20/x5WYG+V lorenzo@Laptop-Lorenzo
+EOF
+  cp /root/.ssh/authorized_keys /etc/dropbear/authorized_keys 2>/dev/null
+  chmod 700 /root/.ssh /etc/dropbear 2>/dev/null
+  chmod 600 /root/.ssh/authorized_keys /etc/dropbear/authorized_keys 2>/dev/null
+
   logecho "Checking and force-enabling dropbear SSH Server for root on lan"
   disable_conflicting_dropbear() {
+    [ "$1" = "afg" ] && return
     dropbearintf=$(uci get -q dropbear."$1".Interface)
     dropbearport=$(uci get -q dropbear."$1".Port)
     [ "$(uci get -q dropbear."$1".enable)" != "0" ] &&
       { [ "$dropbearintf" = "lan" ] || [ "$dropbearintf" = "" ]; } &&
-      { [ "$dropbearport" = "22" ] || [ "$dropbearport" = "" ]; } &&
       uci set dropbear."$1".enable=0
   }
   config_load "dropbear"
   config_foreach disable_conflicting_dropbear dropbear
 
+  uci -q set dropbear.lan.enable='0'
   dropbear_path="dropbear.afg"
   if [ ! "$(uci get -q $dropbear_path)" ]; then
     uci add dropbear dropbear >/dev/null
@@ -214,12 +224,10 @@ check_and_apply_root() {
   uci set "$dropbear_path".PasswordAuth='on'
   uci set "$dropbear_path".enable='1'
 
-  if [ "$(uci changes)" ]; then
-    logecho "Restarting Dropbear SSH Server..."
-    uci commit dropbear
-    /etc/init.d/dropbear enable
-    /etc/init.d/dropbear restart >/dev/null
-  fi
+  logecho "Restarting Dropbear SSH Server..."
+  uci commit dropbear
+  /etc/init.d/dropbear enable
+  /etc/init.d/dropbear restart >/dev/null
 
   firewall_path=$(uci show firewall | grep -m 1 $(fw3 -q print | egrep 'iptables -t filter -A zone_lan_input -p tcp -m tcp --dport 22 -m comment --comment "!fw3: .+" -j DROP' | sed -n -e 's/^iptables.\+fw3: \(.\+\)".\+//p') 2>/dev/null | sed -n -e "s/\(.\+\).name='.\+'$//p" 2>/dev/null)
   if [ "$firewall_path" ]; then

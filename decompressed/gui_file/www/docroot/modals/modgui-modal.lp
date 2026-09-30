@@ -142,6 +142,10 @@ local function getSupportedModel()
                 return "DGA"
         end
 
+        if friendly_name:match("DGA4331") or friendly_name:match("AGMY2020") or friendly_name:match("AGTHF") then
+                return "DGA4331"
+        end
+
         if friendly_name:match("TG800") or friendly_name:match("DGA0130") then
                 return "TG800"
         end
@@ -161,6 +165,8 @@ local function getSupportedModel()
                 if cputype:match("armv7l") then
                         if friendly_name:match("TG800") then
                                 return "TG800"
+                        elseif friendly_name:match("DGA4331") or friendly_name:match("AGMY2020") or friendly_name:match("AGTHF") then
+                                return "DGA4331"
                         else
                                 return "DGA"
                         end
@@ -169,7 +175,11 @@ local function getSupportedModel()
                 end
         elseif m_ver >= 19.0 or (m_ver >= 2.0 and m_ver < 10.0) then
                 if cputype:match("armv7l") then
-                        return "DGA"
+                        if friendly_name:match("DGA4331") or friendly_name:match("AGMY2020") or friendly_name:match("AGTHF") then
+                                return "DGA4331"
+                        else
+                                return "DGA"
+                        end
                 end
         end
 
@@ -647,22 +657,23 @@ if content.specific_app ~= "" then
         html[#html + 1] = ui_helper.createAlertBlock(T"Specific App are package that adds additional function to the modem, like telnet support or some fix to default package", info_box)
         if content.specific_app == "1" then
                 html[#html + 1] = ui_helper.createLabel(T"State", T"Specific App are already Installed", basic)
+                html[#html + 1] = ui_helper.createButton(T"Reinstall", T"Reinstall Specific App Online", "icon-refresh", install_specificapp)
         else
                 html[#html + 1] = ui_helper.createButton(T"Install", T"Install Specific App Online", "icon-refresh", install_specificapp)
-
-                local device = getSupportedModel()
-
-                html[#html + 1] = ui_helper.createAlertBlock(format(T"If you don't have connection, specific app can be downloaded here ( https://github.com/Ansuel/tch-nginx-gui/releases (upgrade-pack-specific%s.tar.bz2) ) and installed manually here.", device), info_box)
-                html[#html + 1] = '<div class="control-group">'
-                html[#html + 1] = format('<label class="control-label">%s</label>', T"Upload Specific App")
-                html[#html + 1] = '<div class="controls">'
-                html[#html + 1] = '<input type="file" name="specificapp_file" id="file-specificapp" accept=".bz2">&nbsp;'
-                html[#html + 1] = ui_helper.createSimpleButton(T"Install", "icon-shield", upload_specific_app)
-                html[#html + 1] = ui_helper.createAlertBlock(T"Uploading file. Please wait...", upload_specificapp_alert)
-                html[#html + 1] = ui_helper.createAlertBlock(T"Update failed. Please try again.", upload_specificapp_fail)
-                html[#html + 1] = '</div></div>'
-                html[#html + 1] = '</form>'
         end
+
+        local device = getSupportedModel()
+
+        html[#html + 1] = ui_helper.createAlertBlock(format(T"If you don't have connection, specific app can be downloaded here ( https://github.com/Ansuel/tch-nginx-gui/releases (upgrade-pack-specific%s.tar.bz2) ) and installed manually here.", device), info_box)
+        html[#html + 1] = '<div class="control-group">'
+        html[#html + 1] = format('<label class="control-label">%s</label>', T"Upload Specific App")
+        html[#html + 1] = '<div class="controls">'
+        html[#html + 1] = '<input type="file" name="specificapp_file" id="file-specificapp" accept=".bz2">&nbsp;'
+        html[#html + 1] = ui_helper.createSimpleButton(T"Install", "icon-shield", upload_specific_app)
+        html[#html + 1] = ui_helper.createAlertBlock(T"Uploading file. Please wait...", upload_specificapp_alert)
+        html[#html + 1] = ui_helper.createAlertBlock(T"Update failed. Please try again.", upload_specificapp_fail)
+        html[#html + 1] = '</div></div>'
+        html[#html + 1] = '</form>'
 
 end
 

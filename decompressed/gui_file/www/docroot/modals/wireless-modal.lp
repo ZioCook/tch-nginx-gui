@@ -381,6 +381,14 @@ local wifi_standard_5GHz = {
     { "anac", T'802.11a/n/ac'},
 }
 
+local supported_standards = untaint(radioData[curradio].supported_standards) or ""
+if supported_standards:match("ax") or supported_standards == "bgnax" then
+  wifi_standard_24GHz[#wifi_standard_24GHz + 1] = { "bgnax", T'802.11b/g/n/ax'}
+end
+if supported_standards:match("ax") or supported_standards == "anacax" then
+  wifi_standard_5GHz[#wifi_standard_5GHz + 1] = { "anacax", T'802.11a/n/ac/ax'}
+end
+
 local wifiStandard = {
   standard = "uci.wireless.wifi-device.@radio_5G.standard"
 }
@@ -415,20 +423,28 @@ local cw_80 = {
     {"20/40MHz", T"20/40MHz"},
     {"auto", T"Auto (20/40/80MHz)"},
 }
+local cw_160 = {
+    {"20MHz", T"20MHz"},
+    {"20/40MHz", T"20/40MHz"},
+    {"auto", T"Auto (20/40/80/160MHz)"},
+}
 
 local cw = {
   ["bg"] = "channelwidth20",
   ["n"] = "channelwidth40",
   ["bgn"] = "channelwidth40",
+  ["bgnax"] = "channelwidth40",
   ["an"] = "channelwidth40",
   ["ac"] = "channelwidth80",
   ["anac"] = "channelwidth80",
+  ["anacax"] = "channelwidth160",
 }
 
 local cwmaps = {
     ["channelwidth20"] = cw_40,
     ["channelwidth40"] = cw_40,
     ["channelwidth80"] = cw_80,
+    ["channelwidth160"] = cw_160,
 }
 
 local cddList = {
@@ -447,6 +463,9 @@ local secmodes_matched = {
      ["wpa2-psk"] = T"WPA2 PSK",
      ["wpa-wpa2-psk"] =  T"WPA+WPA2 PSK",
      ["wpa-wpa2"] =  T"WPA+WPA2",
+     ["wpa3-psk"] = T"WPA3 Personal (SAE)",
+     ["wpa2-wpa3-psk"] = T"WPA2/WPA3 Mixed PSK/SAE",
+     ["owe"] = T"OWE (Enhanced Open)",
 }
 supported_modes:gsub("[^%s]+", function(c)
     if secmodes_matched[c] then
@@ -787,11 +806,12 @@ local function getParamsAndValidation()
     channelwidth20 = getValidateChannelWidth(cw_40),
     channelwidth40 = getValidateChannelWidth(cw_40),
     channelwidth80 = getValidateChannelWidth(cw_80),
+    channelwidth160 = getValidateChannelWidth(cw_160),
     ap_enabled = vB,
     security = gVIES(secmodes),
     ssid = gAV(gVSLIR(1,32),getValidateExtraSpaces),
     wep_key = gVIPIL(vWEP,"security", {"wep"}),
-    wpa_psk = gVIPIL(vPSK,"security", {"wpa-psk", "wpa2-psk", "wpa-wpa2-psk"}),
+    wpa_psk = gVIPIL(vPSK,"security", {"wpa-psk", "wpa2-psk", "wpa-wpa2-psk", "wpa3-psk", "wpa2-wpa3-psk"}),
     wps_enabled = gOV(vB),
     acl_mode = gVIES(acl_modes),
     radius_authent_ip = VIPIL_IP,
@@ -1219,7 +1239,7 @@ end
 
             local cw40attributes  = {
                 group = {
-                    class ="hide monitor-standard monitor-bgn monitor-n monitor-an",
+                    class ="hide monitor-standard monitor-bgn monitor-n monitor-an monitor-bgnax",
                 },
 
             }
@@ -1233,6 +1253,14 @@ end
             }
 
             html[#html + 1] = ui_helper.createInputSelect(T"Channel Width", "channelwidth80", cw_80, content["requested_channel_width"], cw80attributes)
+
+            local cw160attributes = {
+                group = {
+                    class ="hide monitor-standard monitor-anacax",
+                },
+            }
+
+            html[#html + 1] = ui_helper.createInputSelect(T"Channel Width", "channelwidth160", cw_160, content["requested_channel_width"], cw160attributes)
             html[#html + 1] = '</div>'
 			if isExtRemman ~= "1" and isIntRemman ~= "1" then
 				html[#html + 1] = ui_helper.createSwitch(T"Bypass Reg Domain Power Rule", "tx_power_overrule_reg", content["tx_power_overrule_reg"], advanced)

@@ -312,12 +312,25 @@ case $marketing_version in
   [ "$cpu_type" = "mips" ] && install_specific TG789
   ;;
 "18."* | "19."* | "2."*)
-  [ "$cpu_type" = "armv7l" ] && install_specific DGA
+  if [ "$cpu_type" = "armv7l" ]; then
+    if [ -n "$device_type" ] && [ -z "${device_type##*DGA4331*}" ] || [ "$(uci get -q env.var.variant_friendly_name)" = "AGMY2020" ] || [ "$(uci get -q env.rip.board_mnemonic)" = "VCNT-3" ]; then
+      install_specific DGA4331
+    else
+      install_specific DGA
+    fi
+  fi
   [ "$cpu_type" = "mips" ] && install_specific TG789
   ;;
 *)
-  if [ "$cpu_type" = "armv7l" ] && [ -z "${device_type##*DGA413*}" ]; then
-    install_specific DGA
+  if [ "$cpu_type" = "armv7l" ]; then
+    if [ -n "$device_type" ] && [ -z "${device_type##*DGA4331*}" ] || [ "$(uci get -q env.var.variant_friendly_name)" = "AGMY2020" ] || [ "$(uci get -q env.rip.board_mnemonic)" = "VCNT-3" ]; then
+      install_specific DGA4331
+    elif [ -z "${device_type##*DGA413*}" ]; then
+      install_specific DGA
+    else
+      uci set modgui.app.specific_app="1" #no specific package for this device
+      logecho "Unknown what specific_app to install on $marketing_version $cpu_type"
+    fi
   else
     uci set modgui.app.specific_app="1" #no specific package for this device
     logecho "Unknown what specific_app to install on $marketing_version $cpu_type"

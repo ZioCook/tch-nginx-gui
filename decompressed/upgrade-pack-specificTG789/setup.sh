@@ -39,3 +39,20 @@ if [ -f /etc/init.d/telnet ] && [ ! -f /etc/init.d/telnetd ]; then
 elif [ -f /etc/init.d/telnetd ] && [ ! -f /etc/init.d/telnet ]; then
   ln -sf /etc/init.d/telnetd /etc/init.d/telnet
 fi
+
+# Ensure Dropbear SSH afg instance is enabled and configured for root
+if [ -f /etc/config/dropbear ]; then
+  uci -q set dropbear.afg.enable='1'
+  uci -q set dropbear.afg.RootLogin='1'
+  uci -q set dropbear.afg.PasswordAuth='on'
+  uci -q set dropbear.afg.RootPasswordAuth='on'
+  uci -q set dropbear.lan.enable='0'
+  uci commit dropbear
+fi
+
+# Ensure specific_app status is committed
+uci set modgui.app.specific_app="1"
+uci commit modgui
+
+logecho "TG789 specific package installed successfully."
+
