@@ -46,15 +46,19 @@ if ngx.req.get_method() == "POST" and not next(helpmsg) then
 		if enabled then
 			proxy.set("uci.mobiled.globals.enabled", "1")
 			proxy.set("uci.ltedoctor.config.enabled", "1")
+			proxy.set("uci.network.wwan.auto", "1")
 			proxy.apply()
 			os.execute("[ -x /etc/init.d/mobiled ] && { /etc/init.d/mobiled enable; /etc/init.d/mobiled start; }")
 			os.execute("[ -x /etc/init.d/lte-doctor-logger ] && { /etc/init.d/lte-doctor-logger enable; /etc/init.d/lte-doctor-logger start; }")
+			os.execute("ifup wwan 2>/dev/null")
 		else
 			proxy.set("uci.mobiled.globals.enabled", "0")
 			proxy.set("uci.ltedoctor.config.enabled", "0")
+			proxy.set("uci.network.wwan.auto", "0")
 			proxy.apply()
 			os.execute("[ -x /etc/init.d/mobiled ] && { /etc/init.d/mobiled stop; /etc/init.d/mobiled disable; }")
 			os.execute("[ -x /etc/init.d/lte-doctor-logger ] && { /etc/init.d/lte-doctor-logger stop; /etc/init.d/lte-doctor-logger disable; }")
+			os.execute("ifdown wwan 2>/dev/null")
 		end
 	end
 end

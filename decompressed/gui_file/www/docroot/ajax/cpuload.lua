@@ -24,24 +24,34 @@ local function get_current_cpu_usage()
 	local cur_idle = tonumber(idle) + tonumber(iowait)
 	local cur_total = cur_idle + tonumber(user) + tonumber(nice) + tonumber(sys) + tonumber(irq) + tonumber(softirq) + tonumber(steal)
 
+	local up_f = io.open("/proc/uptime", "r")
+	local now = up_f and up_f:read("*n")
+	if up_f then up_f:close() end
+	if not now then now = os.time() end
+
 	local usage = nil
 	local prev_file = io.open("/tmp/.cpu_prev", "r")
 	if prev_file then
 		local prev_total = prev_file:read("*n")
 		local prev_idle = prev_file:read("*n")
+		local prev_time = prev_file:read("*n")
 		prev_file:close()
 		if prev_total and prev_idle and cur_total > prev_total then
-			local dt = cur_total - prev_total
-			local di = cur_idle - prev_idle
-			if dt > 0 and di >= 0 and di <= dt then
-				usage = math.floor(((dt - di) / dt) * 100)
+			local elapsed = (prev_time and (now - prev_time)) or 999
+			-- Only trust delta if the sample interval is fresh (between 1s and 12s, normal poll is 5s)
+			if elapsed >= 1 and elapsed <= 12 then
+				local dt = cur_total - prev_total
+				local di = cur_idle - prev_idle
+				if dt > 0 and di >= 0 and di <= dt then
+					usage = math.floor(((dt - di) / dt) * 100)
+				end
 			end
 		end
 	end
 
 	local out_file = io.open("/tmp/.cpu_prev", "w")
 	if out_file then
-		out_file:write(string.format("%d %d\n", cur_total, cur_idle))
+		out_file:write(string.format("%d %d %.2f\n", cur_total, cur_idle, now))
 		out_file:close()
 	end
 

@@ -69,6 +69,11 @@ sync_background_services() {
     uci set ltedoctor.config.enabled='0' 2>/dev/null
     uci commit mobiled 2>/dev/null
     uci commit ltedoctor 2>/dev/null
+    if [ "$(uci get -q network.wwan.auto)" != "0" ]; then
+      uci set network.wwan.auto='0' 2>/dev/null
+      uci commit network 2>/dev/null
+      ifdown wwan 2>/dev/null
+    fi
   fi
 
   # 5. Sync opticald with Bridge mode
