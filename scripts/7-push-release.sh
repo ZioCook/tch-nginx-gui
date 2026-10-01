@@ -16,6 +16,13 @@ esac
 [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]] || { echo "Invalid version: $VERSION" >&2; exit 1; }
 cd "$DIR"
 [[ -s "$gui_asset" ]] || { echo "Missing GUI archive: $gui_asset" >&2; exit 1; }
+# Remove stub/placeholder archives for other build types (e.g. GUI.tar.bz2 in a DEV build).
+# The publish job's git checkout restores 0-byte placeholders that must not be uploaded.
+for f in GUI*.tar.bz2 GUI*.zip; do
+    [[ "$f" == "$gui_asset" ]] && continue
+    [[ "$f" == "${gui_asset%.tar.bz2}.zip" ]] && continue
+    rm -f "$f"
+done
 sha256sum --check SHA256SUMS
 md5sum --check MD5SUMS
 printf '%s\n' "$GITHUB_SHA" > SOURCE_COMMIT
