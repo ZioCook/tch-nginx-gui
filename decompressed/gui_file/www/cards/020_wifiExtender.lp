@@ -22,7 +22,13 @@ local content = {
   agentState = "uci.multiap.agent.enabled",
   controllerState = "uci.multiap.controller.enabled"
 }
-content_helper.getExactContent(content)
+local ok = pcall(content_helper.getExactContent, content)
+if not ok then
+  -- multiap datamodel not available on this device
+  content.count = "0"
+  content.agentState = "0"
+  content.controllerState = "0"
+end
 local getState = content.agentState == "1" and true or false
 if has_variant and postHelper.getVariantValue(variantHelper, "extenderInfo") then
   getState = content.agentState == "1" and content.controllerState == "1" and true or false
