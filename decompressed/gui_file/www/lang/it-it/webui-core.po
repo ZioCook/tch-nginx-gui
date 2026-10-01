@@ -4939,3 +4939,9 @@ msgstr "Ripetitore"
 msgid "Gateway"
 msgstr "Modem Gateway"
 
+msgid "Load average (1m, 5m, 15m): %s"
+msgstr "Carico medio (1m, 5m, 15m): %s"
+
+msgid "Load average (1m, 5m, 15m):"
+msgstr "Carico medio (1m, 5m, 15m):"
+

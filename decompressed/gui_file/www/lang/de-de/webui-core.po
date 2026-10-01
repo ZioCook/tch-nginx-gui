@@ -4917,3 +4917,9 @@ msgstr "Repeater"
 
 msgid "Gateway"
 msgstr "Gateway"
+
+msgid "Load average (1m, 5m, 15m): %s"
+msgstr "Durchschnittliche Last (1m, 5m, 15m): %s"
+
+msgid "Load average (1m, 5m, 15m):"
+msgstr "Durchschnittliche Last (1m, 5m, 15m):"
