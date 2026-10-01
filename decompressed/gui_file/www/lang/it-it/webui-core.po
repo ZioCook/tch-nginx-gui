@@ -4805,3 +4805,107 @@ msgstr "DumaOS"
 msgid "Installs the pinned DumaOS UI and QoS stack for ARMv7 Technicolor gateways. Installation replaces core ubus components; reboot the gateway after installation and after removal."
 msgstr "Installa l'interfaccia e lo stack QoS DumaOS verificati per i gateway Technicolor ARMv7. L'installazione sostituisce componenti ubus di base; riavviare il gateway dopo l'installazione e dopo la rimozione."
 
+# EasyMesh Translations
+msgid "EasyMesh"
+msgstr "EasyMesh"
+
+msgid "EasyMesh Info"
+msgstr "Informazioni EasyMesh"
+
+msgid "EasyMesh Configuration"
+msgstr "Configurazione EasyMesh"
+
+msgid "EasyMesh Services"
+msgstr "Servizi EasyMesh"
+
+msgid "EasyMesh Controller/Agent Services"
+msgstr "Servizi EasyMesh"
+
+msgid "Enable EasyMesh"
+msgstr "Attiva EasyMesh"
+
+msgid "Disable EasyMesh"
+msgstr "Disattiva EasyMesh"
+
+msgid "EasyMesh Agent"
+msgstr "Agent EasyMesh"
+
+msgid "Fronthaul Configuration"
+msgstr "Configurazione Rete Mesh (Fronthaul)"
+
+msgid "Backhaul Configuration"
+msgstr "Configurazione Rete di Ritorno (Backhaul)"
+
+msgid "Backhaul SSID"
+msgstr "SSID Backhaul"
+
+msgid "Backhaul Password"
+msgstr "Password Backhaul"
+
+msgid "Preferred Interface"
+msgstr "Banda radio preferita"
+
+msgid "Both"
+msgstr "Entrambe (2.4 GHz e 5 GHz)"
+
+msgid "Both (2.4GHz & 5GHz)"
+msgstr "Entrambe (2.4 GHz e 5 GHz)"
+
+msgid "2.4GHz"
+msgstr "2.4 GHz"
+
+msgid "5GHz"
+msgstr "5 GHz"
+
+msgid "EasyMesh controller MAC Address"
+msgstr "Indirizzo MAC Controller EasyMesh"
+
+msgid "EasyMesh Agent MAC Address"
+msgstr "Indirizzo MAC Agent EasyMesh"
+
+msgid "EasyMesh is disabled.<br> You can safely enable Bandsteering, if needed"
+msgstr "EasyMesh è disattivato.<br>È ora possibile riattivare il Bandsteering, se necessario."
+
+msgid "EasyMesh is enabled.<br> This action will disable Bandsteering"
+msgstr "EasyMesh è attivo.<br>Questa azione disattiverà il Bandsteering."
+
+msgid "Agent List"
+msgstr "Lista ripetitori"
+
+msgid "Extender Info"
+msgstr "Stato ripetitori"
+
+msgid "WiFi Devices"
+msgstr "Dispositivi Wi-Fi"
+
+msgid "EasyMesh standard enables a seamless, synchronized Wi-Fi mesh network between this gateway and compatible extenders."
+msgstr "Lo standard EasyMesh consente di creare una rete Wi-Fi mesh sincronizzata tra il modem e i repeater compatibili, con roaming intelligente."
+
+msgid "Enable EasyMesh controller and agent to manage synchronized Wi-Fi extenders."
+msgstr "Abilita le funzioni di Controller e Agent sul modem per coordinare i ripetitori mesh collegati."
+
+msgid "Network parameters propagated by EasyMesh to all connected extenders."
+msgstr "Parametri di rete wireless propagati automaticamente a tutti i ripetitori collegati."
+
+# Cards Modal translations in webui-core domain
+msgid "Content Sharing"
+msgstr "Condivisione contenuti"
+
+msgid "Printer Sharing"
+msgstr "Condivisione stampante"
+
+msgid "Telephony"
+msgstr "Telefonia"
+
+msgid "Parental Controls"
+msgstr "Controllo genitori"
+
+msgid "CWMP Management"
+msgstr "Telegestione (CWMP)"
+
+msgid "Mobile"
+msgstr "Connessione mobile"
+
+msgid "Remote Assistance"
+msgstr "Assistenza remota"
+

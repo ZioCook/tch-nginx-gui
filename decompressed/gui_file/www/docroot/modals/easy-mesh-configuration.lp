@@ -63,15 +63,15 @@
   local APSec_modes = (type(raw_modes) == "table" and raw_modes[1] and raw_modes[1].value) or ""
   APSec_modes:gsub("[^%s]+", function(c)
     if c == "none" then
-      securityModes[#securityModes+1] = { c, T("<strong>"..string.untaint(c:gsub("^%l", string.upper)).."</strong>")}
+      securityModes[#securityModes+1] = { c, T(string.untaint(c:gsub("^%l", string.upper)))}
     else
-      securityModes[#securityModes+1] = { c, T("<strong>"..string.untaint(string.upper(c)).."</strong>")}
+      securityModes[#securityModes+1] = { c, T(string.untaint(string.upper(c)))}
     end
   end)
   if #securityModes == 0 then
     securityModes = {
-      { "none", T"<strong>None</strong>" },
-      { "wpa2-psk", T"<strong>WPA2-PSK</strong>" }
+      { "none", T"None" },
+      { "wpa2-psk", T"WPA2-PSK" }
     }
   end
 
@@ -87,13 +87,13 @@
   end
 
   local preferredInterface = {
-    {"radio_2G,radio_5Gu,radio_5Gl", T"<strong>Both</strong>"}
+    {"radio_2G,radio_5Gu,radio_5Gl", T"Both"}
   }
   if post_helper.getVariantValue(variantHelper, "frequencySelection") then
     preferredInterface = {
-      {"radio_2G", T"<strong>2.4GHz</strong>"},
-      {"radio_5Gu,radio_5Gl", T"<strong>5GHz</strong>"},
-      {"radio_2G,radio_5Gu,radio_5Gl", T"<strong>Both</strong>"}
+      {"radio_2G", T"2.4GHz"},
+      {"radio_5Gu,radio_5Gl", T"5GHz"},
+      {"radio_2G,radio_5Gu,radio_5Gl", T"Both"}
     }
   end
 
@@ -215,13 +215,17 @@
 
   local params, helpmsg = post_helper.handleQuery(mapParams, mapValid)
 
-  ngx.print(ui_helper.createHeader(T"EasyMesh Info", false, true))  ngx.print('\
+  ngx.print(ui_helper.createHeader(T"EasyMesh", false, true))  ngx.print('\
 \
 <form class = "modal-body form-horizontal" method = "post" action = "modals/easy-mesh-configuration.lp">\
+  <div class="alert alert-info" style="margin-bottom: 20px;">\
+    <i class="fas fa-project-diagram" style="margin-right: 6px;"></i>\
+    ');  ngx.print( T"EasyMesh standard enables a seamless, synchronized Wi-Fi mesh network between this gateway and compatible extenders." ); ngx.print('\
+  </div>\
   ');  lp.include("tabs-easyMesh.lp")  ngx.print('\
   ');  ngx.print(ui_helper.createMessages(message_helper.popMessages()))  ngx.print('\
   <fieldset id = "easy-mesh-configuration-tab">\
-    <legend>');  ngx.print( T"Configuration" ); ngx.print('</legend>\
+    <legend>');  ngx.print( T"General" ); ngx.print('</legend>\
     ');  
       local ssidclass = {
         input = {
@@ -260,9 +264,19 @@
           html[#html + 1] = ui_helper.createLabel( T"Backhaul Password", params.backHaulPassword, pskclass)
           html[#html + 1] = ui_helper.createLabel(T"Security Mode", params.backHaulSecurityMode)
         elseif easyMeshButton then
-          html[#html + 1] = ui_helper.createSwitch(T"EasyMesh Controller/Agent Services", "easyMeshEnable", ((params.agentEnable == "1" and params.controllerEnable == "1") and "1" or "0"))
+          html[#html + 1] = ui_helper.createSwitch(T"EasyMesh Services", "easyMeshEnable", ((params.agentEnable == "1" and params.controllerEnable == "1") and "1" or "0"))
           ngx.print(html)
           html = {}
+          ngx.print('\
+          <div class="control-group" style="margin-top: -8px; margin-bottom: 20px;">\
+            <div class="controls">\
+              <span class="help-block" style="font-size: 12px; color: #777;">\
+                ');  ngx.print( T"Enable EasyMesh controller and agent to manage synchronized Wi-Fi extenders." ); ngx.print('\
+              </span>\
+            </div>\
+          </div>\
+          <div id="fronthaul-config-wrap">\
+          ');
           for _, data in pairs(getCredentials) do
             if data.fronthaul == "1" then
               if credShow and data.paramindex == "@cred0" or not credShow then
@@ -272,6 +286,15 @@
                 ');  else   ngx.print('\
                   <legend>');  ngx.print( string.upper(string.sub(credParamIndex, 2, -1)) ); ngx.print('</legend>\
                 ');  end
+                ngx.print('\
+                <div class="control-group" style="margin-top: -8px; margin-bottom: 15px;">\
+                  <div class="controls">\
+                    <span class="help-block" style="font-size: 12px; color: #777;">\
+                      ');  ngx.print( T"Network parameters propagated by EasyMesh to all connected extenders." ); ngx.print('\
+                    </span>\
+                  </div>\
+                </div>\
+                ');
                 if post_helper.getVariantValue(variantHelper, "credStatusSwitch") then
                   html[#html + 1] = ui_helper.createSwitch(T"State", "state" .. credParamIndex, params["state" ..credParamIndex])
                 end
@@ -287,6 +310,7 @@
            end
            ngx.print(html)
            html = {}
+           ngx.print('</div>')
           end
         end
       elseif easyMeshButton then

@@ -22,6 +22,7 @@ function easyMeshEnable() {
     $("#wifiGuestbandsteerEnable").val("0")
   }
   labelHide.closest(".control-group").show();
+  $("#fronthaul-config-wrap").css({"opacity": "1", "transition": "opacity 0.25s"});
 }
 
 function easyMeshDisable() {
@@ -45,6 +46,7 @@ function easyMeshDisable() {
     }
   }
   labelHide.closest(".control-group").hide();
+  $("#fronthaul-config-wrap").css({"opacity": "0.55", "transition": "opacity 0.25s"});
 }
 
 if ($("#easyMeshEnable").val() == "1") {
