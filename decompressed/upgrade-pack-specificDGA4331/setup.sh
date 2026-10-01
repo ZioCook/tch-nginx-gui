@@ -96,6 +96,69 @@ brctl addif br-lan wl1 2>/dev/null
 ifconfig wl0 up 2>/dev/null
 ifconfig wl1 up 2>/dev/null
 
+# Ensure permissions on button, wireless and info scripts
+chmod +x /etc/rc.button/BTN_1 /etc/rc.button/BTN_2 /usr/sbin/infobutton.sh /usr/sbin/wireless_get_mac_addr.sh 2>/dev/null
+
+# Configure button.info in /etc/config/button for Wi-Fi button press
+if [ -f /etc/config/button ]; then
+  uci -q delete button.info
+  uci set button.info=button
+  uci set button.info.button='BTN_1'
+  uci set button.info.action='released'
+  uci set button.info.handler='/usr/sbin/infobutton.sh'
+  uci set button.info.min='0'
+  uci set button.info.max='2'
+  uci commit button
+  /etc/init.d/button enable 2>/dev/null
+  /etc/init.d/button restart 2>/dev/null
+fi
+
+# Configure DGA4331 LED framework controls
+if [ -f /etc/config/ledfw ]; then
+  uci -q delete ledfw.ctrl_power
+  uci set ledfw.ctrl_power=control
+  uci set ledfw.ctrl_power.name='power'
+  uci set ledfw.ctrl_power.green='23'
+  uci set ledfw.ctrl_power.red='20'
+
+  uci -q delete ledfw.ctrl_broadband
+  uci set ledfw.ctrl_broadband=control
+  uci set ledfw.ctrl_broadband.name='broadband'
+  uci set ledfw.ctrl_broadband.green='102'
+  uci set ledfw.ctrl_broadband.red='103'
+
+  uci -q delete ledfw.ctrl_internet
+  uci set ledfw.ctrl_internet=control
+  uci set ledfw.ctrl_internet.name='internet'
+  uci set ledfw.ctrl_internet.green='101'
+  uci set ledfw.ctrl_internet.red='19'
+
+  uci -q delete ledfw.ctrl_ethernet
+  uci set ledfw.ctrl_ethernet=control
+  uci set ledfw.ctrl_ethernet.name='ethernet'
+  uci set ledfw.ctrl_ethernet.green='13'
+
+  uci -q delete ledfw.ctrl_wireless
+  uci set ledfw.ctrl_wireless=control
+  uci set ledfw.ctrl_wireless.name='wireless'
+  uci set ledfw.ctrl_wireless.green='6'
+
+  uci -q delete ledfw.ctrl_wps
+  uci set ledfw.ctrl_wps=control
+  uci set ledfw.ctrl_wps.name='wps'
+  uci set ledfw.ctrl_wps.green='104'
+  uci set ledfw.ctrl_wps.red='105'
+
+  uci -q delete ledfw.ctrl_voip
+  uci set ledfw.ctrl_voip=control
+  uci set ledfw.ctrl_voip.name='voip'
+  uci set ledfw.ctrl_voip.green='100'
+
+  uci commit ledfw
+  /etc/init.d/ledfw enable 2>/dev/null
+  /etc/init.d/ledfw restart 2>/dev/null
+fi
+
 # Ensure specific_app status is committed
 uci set modgui.app.specific_app="1"
 uci commit modgui

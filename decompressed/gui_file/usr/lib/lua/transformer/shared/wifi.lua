@@ -3,8 +3,8 @@ local gmatch, ipairs, concat = string.gmatch, ipairs, table.concat
 local uciHelper = require("transformer.mapper.ucihelper")
 local wirelessBinding = { config = "wireless" }
 local userFriendlyNameBinding = { config = "user_friendly_name" }
-local ubus = require("ubus")
-local conn = ubus.connect()
+local ubus = pcall(require, "ubus") and require("ubus")
+local conn = ubus and ubus.connect()
 
 --- function to convert a string into a map based on the match pattern
 -- @param #string str the input string that needs to be converted into a map
@@ -117,7 +117,7 @@ function M.isSupportedMode(ap, mode)
       modeList = ""
     end
   end
-  if modeList == "" then
+  if not modeList or modeList == "" then
     -- unsupported modes can't be detected, don't block the setting
     return true
   end
@@ -131,8 +131,9 @@ end
 
 -- function to calculate the signal strength of wireless device
 function M.getSignalStrength(rssi)
-  local strength = 1
-  if rssi then
+  local strength = "1"
+  rssi = tonumber(rssi)
+  if rssi and rssi < 0 then
     if rssi <= -127 then
       strength = "1"
     elseif rssi < -85 and rssi > -127 then

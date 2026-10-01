@@ -37,9 +37,7 @@ local current_year = (string.sub(year,1,4))
     <meta name="CSRFtoken" content="');  ngx.print( ngx.ctx.session:getCSRFtoken() ); ngx.print('">\
     <link href="/css/gw.css" rel="stylesheet">\
     <link href="/css/responsive.css" rel="stylesheet">\
-    <!--[if IE 7]><link rel="stylesheet" href="/css/font-awesome-ie7.css"><![endif]-->\
     <script src="/js/main-min.js" ></script>\
-    <!--[if lt IE 9]> <script src="/js/media-min.js"></script> <![endif]-->\
     <script src="/js/srp-min.js" ></script>\
     <title>');  ngx.print( T"Login" ); ngx.print('</title>\
 </head>\
@@ -49,7 +47,9 @@ local current_year = (string.sub(year,1,4))
 	<a href="'); ngx.print(cui.nsplink); ngx.print('" target="_blank">\
 	  <picture>');
 		if cui.gui_skin == "TIM" then
-			ngx.print('<img width="168px" height="39px" src="/img/TIM.png">');
+			ngx.print('<source srcset="/img/TIM.webp" type="image/webp">\
+				<source srcset="/img/TIM.png" type="image/png">\
+				<img width="168px" height="39px" src="/img/TIM.png">');
 		elseif cui.gui_skin == "Fritz" or string.match(cui.gui_skin, "[dD][aA][rR][kK]") then
 			ngx.print('<source srcset="/img/logo_white.webp" type="image/webp">\
 				<source srcset="/img/logo_white.png" type="image/png">\

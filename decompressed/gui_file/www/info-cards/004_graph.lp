@@ -6,7 +6,10 @@ gettext.textdomain('webui-core')
 local proxy = require("datamodel")
 local ui_helper = require("web.ui_helper")
 
-local  format = string.format
+local format = string.format
+
+local gui_version = proxy.get("rpc.system.modgui.gui_version")
+gui_version = (gui_version and gui_version[1].value) or ""
 
 local interface = proxy.get("rpc.network.interface.@wan.ifname")
 local wan = proxy.get("rpc.network.interface.@wan.up") and proxy.get("rpc.network.interface.@wan.up")[1].value or nil
@@ -56,6 +59,7 @@ ngx.print('\
     </div>\
   </div>\
 </div>\
+<script src="/js/Chart.min.js?version='); ngx.print(gui_version); ngx.print('"></script>\
 <script>\
 function checkGraphWidth() {\
 	if ( $(document).width() > 855 ) {\

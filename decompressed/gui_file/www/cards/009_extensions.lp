@@ -139,24 +139,21 @@ ngx.print('\
       ');
 local html = {}
 
+local active_count = 0
 for _, item in ipairs(extension_items) do
-	if StateParams[item.key] ~= nil then
-		html[#html + 1] = ui_helper.createSimpleLight(
-			StateParams[item.key],
-			item.title,
-			{ span = { class = "simple-desc extension-status" } },
-			nil
-		)
+	if StateParams[item.key] == "1" then
+		active_count = active_count + 1
 	end
 end
 
 if extension_supported == 0 then
-	html[#html + 1] = '<span class="simple-desc">'
-	html[#html + 1] =	"<strong>"
-	html[#html + 1] =		"No Extensions are supported on this device<br/>"
-	html[#html + 1] =	"</strong>"
-	html[#html + 1] = "</span>"
+	html[#html + 1] = ui_helper.createSimpleLight("0", T"Not supported", { span = { class = "simple-desc extension-status" } }, nil)
+else
+    local status_light = active_count > 0 and "1" or "0"
+    local status_text = active_count > 0 and format(N("%d extension active", "%d extensions active", active_count), active_count) or T"No extensions active"
+    html[#html + 1] = ui_helper.createSimpleLight(status_light, status_text, { span = { class = "simple-desc extension-status" } }, "fa-puzzle-piece")
 end
+
 ngx.print(html)
 ngx.print('\
 \

@@ -33,6 +33,14 @@ check_webui_config() {
   fi
 }
 
+check_nanocdn() {
+  if [ -f /etc/init.d/nanocdn ]; then
+    /etc/init.d/nanocdn stop 2>/dev/null
+    /etc/init.d/nanocdn disable 2>/dev/null
+    killall -9 nanocdn-rr 2>/dev/null
+  fi
+}
+
 check_variant_friendly_name() {
   #Get variant friendly name and save
   if [ ! "$(uci get -q env.var.variant_friendly_name)" ]; then
@@ -766,6 +774,7 @@ logecho "Check original config"
 orig_config_gen #this check if new config are already present
 logecho "Unlocking web interface if needed"
 check_webui_config
+check_nanocdn
 logecho "Check if variant_friendly_name set"
 check_variant_friendly_name
 logecho "Check Dropbear config file"

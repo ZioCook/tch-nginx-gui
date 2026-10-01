@@ -348,7 +348,14 @@ logecho "Running rootdevice script"
 # Run init.d script
 set_transformer "rpc.system.modgui.executeCommand.state" "In Progress"
 /etc/init.d/rootdevice "$rootdevice_call"
-/etc/init.d/do_migrate_overlay preserve_files
+/etc/init.d/do_migrate_overlay preserve_files 2>/dev/null || true
+
+# Explicitly reset outdated state in UCI config via atomic batch
+uci -q batch <<EOF
+set modgui.gui.outdated_ver='0'
+set modgui.gui.new_ver='Unknown'
+commit modgui
+EOF
 
 if [ -f "$WORKING_DIR/$FILE_NAME" ]; then
   rm -f "$WORKING_DIR/$FILE_NAME"
@@ -358,4 +365,5 @@ if [ -f "$WORKING_DIR/$CHECKSUM_FILE" ]; then
 fi
 
 ubus send fwupgrade '{"state":"done"}'
+set_transformer "rpc.system.modgui.executeCommand.state" "Complete"
 logecho "Upgrade Done"

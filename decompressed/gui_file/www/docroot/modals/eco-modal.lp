@@ -79,8 +79,10 @@ if prod_name:match("DGA4131") then
   mapParams.ledfw_ambient = "uci.ledfw.ambient.active"
 else
   mapValid.eco_led = vB
+  mapValid.eco_led_stealth = vB
   mapValid.ledfw_wifinsc = vB
   mapParams.eco_led = "uci.ledfw.status_led.enable"
+  mapParams.eco_led_stealth = "uci.ledfw.status_led.stealth"
   mapParams.ledfw_wifinsc = "uci.ledfw.wifi.nsc_on"
 end
 
@@ -91,6 +93,7 @@ if ngx.req.get_method() == "POST" and not helpmsg then
   local post_args = ngx.req.get_post_args()
   if post_args and post_args.action == "SAVE" then
     os.execute("/etc/init.d/power reload >/dev/null 2>&1 &")
+    os.execute("/etc/init.d/ledfw restart >/dev/null 2>&1 &")
   end
 end
 
@@ -225,6 +228,7 @@ if prod_name:match("DGA4131") then
   html[#html + 1] = ui_helper.createSwitch(T"Ambient LED", "ledfw_ambient", content["ledfw_ambient"])
 else
   html[#html + 1] = ui_helper.createSwitch(T"Eco LED Mode", "eco_led", content["eco_led"])
+  html[#html + 1] = ui_helper.createSwitch(T"Modalità Stealth (Spegni anche Power)", "eco_led_stealth", content["eco_led_stealth"])
 end
 
 html[#html + 1] = ui_helper.createInputText(T"Timeout Spegnimento LED (ms)", "eco_led_timeout", content["eco_led_timeout"], span5, helpmsg["eco_led_timeout"])

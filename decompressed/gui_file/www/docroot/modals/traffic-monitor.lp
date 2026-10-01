@@ -14,6 +14,9 @@ local traffic_data_file = "/var/state/traffic_data_file"
 
 local section_selected
 
+local gui_version = proxy.get("rpc.system.modgui.gui_version")
+gui_version = (gui_version and gui_version[1].value) or ""
+
 local quantenna_wifi = proxy.get("uci.env.var.qtn_eth_mac")
 quantenna_wifi = ((quantenna_wifi and quantenna_wifi[1].value~="") and true or false)
 local getargs = ngx.req.get_uri_args()
@@ -360,6 +363,7 @@ ngx.print(ui_helper.createHeader(T"Traffic Monitor", false, true) ); ngx.print('
   </form>\
  </div>\
 \
+<script src="/js/Chart.min.js?version='); ngx.print(gui_version); ngx.print('"></script>\
 <script language ="javascript">\
 ')
 if section_selected == "wifi" then

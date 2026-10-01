@@ -71,7 +71,7 @@ local driver_Params = {
   dsl0_enabled = "uci.xdsl.xdsl.@dsl0.enabled",
   ds10_sra = "uci.xdsl.xdsl.@dsl0.sra",
   ds10_bitswap = "uci.xdsl.xdsl.@dsl0.bitswap",
-  ds10_snr = "uci.xdsl.xdsl.@dsl0.snrmargin_offset",
+  ds10_snr = "uci.xdsl.xdsl.@dsl0.snr",
 }
 
 local profile_list = ""

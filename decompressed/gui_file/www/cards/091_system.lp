@@ -7,19 +7,10 @@ local ngx = ngx
 local session = ngx.ctx.session
 local format = string.format
 local ui_helper = require("web.ui_helper")
+local content_helper = require("web.content_helper")
 local proxy = require("datamodel")
 local modalPath = "/modals/system-modal.lp"
 syslog_present = "disabled"
-
--- Check availability of file, return true if found, else false
-local function file_check(file_name)
-  local file_found=io.open(file_name, "rb")
-  if file_found==nil then
-    return false
-  else
-    return true
-  end
-end
 
 local Syslog = proxy.get("uci.system.system.@system[0].log_ip", "uci.system.system.@system[0].log_filter_ip")
 if Syslog then
@@ -61,7 +52,7 @@ local SSH_light_map = {
   enabled = "1",--"green"
 }
 
-local telnet_available = file_check("/bin/busybox_telnet")
+local telnet_available = content_helper.fileExists("/bin/busybox_telnet")
 local telnet_state = "NotAvailable"
 
 if telnet_available then

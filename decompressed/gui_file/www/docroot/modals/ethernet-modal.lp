@@ -1207,7 +1207,7 @@ local start = tonumber(content["dhcpStart"])
 local numips = tonumber(content["dhcpLimit"])
 local ipstart,ipend,network, modemIPChangeState
 
-if start and numips and not helpmsg["localdevIP"] and not helpmsg["localdevmask"] and not helpmsg["dhcpStart"] and not helpmsg["dhcpLimit"] then
+if baseip and netmask and start and numips and not helpmsg["localdevIP"] and not helpmsg["localdevmask"] and not helpmsg["dhcpStart"] and not helpmsg["dhcpLimit"] then
     ipstart , ipend , network = calculateDHCPStartAddress(baseip,netmask,start,numips)
     session:store("dhcpStartAddr",ipstart)
     session:store("dhcpEndAddr",ipend)

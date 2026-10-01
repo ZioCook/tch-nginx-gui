@@ -222,6 +222,61 @@ function M.getLedsInfo()
   if next(ledsInfo) == nil then
     local uci_lib = require("uci")
     local cursor = uci_lib and uci_lib.cursor and uci_lib.cursor()
+    if cursor then
+      cursor:foreach("ledfw", "control", function(t)
+        local name = t["name"]
+        if name then
+          local colors = {"red", "green", "blue", "orange"}
+          for _, col in ipairs(colors) do
+            local id = t[col]
+            if id and lfs.attributes(ledPath .. id, "mode") == "directory" then
+              if ledsInfo[name] == nil then
+                ledsInfo[name] = {}
+              end
+              ledsInfo[name][col] = {}
+              local ledFile = ledPath .. id
+              local fd = open(ledFile .. "/trigger", "r")
+              if fd then
+                local output = fd:read("*all")
+                if output then
+                  local trigger = match(output, "%[(.+)%]")
+                  if trigger then
+                    ledsInfo[name][col].trigger = trigger
+                  end
+                end
+                fd:close()
+              end
+              fd = open(ledFile .. "/brightness", "r")
+              if fd then
+                local output = fd:read("*all")
+                if output then
+                  local brightness = tonumber(output)
+                  if brightness then
+                    ledsInfo[name][col].brightness = brightness
+                  end
+                end
+                fd:close()
+              end
+              fd = open(ledFile .. "/max_brightness", "r")
+              if fd then
+                local output = fd:read("*all")
+                if output then
+                  local max_brightness = tonumber(output)
+                  if max_brightness then
+                    ledsInfo[name][col].max_brightness = max_brightness
+                  end
+                end
+                fd:close()
+              end
+            end
+          end
+        end
+      end)
+    end
+  end
+  if next(ledsInfo) == nil then
+    local uci_lib = require("uci")
+    local cursor = uci_lib and uci_lib.cursor and uci_lib.cursor()
 
     -- Power
     ledsInfo["power"] = {

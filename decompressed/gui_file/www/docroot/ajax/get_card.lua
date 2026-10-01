@@ -15,6 +15,7 @@ local card = cards.get_card_from_modal(modal) or nil
 if not card then
 	ngx.status = 403
 else
+	lp.setpath("/www/cards/")
 	lp.include(card)
 end
 ngx.exit(ngx.HTTP_OK)

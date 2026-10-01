@@ -38,25 +38,6 @@ ngx.print('\
 			');
                 local html = {}
                 html[#html + 1] = ui_helper.createSimpleLight(light, state_text, { light = { id = "qoscard_statusled" }, span = { id = "qoscard_status" } }, "fa-tachometer-alt")
-                if qos_state == "1" then
-                    html[#html + 1] = '<p class="subinfos">'
-                    html[#html + 1] = '<span class="simple-desc"><i class="fas fa-list-ul" aria-hidden="true">&nbsp;</i>'
-                    html[#html + 1] = format(N("<strong>%s queue</strong> active","<strong>%s queues</strong> active"), dataQoS.numQueues, dataQoS.numQueues)
-                    html[#html + 1] = '</span><br/>'
-                    html[#html + 1] = '<span class="simple-desc"><i class="fas fa-filter" aria-hidden="true">&nbsp;</i>'
-                    html[#html + 1] = format(N("<strong>%s classify rule</strong> active","<strong>%s classify rules</strong> active"), dataQoS.numClassify, dataQoS.numClassify)
-                    html[#html + 1] = '</span>'
-                    html[#html + 1] = '</p>'
-                else
-                    html[#html + 1] = '<p class="subinfos">'
-                    html[#html + 1] = '<span class="simple-desc"><i class="fas fa-ban" aria-hidden="true">&nbsp;</i>'
-                    html[#html + 1] = T"Prioritization disabled"
-                    html[#html + 1] = '</span><br/>'
-                    html[#html + 1] = '<span class="simple-desc"><i class="fas fa-microchip" aria-hidden="true">&nbsp;</i>'
-                    html[#html + 1] = T"Zero overhead CPU (fq_codel)"
-                    html[#html + 1] = '</span>'
-                    html[#html + 1] = '</p>'
-                end
                 ngx.print (html)
             ngx.print('\
         </div>\

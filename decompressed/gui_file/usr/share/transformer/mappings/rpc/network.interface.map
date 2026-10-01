@@ -669,7 +669,13 @@ local function getDnsServers(key)
   elseif type(inactive) == "table" and #inactive ~= 0 then
     v = inactive
   end
-  servers = staticDns ~= "" and table.concat(staticDns, ",") or ""
+  if type(staticDns) == "table" then
+    servers = table.concat(staticDns, ",")
+  elseif type(staticDns) == "string" and staticDns ~= "" then
+    servers = staticDns:gsub("%s+", ",")
+  else
+    servers = ""
+  end
   for i, server in ipairs(v) do
     if (i > 1) then
       dnsServer2 = server
@@ -678,7 +684,7 @@ local function getDnsServers(key)
     end
     if servers == "" then
       servers = server
-    elseif string.find(servers,server) == nil then
+    elseif string.find(servers, server, 1, true) == nil then
       servers = servers .. "," .. server
     end
   end
@@ -755,21 +761,21 @@ network_interface_.get = {
     local v = interface_status.get(interface)
     v = v and v['ipv6-prefix']
     v = v and v[1]
-    return (v and v['address'].."/"..v['mask']) or ""
+    return (v and v['address'] and v['mask'] and (v['address'].."/"..v['mask'])) or ""
   end,
   ip6prefix_assignment = function(_, _, key)
     local interface = get_interface(key, true)
     local v = interface_status.get(interface)
     v = v and v['ipv6-prefix-assignment']
     v = v and v[1]
-    return (v and v['address'].."1".."/"..v['mask']) or ""
+    return (v and v['address'] and v['mask'] and (v['address'].."1/"..v['mask'])) or ""
   end,
   subnet_addr = function(_, _, key)
     local interface = get_interface(key, true)
     local v = interface_status.get(interface)
     v = v and v['ipv6-prefix-assignment']
     v = v and v[1]
-    return (v and v['address'].."/"..v['mask']) or ""
+    return (v and v['address'] and v['mask'] and (v['address'].."/"..v['mask'])) or ""
   end,
 
   dnsservers = function(_, _, key)
