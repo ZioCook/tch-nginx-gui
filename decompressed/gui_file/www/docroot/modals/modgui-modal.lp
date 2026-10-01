@@ -74,12 +74,12 @@ local function receive_file(filename, match)
                 return true
         end
 
-        local file = io.open(filename, "w")
+        local file = io.open(filename, "wb")
         local result, err_code, err_msg
         if file then
                 result, err_code, err_msg = do_receive(file, match)
         else
-                file = io.open("/dev/null", "w")
+                file = io.open("/dev/null", "wb")
                 do_receive(file, match)
                 result = false
                 err_code = 4
@@ -118,13 +118,14 @@ local function upgradeguifile()
         local dl = untaint(fwupgrade_location) .. filename
         local rcv_ok, rcv_errno, rcv_errmsg = receive_file(dl, 'name="upgradefile"')
         if rcv_ok then
-                ngx.header.content_type = "application/json"
+                os.execute("ln -sf /tmp/"..filename.." /tmp/GUI.tar.bz2 2>/dev/null; ln -sf /tmp/"..filename.." /tmp/GUI_dev.tar.bz2 2>/dev/null; ln -sf /tmp/"..filename.." /tmp/GUI_preview.tar.bz2 2>/dev/null")
+                ngx.header.content_type = "text/html"
                 ngx.print('{"success":"true"}')
                 ngx.exit(ngx.OK)
         else
                 ngx.status = ngx.HTTP_INTERNAL_SERVER_ERROR
-                ngx.header.content_type = "application/json"
-                ngx.print('{"error":"'..rcv_errmsg..'"}')
+                ngx.header.content_type = "text/html"
+                ngx.print('{"error":"'..(rcv_errmsg or "Upload failed")..'"}')
                 ngx.exit(ngx.OK)
         end
 end
@@ -204,13 +205,13 @@ local function installspecificapp()
         local rcv_ok, rcv_errno, rcv_errmsg = receive_file(dl, 'name="specificapp_file"')
 
         if rcv_ok then
-                ngx.header.content_type = "application/json"
+                ngx.header.content_type = "text/html"
                 ngx.print('{"success":"true"}')
                 ngx.exit(ngx.OK)
         else
                 ngx.status = ngx.HTTP_INTERNAL_SERVER_ERROR
-                ngx.header.content_type = "application/json"
-                ngx.print('{"error":"'..rcv_errmsg..'"}')
+                ngx.header.content_type = "text/html"
+                ngx.print('{"error":"'..(rcv_errmsg or "Upload failed")..'"}')
                 ngx.exit(ngx.OK)
         end
 end
@@ -228,8 +229,8 @@ local function restoreFromSysupgradeBackup()
                 sendcmd("restoreSysupgradeBackup")
         else
                 ngx.status = ngx.HTTP_INTERNAL_SERVER_ERROR
-                ngx.header.content_type = "application/json"
-                ngx.print('{"error":"'..rcv_errmsg..'"}')
+                ngx.header.content_type = "text/html"
+                ngx.print('{"error":"'..(rcv_errmsg or "Upload failed")..'"}')
                 ngx.exit(ngx.OK)
         end
 end
@@ -1031,10 +1032,23 @@ ngx.print('\
         $.fileUpload($("#form-import-gui"), {\
           params: { CSRFtoken: $("meta[name=CSRFtoken]").attr("content") },\
           completeCallback: function(form, response) {\
-                if (response.success) {\
+                var res = response;\
+                if (typeof res === "string") {\
+                  try {\
+                    res = JSON.parse(res.replace(/<[^>]*>/g, "").trim());\
+                  } catch (e) {\
+                    if (res.indexOf('"success":"true"') !== -1 || res.indexOf('"success":true') !== -1) {\
+                      res = { success: true };\
+                    }\
+                  }\
+                }\
+                if (res && (res.success === true || res.success === "true")) {\
                   modgui.postAction("system_upgrade_gui",1);\
                 } else {\
                   importing_msg.addClass("hide");\
+                  if (res && res.error) {\
+                    $("#upgrade-gui-fail").text(res.error);\
+                  }\
                   $("#upgrade-gui-fail").removeClass("hide");\
                 }\
           }\
@@ -1074,10 +1088,23 @@ ngx.print('\
         $.fileUpload($("#form-import-specificapp"), {\
           params: { CSRFtoken: $("meta[name=CSRFtoken]").attr("content") },\
           completeCallback: function(form, response) {\
-                if (response.success) {\
+                var res = response;\
+                if (typeof res === "string") {\
+                  try {\
+                    res = JSON.parse(res.replace(/<[^>]*>/g, "").trim());\
+                  } catch (e) {\
+                    if (res.indexOf('"success":"true"') !== -1 || res.indexOf('"success":true') !== -1) {\
+                      res = { success: true };\
+                    }\
+                  }\
+                }\
+                if (res && (res.success === true || res.success === "true")) {\
                   modgui.postAction("system_install_specificapp",1);\
                 } else {\
                   importing_msg.addClass("hide");\
+                  if (res && res.error) {\
+                    $("#upgrade-specificapp-fail").text(res.error);\
+                  }\
                   $("#upgrade-specificapp-fail").removeClass("hide");\
                 }\
           }\
@@ -1113,7 +1140,17 @@ $(".import-backup").on("click", function() {\
         $.fileUpload($("#form-import-backup"), {\
           params: { CSRFtoken: $("meta[name=CSRFtoken]").attr("content") },\
           completeCallback: function(form, response) {\
-                if (response.success) {\
+                var res = response;\
+                if (typeof res === "string") {\
+                  try {\
+                    res = JSON.parse(res.replace(/<[^>]*>/g, "").trim());\
+                  } catch (e) {\
+                    if (res.indexOf('"success":"true"') !== -1 || res.indexOf('"success":true') !== -1) {\
+                      res = { success: true };\
+                    }\
+                  }\
+                }\
+                if (res && (res.success === true || res.success === "true")) {\
                   importing_msg.addClass("hide");\
                   tch.showProgress("');  ngx.print(T'Rebooting'); ngx.print('...");\
                   modgui.clearKoInterval(); \

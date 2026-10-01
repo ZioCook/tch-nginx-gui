@@ -2003,11 +2003,16 @@ $(function () {
 			t("body").after('<iframe width="0" height="0" style="display:none;" name="' + o + '" id="' + o + '"/>'),
 			t("#" + o).on("load", function () {
 				var t,
-				n = this.contentWindow.document.body.innerHTML;
+				b = this.contentWindow.document.body,
+				raw = (b && (b.innerText || b.textContent)) || (b ? b.innerHTML : "");
 				try {
-					t = JSON.parse(n)
+					t = JSON.parse(raw.trim())
 				} catch (e) {
-					t = n
+					try {
+						t = JSON.parse((b ? b.innerHTML : "").replace(/<[^>]*>/g, "").trim())
+					} catch (e2) {
+						t = raw
+					}
 				}
 				n = e.children("input[type='hidden']");
 				for (key in i.params)
