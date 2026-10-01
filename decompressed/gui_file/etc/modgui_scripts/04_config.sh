@@ -519,12 +519,19 @@ disable_intercept() {
 }
 
 restore_nginx() {
-  #This file contain settings specific for gui
-  #For example
-  #client_max_body_size
+  # This file contains settings specific for GUI (included in nginx.conf via include ui_server.conf)
   if [ ! -f /etc/nginx/ui_server.conf ]; then
-    #Execute defualt script to set this value
-    /rom/etc/uci-defaults/tch_0080-nginx
+    [ -f /rom/etc/uci-defaults/tch_0080-nginx ] && /rom/etc/uci-defaults/tch_0080-nginx 2>/dev/null
+  fi
+  # Ensure client_max_body_size is 64M for offline GUI updates, specific apps and backups
+  if [ -f /etc/nginx/ui_server.conf ]; then
+    if grep -q "client_max_body_size" /etc/nginx/ui_server.conf 2>/dev/null; then
+      sed -i 's/client_max_body_size.*/client_max_body_size 64M;/' /etc/nginx/ui_server.conf
+    else
+      echo "client_max_body_size 64M;" >> /etc/nginx/ui_server.conf
+    fi
+  else
+    echo "client_max_body_size 64M;" > /etc/nginx/ui_server.conf
   fi
 }
 

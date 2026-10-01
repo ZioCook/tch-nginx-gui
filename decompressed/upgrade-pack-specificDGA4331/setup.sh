@@ -218,6 +218,10 @@ if [ -f /etc/config/ledfw ]; then
 fi
 
 # Ensure specific_app status is committed
+if [ ! -f /etc/config/modgui ]; then
+  touch /etc/config/modgui
+  uci set modgui.app=app
+fi
 uci set modgui.app.specific_app="1"
 uci commit modgui
 
