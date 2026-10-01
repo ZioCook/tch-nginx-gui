@@ -6,11 +6,61 @@ local ngx = ngx
 
 local ram_data = proxy.get("sys.mem.RAMUsed")
 local ram = (ram_data and ram_data[1] and tonumber(ram_data[1].value)) or 0
-local cpu_data = proxy.get("sys.proc.CPUUsage")
-local cpu_usage = (cpu_data and cpu_data[1] and cpu_data[1].value) or ""
-if cpu_usage == "" then
-	cpu_usage = "0"
+local function get_current_cpu_usage()
+	local f = io.open("/proc/stat", "r")
+	if not f then
+		local c = proxy.get("sys.proc.CurrentCPUUsage")
+		return (c and c[1] and c[1].value) or "0"
+	end
+	local line = f:read("*l")
+	f:close()
+	if not line then
+		return "0"
+	end
+	local user, nice, sys, idle, iowait, irq, softirq, steal = line:match("^cpu%s+(%d+)%s+(%d+)%s+(%d+)%s+(%d+)%s+(%d+)%s+(%d+)%s+(%d+)%s+(%d+)")
+	if not user then
+		return "0"
+	end
+	local cur_idle = tonumber(idle) + tonumber(iowait)
+	local cur_total = cur_idle + tonumber(user) + tonumber(nice) + tonumber(sys) + tonumber(irq) + tonumber(softirq) + tonumber(steal)
+
+	local usage = nil
+	local prev_file = io.open("/tmp/.cpu_prev", "r")
+	if prev_file then
+		local prev_total = prev_file:read("*n")
+		local prev_idle = prev_file:read("*n")
+		prev_file:close()
+		if prev_total and prev_idle and cur_total > prev_total then
+			local dt = cur_total - prev_total
+			local di = cur_idle - prev_idle
+			if dt > 0 and di >= 0 and di <= dt then
+				usage = math.floor(((dt - di) / dt) * 100)
+			end
+		end
+	end
+
+	local out_file = io.open("/tmp/.cpu_prev", "w")
+	if out_file then
+		out_file:write(string.format("%d %d\n", cur_total, cur_idle))
+		out_file:close()
+	end
+
+	if usage then
+		return tostring(usage)
+	end
+
+	local c = proxy.get("sys.proc.CurrentCPUUsage")
+	if c and c[1] and c[1].value and c[1].value ~= "" then
+		return c[1].value
+	end
+	local c_old = proxy.get("sys.proc.CPUUsage")
+	if c_old and c_old[1] and c_old[1].value and c_old[1].value ~= "" then
+		return c_old[1].value
+	end
+	return "0"
 end
+
+local cpu_usage = get_current_cpu_usage()
 
 local data = {
 	cpuusage = cpu_usage .. "%",

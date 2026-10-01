@@ -18,7 +18,9 @@ local content = {
 
 content_helper.getExactContent(content)
 content.model = model_helper[string.untaint(content.model)] or content.model
-local initial_cpu = (content.cpuusage and content.cpuusage ~= "") and (content.cpuusage .. "%") or ""
+local current_cpu = proxy.get("sys.proc.CurrentCPUUsage")
+local cpu_val = (current_cpu and current_cpu[1] and current_cpu[1].value ~= "" and current_cpu[1].value) or (content.cpuusage and content.cpuusage ~= "" and content.cpuusage) or "0"
+local initial_cpu = cpu_val .. "%"
 
 local modalPath = nil
 local switchName = nil
