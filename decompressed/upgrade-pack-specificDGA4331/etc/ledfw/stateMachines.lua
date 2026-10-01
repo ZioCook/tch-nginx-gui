@@ -219,7 +219,25 @@ patterns = {
         },
         actions = {
             remote_mgmt_session_begins = {
-                timerLed("power:green", 50, 50)
+                staticLed("power:green", true),
+                timerLed("power:red", 35, 35)
+            }
+        }
+    },
+    fw_upgrade = {
+        state = "fwupgrade_state_done",
+        transitions = {
+            fwupgrade_state_done = {
+                fwupgrade_state_upgrading = "fwupgrade_state_upgrading",
+            },
+            fwupgrade_state_upgrading = {
+                fwupgrade_state_done = "fwupgrade_state_done"
+            }
+        },
+        actions = {
+            fwupgrade_state_upgrading = {
+                staticLed("power:green", true),
+                timerLed("power:red", 35, 35)
             }
         }
     }
@@ -268,10 +286,10 @@ stateMachines = {
             }
         },
         patterns_depend_on = {
-            power_started = { "remote_mgmt", "status" },
-            service_ok_eco = { "remote_mgmt", "status" },
-            service_ok_fullpower = { "remote_mgmt", "status" },
-            service_notok = { "remote_mgmt", "status" }
+            power_started = { "fw_upgrade", "remote_mgmt", "status" },
+            service_ok_eco = { "fw_upgrade", "remote_mgmt", "status" },
+            service_ok_fullpower = { "fw_upgrade", "remote_mgmt", "status" },
+            service_notok = { "fw_upgrade", "remote_mgmt", "status" }
         }
     },
     broadband = {
