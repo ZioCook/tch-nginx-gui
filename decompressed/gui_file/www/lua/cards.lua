@@ -49,6 +49,12 @@ local function reload_config()
     end
   end)
 
+  local easymesh_supported = false
+  local ok_em, em = pcall(require, "easymesh_helper")
+  if ok_em and em and em.is_supported then
+    easymesh_supported = em.is_supported()
+  end
+
   if not card_to_modal["020_wifiExtender.lp"] and not card_to_modal["wifiExtender.lp"] then
     local target = "/modals/easy-mesh-configuration.lp"
     local orig_card = "020_wifiExtender.lp"
@@ -57,12 +63,16 @@ local function reload_config()
       config[clean_card] = {
         card = clean_card,
         modal = target,
-        hide = false
+        hide = not easymesh_supported
       }
     end
     card_to_modal[orig_card] = target
     card_to_modal[clean_card] = target
     modal_to_card[target] = orig_card
+  elseif not easymesh_supported then
+    if config["wifiExtender.lp"] then
+      config["wifiExtender.lp"].hide = true
+    end
   end
   cursor:unload('web')
 end

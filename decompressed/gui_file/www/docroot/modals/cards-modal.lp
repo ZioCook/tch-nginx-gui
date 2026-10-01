@@ -82,6 +82,12 @@ uci:foreach('web', 'card', function(s)
   if sec_name == "nfc_card" and prod_name ~= "DJN2130" and prod_name ~= "Technicolor TG800vac" then
     return
   end
+  if sec_name == "wifiextender_card" then
+    local ok_em, em_helper = pcall(require, "easymesh_helper")
+    if ok_em and em_helper and em_helper.is_supported and not em_helper.is_supported() then
+      return
+    end
+  end
   if sec_name == "asterisk_card" then
     if lfs.attributes("/etc/init.d/asterisk", 'mode') ~= 'file' or
        lfs.attributes("/etc/init.d/pbx-asterisk", 'mode') ~= 'file' then

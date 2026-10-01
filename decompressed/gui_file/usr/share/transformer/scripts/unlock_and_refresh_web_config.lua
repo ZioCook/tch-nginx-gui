@@ -169,9 +169,16 @@ local card_check_rule = {
 	{ name = 'wifiextender_card', card = '020_wifiExtender.lp', modal = 'easyMeshConfiguration' },
 }
 
+local ok_em, em_helper = pcall(require, "easymesh_helper")
+local easymesh_supported = (ok_em and em_helper and em_helper.is_supported and em_helper.is_supported())
+
 --Check every element in table
 for _ , elem in pairs(card_check_rule) do
-	if not contains(elem.name, cardset) then
+	if elem.name == 'wifiextender_card' and not easymesh_supported then
+		if contains(elem.name, cardset) then
+			uci:set('web', elem.name, 'hide', '1')
+		end
+	elseif not contains(elem.name, cardset) then
 		uci:set('web', elem.name ,'card')
 		uci:set('web', elem.name , 'card', elem.card)
 		uci:set('web', elem.name , 'modal', elem.modal)
