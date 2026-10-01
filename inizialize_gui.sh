@@ -1,4 +1,5 @@
 #!/bin/bash
+shopt -s dotglob
 
 declare -a modular_dir=(
 	"base"
