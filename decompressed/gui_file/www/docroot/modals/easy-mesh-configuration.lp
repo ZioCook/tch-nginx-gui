@@ -131,17 +131,30 @@
         mapValid["fronthaul" .. credParamIndex] = validateBoolean
         mapValid["backhaul" .. credParamIndex] = validateBoolean
 
-        if proxy.get("uci.wifi_conductor.global.multiap_enabled") then
+        local cond = proxy.get("uci.wifi_conductor.global.multiap_enabled")
+        if cond and #cond > 0 and cond[1].value then
           mapParams.wificonductorEnable = "uci.wifi_conductor.global.multiap_enabled"
           mapValid.wificonductorEnable = validateBoolean
         end
-        if proxy.get("uci.wireless.wifi-bandsteer.@bs0.") then
-          mapParams.wifibandsteerEnable = "uci.wireless.wifi-bandsteer.@bs0.state"
+        local bs0 = proxy.get("uci.wireless.wifi-bandsteer.bs0.state")
+        local bs0_path = "uci.wireless.wifi-bandsteer.bs0.state"
+        if not (bs0 and #bs0 > 0 and bs0[1].value) then
+          bs0 = proxy.get("uci.wireless.wifi-bandsteer.@bs0.state")
+          bs0_path = "uci.wireless.wifi-bandsteer.@bs0.state"
+        end
+        if bs0 and #bs0 > 0 and bs0[1].value then
+          mapParams.wifibandsteerEnable = bs0_path
           mapValid.wifibandsteerEnable = validateBoolean
         end
-        if proxy.get("uci.wireless.wifi-bandsteer.@bs1.") then
+        local bs1 = proxy.get("uci.wireless.wifi-bandsteer.bs1.state")
+        local bs1_path = "uci.wireless.wifi-bandsteer.bs1.state"
+        if not (bs1 and #bs1 > 0 and bs1[1].value) then
+          bs1 = proxy.get("uci.wireless.wifi-bandsteer.@bs1.state")
+          bs1_path = "uci.wireless.wifi-bandsteer.@bs1.state"
+        end
+        if bs1 and #bs1 > 0 and bs1[1].value then
           isGuest = true
-          mapParams.wifiGuestbandsteerEnable = "uci.wireless.wifi-bandsteer.@bs1.state"
+          mapParams.wifiGuestbandsteerEnable = bs1_path
           mapValid.wifiGuestbandsteerEnable = validateBoolean
         end
       end
@@ -292,22 +305,17 @@
           },
       }
       if easyMeshButton then
-        html[#html+1] = ui_helper.createInputText(T"", "wifibandsteerEnable", params.wifibandsteerEnable, wifibandsteer_enable_class)
-        if isGuest then
+        if mapParams.wifibandsteerEnable then
+          html[#html+1] = ui_helper.createInputText(T"", "wifibandsteerEnable", params.wifibandsteerEnable, wifibandsteer_enable_class)
+        end
+        if isGuest and mapParams.wifiGuestbandsteerEnable then
           html[#html+1] = ui_helper.createInputText(T"", "wifiGuestbandsteerEnable", params.wifiGuestbandsteerEnable, wifiguestbandsteer_enable_class)
         end
       end
 
-      local wificonductor_enable_class = {
-        group = {
-          class = "hide"
-        },
-        input = {
-              class= "span4",
-              id = "wificonductorEnable"
-          },
-      }
-      html[#html+1] = ui_helper.createInputText(T"", "wificonductorEnable", params.wificonductorEnable, wificonductor_enable_class)
+      if mapParams.wificonductorEnable then
+        html[#html+1] = ui_helper.createInputText(T"", "wificonductorEnable", params.wificonductorEnable, wificonductor_enable_class)
+      end
       ngx.print(html)
       ngx.print('\
   </fieldset>\

@@ -52,7 +52,7 @@ end
 <div class="span3">\
   <div class="smallcard">\
     ');  ngx.print( ui_helper.createCardHeader(T"EasyMesh", modalPath, switchName, nil) ); ngx.print('\
-    <div class="content">\
+    <div class="content card_bg" data-bg-text="&#xf542;">\
       <div id=\'easy_mesh\'>\
         <div class="');  ngx.print(statusLed); ngx.print('">\
         </div>\
