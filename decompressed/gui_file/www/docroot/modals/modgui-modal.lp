@@ -1037,7 +1037,7 @@ ngx.print('\
                   try {\
                     res = JSON.parse(res.replace(/<[^>]*>/g, "").trim());\
                   } catch (e) {\
-                    if (res.indexOf('"success":"true"') !== -1 || res.indexOf('"success":true') !== -1) {\
+                    if (res.indexOf("success") !== -1 && res.indexOf("true") !== -1) {\
                       res = { success: true };\
                     }\
                   }\
@@ -1093,7 +1093,7 @@ ngx.print('\
                   try {\
                     res = JSON.parse(res.replace(/<[^>]*>/g, "").trim());\
                   } catch (e) {\
-                    if (res.indexOf('"success":"true"') !== -1 || res.indexOf('"success":true') !== -1) {\
+                    if (res.indexOf("success") !== -1 && res.indexOf("true") !== -1) {\
                       res = { success: true };\
                     }\
                   }\
@@ -1145,7 +1145,7 @@ $(".import-backup").on("click", function() {\
                   try {\
                     res = JSON.parse(res.replace(/<[^>]*>/g, "").trim());\
                   } catch (e) {\
-                    if (res.indexOf('"success":"true"') !== -1 || res.indexOf('"success":true') !== -1) {\
+                    if (res.indexOf("success") !== -1 && res.indexOf("true") !== -1) {\
                       res = { success: true };\
                     }\
                   }\
