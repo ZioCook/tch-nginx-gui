@@ -84,6 +84,26 @@ sync_background_services() {
   if [ "$is_bridge" = "1" ]; then
     [ -x /etc/init.d/opticald ] && { /etc/init.d/opticald stop 2>/dev/null; /etc/init.d/opticald disable 2>/dev/null; }
   fi
+
+  # 6. Fix Broadcom regulatory country map on 5GHz / 2.4GHz
+  # Stock firmware hardcodes 'EU E0 0 etsi', an ancient pre-VHT regulatory rev that locks 5GHz to 40MHz,
+  # 12.5 dBm power, and blocks all DFS channels (52-112). Upgrading to E0 6 and adding IT mapping unlocks
+  # 80MHz (2.4Gbps Wi-Fi 6), channels 36-112, and full transmit power.
+  local restart_hostapd=0
+  for map_file in /etc/wlan/brcm_country_map_5G /etc/wlan/brcm_country_map_2G; do
+    if [ -f "$map_file" ]; then
+      if grep -q "E0 0" "$map_file" || ! grep -q "^IT " "$map_file"; then
+        sed -i 's/E0 0/E0 6/g' "$map_file"
+        if ! grep -q "^IT " "$map_file"; then
+          echo "IT E0 6 etsi" >> "$map_file"
+        fi
+        restart_hostapd=1
+      fi
+    fi
+  done
+  if [ "$restart_hostapd" = "1" ] && [ -x /etc/init.d/hostapd ]; then
+    /etc/init.d/hostapd restart 2>/dev/null
+  fi
 }
 
 check_variant_friendly_name() {
