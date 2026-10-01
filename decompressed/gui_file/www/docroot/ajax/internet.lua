@@ -199,6 +199,16 @@ else
 
 		content_helper.getExactContent(content_rpc)
 
+		content_rpc.ipaddr = content_rpc.ipaddr or ""
+		content_rpc.ip6addr = content_rpc.ip6addr or ""
+		content_rpc.ip6prefix = content_rpc.ip6prefix or ""
+		content_rpc.dns_wan = content_rpc.dns_wan or ""
+		content_rpc.nexthop = content_rpc.nexthop or ""
+		content_rpc.concentrator_name = content_rpc.concentrator_name or ""
+		content_rpc.wan_ppp_state = content_rpc.wan_ppp_state or ""
+		content_rpc.wan_ppp_error = content_rpc.wan_ppp_error or ""
+		content_rpc.wan_uptime = content_rpc.wan_uptime or ""
+
 		if content_rpc.dns_wan:match(",") then
 			content_rpc.dns_wan = content_rpc.dns_wan:gsub(","," , ")
 		end
@@ -215,7 +225,7 @@ else
 			IPv6State = "disabled"
 		elseif content_rpc.ip6prefix ~= "" then
 			IPv6State = "prefix"
-		elseif content_rpc.ip6prefix == "" then
+		else
 			IPv6State = "noprefix"
 		end
 
@@ -359,22 +369,22 @@ else
 
 		data = {
 			status_light = status_light or "",
-			WAN_IP_text = not ( content_rpc["ipaddr"] == "" ) and format(T'WAN IP is <strong>%s</strong>'..'<br/>', content_rpc["ipaddr"]) or "",
-			WAN_IPv6_text = not ( content_rpc["ip6addr"] == "" ) and format(T'WAN IPv6 is <strong>%s</strong>'..'<br/>', content_rpc["ip6addr"]) or "",
-			uptime_text = wan_uptime_time and format(T"Uptime" .. ": <strong>%s</strong>",wan_uptime_time) or "",
+			WAN_IP_text = (content_rpc.ipaddr and content_rpc.ipaddr ~= "") and format(T'WAN IP is <strong>%s</strong>'..'<br/>', content_rpc.ipaddr) or "",
+			WAN_IPv6_text = (content_rpc.ip6addr and content_rpc.ip6addr ~= "") and format(T'WAN IPv6 is <strong>%s</strong>'..'<br/>', content_rpc.ip6addr) or "",
+			uptime_text = (wan_uptime_time and wan_uptime_time ~= "") and format(T"Uptime" .. ": <strong>%s</strong>", wan_uptime_time) or "",
 			wan_uptime = wan_uptime_time or "",
 			wan_uptime_extended = post_helper.secondsToTime(wan_uptime) or "",
 			ppp_status = ppp_status or "",
-			ppp_light = ppp_light or "" ,
+			ppp_light = ppp_light or "",
 			ppp_state = ppp_state or "",
-			WAN_IP = content_rpc["ipaddr"] or "",
-			WAN_IPv6 = content_rpc["ip6addr"] or "",
-			concentrator_name = content_rpc["concentrator_name"] or "",
+			WAN_IP = content_rpc.ipaddr or "",
+			WAN_IPv6 = content_rpc.ip6addr or "",
+			concentrator_name = content_rpc.concentrator_name or "",
 			ipv6_light = ipv6_light or "",
 			ipv6_state = ipv6_state or "",
-			status = content_rpc["up"],
-			wangateway = content_rpc["nexthop"],
-			wandns = content_rpc["dns_wan"]
+			status = content_rpc.up,
+			wangateway = content_rpc.nexthop or "",
+			wandns = content_rpc.dns_wan or ""
 		}
 	end
 end
