@@ -35,7 +35,7 @@ local function wait_for_completion(base_path)
 end
 
 local function receive_file(filename, match)
-        function do_receive(outfile, match)
+        local function do_receive(outfile, match)
                 local upload = require("web.fileupload")
                 local form, err = upload.fromstream()
                 if not form then
@@ -43,27 +43,26 @@ local function receive_file(filename, match)
                 end
                 local totalsize = 0
                 local file
-                local skip_part = false
+                local discard = false
                 while true do
                         local token, data, err = form:read()
                         if not token then
                                 return false, 2, "read failed: " .. err
                         end
                         if token == "header" then
-                                if data[2] and find(data[2], match, 1, true) then
+                                if not discard and not file and type(data) == "table" and data[2] and find(data[2], match, 1, true) then
                                         file = outfile
-                                        skip_part = false
-                                else
-                                        skip_part = true
                                 end
                         elseif token == "body" then
-                                if file and not skip_part then
+                                if file then
                                         totalsize = totalsize + #data
                                         file:write(data)
                                 end
                         elseif token == "part_end" then
-                                file = nil
-                                skip_part = false
+                                if file then
+                                        file = nil
+                                        discard = true
+                                end
                         elseif token == "eof" then
                                 break
                         end
@@ -78,15 +77,17 @@ local function receive_file(filename, match)
         local result, err_code, err_msg
         if file then
                 result, err_code, err_msg = do_receive(file, match)
+                file:close()
         else
                 file = io.open("/dev/null", "wb")
-                do_receive(file, match)
+                if file then
+                        do_receive(file, match)
+                        file:close()
+                end
                 result = false
                 err_code = 4
-                err_msg = "internal error"
+                err_msg = "internal error: cannot open destination file"
         end
-
-        file:close()
 
         return result, err_code, err_msg
 end
