@@ -40,10 +40,6 @@ if session:hasAccess(modalPath) and lfs.attributes("/etc/config/xdsl", "mode") =
                 local html = {}
                 if not is_enabled then
                     html[#html+1] = ui_helper.createSimpleLight("0", T"xDSL disabled", { light = { class = "off" } }, "fas fa-microchip")
-                    html[#html+1] = '<p class="subinfos">'
-                    html[#html+1] = '<span class="simple-desc"><i class="fas fa-network-wired" aria-hidden="true">&nbsp;</i>' .. T"Mode: <strong>Bridge / AP</strong>" .. '</span><br/>'
-                    html[#html+1] = '<span class="simple-desc"><i class="fas fa-plug" aria-hidden="true">&nbsp;</i>' .. T"DSL interface not in use" .. '</span>'
-                    html[#html+1] = '</p>'
                 elseif content.dsl0_status == "Up" then
                     html[#html+1] = ui_helper.createSimpleLight("1", T"xDSL Connected", { light = { class = "green" } }, "fas fa-microchip")
                     html[#html+1] = '<p class="subinfos">'
