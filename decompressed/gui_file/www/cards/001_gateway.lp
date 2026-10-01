@@ -13,10 +13,12 @@ local content = {
 	version = "uci.version.version.@version[0].marketing_version",
 	name = "uci.version.version.@version[0].marketing_name",
 	model = "uci.env.var.prod_friendly_name",
+	cpuusage = "sys.proc.CPUUsage",
 }
 
 content_helper.getExactContent(content)
 content.model = model_helper[string.untaint(content.model)] or content.model
+local initial_cpu = (content.cpuusage and content.cpuusage ~= "") and (content.cpuusage .. "%") or ""
 
 local modalPath = nil
 local switchName = nil
@@ -37,9 +39,8 @@ ngx.print('\
 	  <p>\
       <i class="fa fa-info" id="Gateway_=LED_Id"></i>\
       <strong id = "Version_Id">');  ngx.print(string.format(T"Version %s (%s)", content.name, content.version)); ngx.print('</strong><br/>');
-	  ngx.print('<span class="subinfos">' ..  T"CPU Load"..":" ); ngx.print('\
-					<strong data-bind="text: cpuload">\
-					</strong></span>\
+	  ngx.print('<span class="subinfos">' ..  T"CPU Usage"..": " ); ngx.print('\
+					<strong data-bind="text: cpuusage">'); ngx.print(initial_cpu); ngx.print('</strong></span>\
       <div data-remote="/modals/gateway-modal.lp" data-id="gateway-modal" style="text-align: center;">\
 	    <picture>\
 		    <source srcset="/img/gateway_'); ngx.print(content.model); ngx.print('.webp" type="image/webp">\

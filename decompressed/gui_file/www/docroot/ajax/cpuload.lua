@@ -7,10 +7,13 @@ local ngx = ngx
 local ram_data = proxy.get("sys.mem.RAMUsed")
 local ram = (ram_data and ram_data[1] and tonumber(ram_data[1].value)) or 0
 local cpu_data = proxy.get("sys.proc.CPUUsage")
-local cpu_usage = (cpu_data and cpu_data[1] and cpu_data[1].value) or "0"
+local cpu_usage = (cpu_data and cpu_data[1] and cpu_data[1].value) or ""
+if cpu_usage == "" then
+	cpu_usage = "0"
+end
 
 local data = {
-	cpuusage = cpu_usage .. "%" or "0",
+	cpuusage = cpu_usage .. "%",
 	ram_used = math.floor(ram / 1024),
 	uptime = post_helper.secondsToTime(readfile("/proc/uptime","number",floor)),
 	connection = readfile("/proc/sys/net/netfilter/nf_conntrack_count"),
