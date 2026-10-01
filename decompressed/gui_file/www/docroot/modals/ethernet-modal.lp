@@ -93,6 +93,14 @@ local function num2ipv4(ip)
     return ret
 end
 
+local function cidr2netmask(bits)
+    local b = tonumber(bits) or 24
+    if b <= 0 then return "0.0.0.0" end
+    if b >= 32 then return "255.255.255.255" end
+    local mask = bit.bnot(bit.lshift(1, 32 - b) - 1)
+    return num2ipv4(mask)
+end
+
 local getargs = ngx.req.get_uri_args()
 local getintf = getargs.intf
 
@@ -423,6 +431,22 @@ local function sleases_ip_validation(value, object, key)
       localdevmask = "uci.network.interface.@" .. curintf .. ".netmask",
     }
     content_helper.getExactContent(contentdata)
+    if not contentdata.localdevIP or contentdata.localdevIP == "" then
+        local rpc_ip = proxy.get("rpc.network.interface.@" .. curintf .. ".ipaddr")
+        contentdata.localdevIP = rpc_ip and rpc_ip[1] and rpc_ip[1].value or ""
+    end
+    if not contentdata.localdevmask or contentdata.localdevmask == "" then
+        local rpc_mask = proxy.get("rpc.network.interface.@" .. curintf .. ".netmask")
+        local mask_val = rpc_mask and rpc_mask[1] and rpc_mask[1].value or ""
+        if mask_val == "" then
+            local rpc_pfx = proxy.get("rpc.network.interface.@" .. curintf .. ".ipmask")
+            local pfx = rpc_pfx and rpc_pfx[1] and rpc_pfx[1].value
+            if pfx then
+                mask_val = cidr2netmask(pfx)
+            end
+        end
+        contentdata.localdevmask = mask_val
+    end
     return post_helper.staticLeaseIPValidation(value, contentdata)
 end
 
@@ -528,6 +552,13 @@ if cur_dhcp_intf == "STB" then
     cur_dhcp_intf = "lan"
 end
 
+local dnsmasq_instance = proxy.get("uci.dhcp.dhcp.@" .. cur_dhcp_intf .. ".instance")
+if dnsmasq_instance and dnsmasq_instance[1] and dnsmasq_instance[1].value and dnsmasq_instance[1].value ~= "" then
+    dnsmasq_instance = dnsmasq_instance[1].value
+else
+    dnsmasq_instance = "dnsmasq"
+end
+
 local sfp_presence = proxy.get("uci.env.rip.sfp")
 
 --Support ethernet mode for devices with no eth4 port
@@ -560,7 +591,7 @@ local content_sfp, helpmsg = post_helper.handleQuery(mapParSFP, mapValSFP)
 
 -- Standard parameters
 local mapParams = {
-    domainName = "uci.dhcp.dnsmasq.@dnsmasq.domain",
+    domainName = "uci.dhcp.dnsmasq.@" .. dnsmasq_instance .. ".domain",
     dhcpStart = "uci.dhcp.dhcp.@" .. cur_dhcp_intf .. ".start",
     dhcpLimit = "uci.dhcp.dhcp.@" .. cur_dhcp_intf .. ".limit",
     --dhcpv4State = "uci.dhcp.dhcp.@" .. cur_dhcp_intf .. ".dhcpv4",
@@ -749,7 +780,12 @@ end
 local function GWIPChanged()
     local post_data = ngx.req.get_post_args()
     local localdevIP = proxy.get("uci.network.interface.@" .. curintf .. ".ipaddr")
-    if localdevIP and not ( localdevIP[1].value == post_data["localdevIP"] ) then
+    local cur_ip = localdevIP and localdevIP[1] and localdevIP[1].value or ""
+    if cur_ip == "" then
+        local rpc_ip = proxy.get("rpc.network.interface.@" .. curintf .. ".ipaddr")
+        cur_ip = rpc_ip and rpc_ip[1] and rpc_ip[1].value or ""
+    end
+    if cur_ip ~= "" and post_data["localdevIP"] and cur_ip ~= post_data["localdevIP"] then
         return true
     end
     return false
@@ -1117,21 +1153,46 @@ if (dnsIndex == #dhcp.options + 1) and (ngx.var.request_method == "POST") and (n
     proxy.add(baseDHCPOptions)
 end
 
+local rpc_ip_data = proxy.get("rpc.network.interface.@" .. curintf .. ".ipaddr")
+local live_ip = rpc_ip_data and rpc_ip_data[1] and rpc_ip_data[1].value or ""
+local rpc_mask_data = proxy.get("rpc.network.interface.@" .. curintf .. ".netmask")
+local live_mask = rpc_mask_data and rpc_mask_data[1] and rpc_mask_data[1].value or ""
+if live_mask == "" then
+    local rpc_pfx_data = proxy.get("rpc.network.interface.@" .. curintf .. ".ipmask")
+    local pfx = rpc_pfx_data and rpc_pfx_data[1] and rpc_pfx_data[1].value
+    if pfx then
+        live_mask = cidr2netmask(pfx)
+    end
+end
+
+local proto_data = proxy.get("uci.network.interface.@" .. curintf .. ".proto")
+local current_proto = proto_data and proto_data[1] and proto_data[1].value or "static"
+
 if ngx.var.request_method == "POST" then
-local post_data = ngx.req.get_post_args()
-	if post_data["action"] == "RESET" then
-	local lanip, lanmask, ipstart, iplimit, ltime, dhcpig = restdhcp()
-		proxy.set("uci.network.interface.@"..curintf..".ipaddr",lanip)
-		proxy.set("uci.network.interface.@"..curintf..".netmask",lanmask)
-		proxy.set("uci.dhcp.dhcp.@"..curintf..".start", ipstart)
-		proxy.set("uci.dhcp.dhcp.@"..curintf..".limit", iplimit)
-		proxy.set("uci.dhcp.dhcp.@"..curintf..".leasetime", ltime)
-		proxy.set("uci.dhcp.dhcp.@"..curintf..".ignore", dhcpig)
-		if (dnsIndex < #dhcp.options +1) then
-			proxy.set(baseDHCPOptions .. "@" .. dnsIndex .. ".value", "6,"..lanip)
-		end
-	proxy.apply()
-	end
+    local post_data = ngx.req.get_post_args()
+    if post_data["action"] == "RESET" then
+        local lanip, lanmask, ipstart, iplimit, ltime, dhcpig = restdhcp()
+        proxy.set("uci.network.interface.@"..curintf..".ipaddr",lanip)
+        proxy.set("uci.network.interface.@"..curintf..".netmask",lanmask)
+        proxy.set("uci.dhcp.dhcp.@"..curintf..".start", ipstart)
+        proxy.set("uci.dhcp.dhcp.@"..curintf..".limit", iplimit)
+        proxy.set("uci.dhcp.dhcp.@"..curintf..".leasetime", ltime)
+        proxy.set("uci.dhcp.dhcp.@"..curintf..".ignore", dhcpig)
+        if (dnsIndex < #dhcp.options +1) then
+            proxy.set(baseDHCPOptions .. "@" .. dnsIndex .. ".value", "6,"..lanip)
+        end
+        proxy.apply()
+    elseif current_proto == "dhcp" and post_data["action"] == "SAVE" then
+        if (not post_data["localdevIP"] or post_data["localdevIP"] == live_ip) and
+           (not post_data["localdevmask"] or post_data["localdevmask"] == live_mask) then
+            mapParams["localdevIP"] = nil
+            mapParams["localdevmask"] = nil
+            mapValid["localdevIP"] = nil
+            mapValid["localdevmask"] = nil
+        else
+            proxy.set("uci.network.interface.@" .. curintf .. ".proto", "static")
+        end
+    end
 end
 
 content, helpmsg = post_helper.handleQuery(mapParams, mapValid)
@@ -1140,9 +1201,9 @@ if (ngx.var.request_method == "POST")  and not next(helpmsg) then
    local post_data = ngx.req.get_post_args()
    if post_data["domainName"] then
       if post_data["domainName"] ~= "" then
-         proxy.set("uci.dhcp.dnsmasq.@dnsmasq.local", "/" .. post_data["domainName"] .. "/")
+         proxy.set("uci.dhcp.dnsmasq.@" .. dnsmasq_instance .. ".local", "/" .. post_data["domainName"] .. "/")
       else
-         proxy.set("uci.dhcp.dnsmasq.@dnsmasq.local", "")
+         proxy.set("uci.dhcp.dnsmasq.@" .. dnsmasq_instance .. ".local", "")
       end
    end
    local dhcp_options_path = "uci.dhcp.dhcp.@"..cur_dhcp_intf..".dhcp_option."
@@ -1151,6 +1212,25 @@ if (ngx.var.request_method == "POST")  and not next(helpmsg) then
       if v.value:match("^3,") or v.value:match("^15,") then
         proxy.del(dhcp_options_path..v.paramindex..".")
       end
+    end
+end
+
+if not content["localdevIP"] or content["localdevIP"] == "" then
+    content["localdevIP"] = live_ip
+end
+if not content["localdevmask"] or content["localdevmask"] == "" then
+    content["localdevmask"] = live_mask
+end
+
+if not content["domainName"] or content["domainName"] == "" then
+    local d = proxy.get("uci.dhcp.dnsmasq.@" .. dnsmasq_instance .. ".domain")
+    if d and d[1] and d[1].value and d[1].value ~= "" then
+        content["domainName"] = d[1].value
+    else
+        local d2 = proxy.get("uci.dhcp.dnsmasq.@dnsmasq.domain")
+        if d2 and d2[1] and d2[1].value and d2[1].value ~= "" then
+            content["domainName"] = d2[1].value
+        end
     end
 end
 
@@ -1183,7 +1263,11 @@ if dnsRemoved then
     content["dnsServer"] = ""
 end
 if content["dnsServer"] == nil then
-    local localIP = proxy.get("uci.network.interface.@" .. curintf .. ".ipaddr")[1].value
+    local localIP_data = proxy.get("uci.network.interface.@" .. curintf .. ".ipaddr")
+    local localIP = localIP_data and localIP_data[1] and localIP_data[1].value or ""
+    if localIP == "" then
+        localIP = content["localdevIP"] or ""
+    end
     content["dnsServer"] = localIP
 else
     if content["dnsServer"]:find("^6,") == 1 then
