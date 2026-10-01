@@ -1169,6 +1169,11 @@ if live_mask == "" then
     end
 end
 
+local uci_ip_data = proxy.get("uci.network.interface.@" .. curintf .. ".ipaddr")
+local uci_ip = uci_ip_data and uci_ip_data[1] and uci_ip_data[1].value or ""
+local uci_mask_data = proxy.get("uci.network.interface.@" .. curintf .. ".netmask")
+local uci_mask = uci_mask_data and uci_mask_data[1] and uci_mask_data[1].value or ""
+
 local proto_data = proxy.get("uci.network.interface.@" .. curintf .. ".proto")
 local current_proto = proto_data and proto_data[1] and proto_data[1].value or "static"
 
@@ -1187,8 +1192,13 @@ if ngx.var.request_method == "POST" then
         end
         proxy.apply()
     elseif current_proto == "dhcp" and post_data["action"] == "SAVE" then
-        if (not post_data["localdevIP"] or post_data["localdevIP"] == live_ip) and
-           (not post_data["localdevmask"] or post_data["localdevmask"] == live_mask) then
+        local ip_unchanged = (not post_data["localdevIP"]) or
+                             (live_ip ~= "" and post_data["localdevIP"] == live_ip) or
+                             (uci_ip ~= "" and post_data["localdevIP"] == uci_ip)
+        local mask_unchanged = (not post_data["localdevmask"]) or
+                               (live_mask ~= "" and post_data["localdevmask"] == live_mask) or
+                               (uci_mask ~= "" and post_data["localdevmask"] == uci_mask)
+        if ip_unchanged and mask_unchanged then
             mapParams["localdevIP"] = nil
             mapParams["localdevmask"] = nil
             mapValid["localdevIP"] = nil
@@ -1213,17 +1223,17 @@ if (ngx.var.request_method == "POST")  and not next(helpmsg) then
    local dhcp_options_path = "uci.dhcp.dhcp.@"..cur_dhcp_intf..".dhcp_option."
    local dhcp_options = content_helper.convertResultToObject(dhcp_options_path,proxy.get(dhcp_options_path))
     for _,v in ipairs(dhcp_options) do
-      if v.value:match("^3,") or v.value:match("^15,") then
+      if v.value == "" or v.value:match("^3,") or v.value:match("^15,") then
         proxy.del(dhcp_options_path..v.paramindex..".")
       end
     end
 end
 
 if not content["localdevIP"] or content["localdevIP"] == "" then
-    content["localdevIP"] = live_ip
+    content["localdevIP"] = (live_ip ~= "" and live_ip) or uci_ip
 end
 if not content["localdevmask"] or content["localdevmask"] == "" then
-    content["localdevmask"] = live_mask
+    content["localdevmask"] = (live_mask ~= "" and live_mask) or uci_mask
 end
 
 if not content["domainName"] or content["domainName"] == "" then
@@ -1324,20 +1334,41 @@ end
 
 if ngx.var.request_method == "POST" then
     local gwIP = session:retrieve("old_ip")
-    if curintf == "lan" and content["localdevIP"]~= gwIP and not next(helpmsg) then
+    if not gwIP or gwIP == "" then
+        gwIP = (live_ip ~= "" and live_ip) or uci_ip
+    end
+
+    local target_ip = content["localdevIP"]
+    local ip_really_changed = false
+    if curintf == "lan" and target_ip and target_ip ~= "" and not next(helpmsg) then
+        if gwIP and gwIP ~= "" and target_ip ~= gwIP then
+            local is_same_as_current = (live_ip ~= "" and target_ip == live_ip) or (uci_ip ~= "" and target_ip == uci_ip)
+            if not is_same_as_current then
+                ip_really_changed = true
+            end
+        end
+    end
+
+    if ip_really_changed then
         modemIPChangeState = "1"
     end
-    session:store("old_ip",(content["localdevIP"]))
+    session:store("old_ip", (target_ip and target_ip ~= "" and target_ip) or gwIP)
 
-    -- Redirect the GUI only if the local GW device IP address is changed for the "lan" interface
-    if curintf == "lan" and content["localdevIP"]~= gwIP and not next(helpmsg) then  ngx.print('\
-    <script type="text/javascript">\
-      window.location="http://');  ngx.print(content["localdevIP"]); ngx.print('";\
-    </script>\
-    ');  session:logout()
+    -- Redirect the GUI only if the local GW device IP address is ACTUALLY changed for the "lan" interface
+    if ip_really_changed then
+        ngx.print('\
+        <script type="text/javascript">\
+          window.location="http://' .. target_ip .. '";\
+        </script>\
+        ')
+        session:logout()
     end
 else
-    session:store("old_ip",(content["localdevIP"]))
+    local current_ip = content["localdevIP"]
+    if not current_ip or current_ip == "" then
+        current_ip = (live_ip ~= "" and live_ip) or uci_ip
+    end
+    session:store("old_ip", current_ip)
 end
 
 local ethports_checked = {}

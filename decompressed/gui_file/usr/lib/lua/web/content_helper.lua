@@ -495,11 +495,21 @@ function M.setObject(object, map, basepath, defaultObject)
     local something = false
     basepath = basepath or ""
 
+    local function toStringVal(val)
+        if type(val) == "boolean" then
+            return val and "1" or "0"
+        elseif val == nil then
+            return ""
+        else
+            return tostring(val)
+        end
+    end
+
     -- If defaultObject is not nil, then we start adding it
     -- Anything that is also present in object will overwrite this
     if type(defaultObject) == "table" then
         for k,v in pairs(defaultObject) do
-            pathvalues[basepath .. k] = v
+            pathvalues[basepath .. k] = toStringVal(v)
         end
     end
 
@@ -513,16 +523,23 @@ function M.setObject(object, map, basepath, defaultObject)
                 proxy.del(basepath .. map[k] .. ".")
                 for i,d in ipairs(v) do
                     proxy.add(basepath .. map[k] .. ".")
-                    pathvalues[basepath .. map[k] .. ".@" .. i .. ".value"] = d
+                    pathvalues[basepath .. map[k] .. ".@" .. i .. ".value"] = toStringVal(d)
                 end
             else
-                pathvalues[basepath .. map[k]] = v
+                pathvalues[basepath .. map[k]] = toStringVal(v)
             end
         end
     end
 
     if something == true then
         success, msg = proxy.set(pathvalues)
+        if not success and ngx and ngx.log then
+            local p_log = {}
+            for pk, pv in pairs(pathvalues) do
+                p_log[#p_log+1] = pk .. " (" .. type(pk) .. ") = " .. tostring(pv) .. " (" .. type(pv) .. ")"
+            end
+            ngx.log(ngx.ERR, "proxy.set failed in setObject: " .. table.concat(p_log, "; "))
+        end
     end
     return success, msg
 end
