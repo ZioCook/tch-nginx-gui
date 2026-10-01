@@ -365,9 +365,24 @@ for i,v in ipairs(radios) do
   radioData[v] = rdata
 end
 
-if radioData[curradio].remotely_managed == "1" and radioData[curradio].integrated_ap ~= "1" then
+if not radioData[curradio] then
+  curradio = (radios and radios[1]) or "radio_2G"
+end
+if not radioData[curradio] then
+  radioData[curradio] = {
+    supported_frequency_bands = (curradio == "radio_5G") and "5GHz" or "2.4GHz",
+    remotely_managed = "0",
+    supported_standards = (curradio == "radio_5G") and "anacax" or "bgnax",
+    integrated_ap = "1",
+    phy_rate = "0",
+    country = "EU",
+    channel = "auto"
+  }
+end
+
+if radioData[curradio] and radioData[curradio].remotely_managed == "1" and radioData[curradio].integrated_ap ~= "1" then
     isExtRemman = "1"
-elseif radioData[curradio].remotely_managed == "1" and radioData[curradio].integrated_ap == "1" then
+elseif radioData[curradio] and radioData[curradio].remotely_managed == "1" and radioData[curradio].integrated_ap == "1" then
 	isIntRemman = "1"
 end
 
@@ -510,7 +525,7 @@ local acl_modes = {
       { "lock", T"Whitelist" },
  }
 
- if radioData[curradio].remotely_managed ~= "1" then
+ if radioData[curradio] and radioData[curradio].remotely_managed ~= "1" then
     acl_modes[#acl_modes+1] = {"register", T"Register"}
 
  end
@@ -1078,10 +1093,11 @@ if #wls > 0 then
             -- do not show in sidebar
         else
         if v.radio ~= prevradio then
-            if radioData[untaint(v.radio)].remotely_managed == "1" and radioData[untaint(v.radio)].integrated_ap ~= "1" then
-                html[#html+1] = format('<li class="nav-header">%s %s</li>', T"External access points", radioData[untaint(v.radio)].supported_frequency_bands)
+            local v_rdata = (radioData and radioData[untaint(v.radio)]) or {}
+            if v_rdata.remotely_managed == "1" and v_rdata.integrated_ap ~= "1" then
+                html[#html+1] = format('<li class="nav-header">%s %s</li>', T"External access points", v_rdata.supported_frequency_bands or "")
             else
-                html[#html+1] = format('<li class="nav-header">%s %s</li>', T"Access Points", radioData[untaint(v.radio)].supported_frequency_bands)
+                html[#html+1] = format('<li class="nav-header">%s %s</li>', T"Access Points", v_rdata.supported_frequency_bands or "")
             end
             prevradio = v.radio
         end
@@ -1511,7 +1527,7 @@ if isguest ~= "1"  then
         ["data-name"] = "action",
         ["data-value"] = "wps_pbc",
     }
-    if radioData[curradio].remotely_managed ~= "1" or radioData[curradio].integrated_ap == "1"  then
+    if not radioData[curradio] or radioData[curradio].remotely_managed ~= "1" or radioData[curradio].integrated_ap == "1" then
      html[#html + 1] = ui_helper.createButton(T"WPS PBC", T"Trigger", "icon-refresh", wps_class)
 	 if content["wps_button_handler"] ~= nil then
 	   html[#html + 1] = ui_helper.createInputRadio(T"WPS Buttom Mode", "wps_button_handler" , wps_button_mode , content["wps_button_handler"] , nil)
