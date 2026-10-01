@@ -67,7 +67,6 @@ else
     ngx.print('<p class="subinfos">&emsp;<i class="fas fa-exclamation-triangle" style="color:#f0ad4e;"></i> ' .. T"No Ethernet cable connected" .. '</p>')
 end
 
-ngx.print('<p class="subinfos text-muted" style="margin-top: 6px;"><i class="fas fa-check-circle" style="color:#5cb85c;"></i> ' .. T"Modem xDSL / GPON: Disabled" .. '</p>')
 
 ngx.print('\
   </div>\
