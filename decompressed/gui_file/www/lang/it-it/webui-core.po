@@ -1785,7 +1785,7 @@ msgid "Ports already Reserved"
 msgstr "Numero porta già in uso"
 
 msgid "Power"
-msgstr "Alimentazione"
+msgstr "Power"
 
 msgid "Power Transitions"
 msgstr "Transizioni alimentazione"

@@ -49,21 +49,18 @@ end
 -- @param #integer led brightness
 -- @return #string led status /Blinking/Netdev/On/Off
 function M.getLedStatus(mode, brightness)
-  local status = ""
-  if mode == "none" then
-    if brightness == 0 then
-      status = "Off"
-    else
-      status = "On"
-    end
-  elseif mode == "default-on" then
-    status = "On"
-  elseif mode == "pattern" or mode == "timer" then
-    status = "Blinking"
-  elseif mode == "netdev" then
-    status = "Netdev"
+  if brightness == nil or brightness == 0 then
+    return "Off"
   end
-  return status
+  if mode == "none" or mode == "default-on" then
+    return "On"
+  elseif mode == "pattern" or mode == "timer" then
+    return "Blinking"
+  elseif mode == "netdev" then
+    return "On"
+  else
+    return "On"
+  end
 end
 
 --- Get the led(seven-color) mixed color
@@ -140,7 +137,7 @@ local function getLedMixBrightness(red, green, blue)
     leddivider = leddivider + 1
     ledtotal = ledtotal + rLevel
     if ((green == nil or green.brightness==0) and (blue == nil or blue.brightness==0)) then
-      return rLevel.."%"
+      return math.floor(rLevel + 0.5) .. "%"
     end
   end
   if green then
@@ -148,7 +145,7 @@ local function getLedMixBrightness(red, green, blue)
     leddivider = leddivider + 1
     ledtotal = ledtotal + gLevel
     if ((red == nil or red.brightness==0) and (blue == nil or blue.brightness==0)) then
-      return gLevel.."%"
+      return math.floor(gLevel + 0.5) .. "%"
     end
   end
   if blue then
@@ -156,11 +153,77 @@ local function getLedMixBrightness(red, green, blue)
     leddivider = leddivider + 1
     ledtotal = ledtotal + bLevel
     if ((green == nil or green.brightness==0) and (red == nil or red.brightness==0)) then
-      return bLevel.."%"
+      return math.floor(bLevel + 0.5) .. "%"
     end
   end
-  local rounded = ledtotal/leddivider
+  if leddivider == 0 then
+    return "0%"
+  end
+  local rounded = math.floor((ledtotal/leddivider) + 0.5)
   return rounded.."%"
+end
+
+local function checkNetdevActive(ledFile)
+  local df = open(ledFile .. "/device_name", "r")
+  if not df then return false end
+  local devices = df:read("*all")
+  df:close()
+  if not devices then return false end
+  for dev in devices:gmatch("%S+") do
+    local cf = open("/sys/class/net/" .. dev .. "/carrier", "r")
+    if cf then
+      local c = cf:read("*all"):gsub("%s+", "")
+      cf:close()
+      if c == "1" then return true end
+    end
+    local of = open("/sys/class/net/" .. dev .. "/operstate", "r")
+    if of then
+      local o = of:read("*all"):gsub("%s+", "")
+      of:close()
+      if o == "up" then return true end
+    end
+  end
+  return false
+end
+
+local function readLedFromDir(ledFile)
+  local trigger = "none"
+  local brightness = 0
+  local max_brightness = 255
+  local fd = open(ledFile .. "/trigger", "r")
+  if fd then
+    local out = fd:read("*all")
+    fd:close()
+    if out then trigger = match(out, "%[([^%]]+)%]") or "none" end
+  end
+  fd = open(ledFile .. "/max_brightness", "r")
+  if fd then
+    local out = fd:read("*all")
+    fd:close()
+    if out then max_brightness = tonumber(out) or 255 end
+  end
+  fd = open(ledFile .. "/brightness", "r")
+  if fd then
+    local out = fd:read("*all")
+    fd:close()
+    if out then brightness = tonumber(out) or 0 end
+  end
+
+  if trigger == "netdev" then
+    if checkNetdevActive(ledFile) then
+      brightness = max_brightness
+    else
+      brightness = 0
+    end
+  elseif trigger == "timer" or trigger == "pattern" or trigger == "default-on" then
+    brightness = max_brightness
+  end
+
+  return {
+    trigger = trigger,
+    brightness = brightness,
+    max_brightness = max_brightness
+  }
 end
 
 --- Get all the leds information from path /sys/class/leds/
@@ -170,108 +233,42 @@ function M.getLedsInfo()
   if not isDir(ledPath) then
     return ledsInfo
   end
-  for file in lfs.dir(ledPath) do
-    local name = match(file, "(.+):")
-    local color = match(file, ":(.+)")
-    if name and color then
-      if ledsInfo[name] == nil then
-        ledsInfo[name] = {}
-      end
-      ledsInfo[name][color] = {}
-      local ledFile = ledPath .. file
-      if lfs.attributes(ledFile, "mode") == "directory" then
-        local fd = open(ledFile .. "/trigger", "r")
-        if not fd then
-          break
-        end
-        local output = fd:read("*all")
-        if output then
-          local trigger = match(output, "%[(.+)%]")
-          if trigger then
-            ledsInfo[name][color].trigger = trigger
-          end
-        end
-        fd:close()
-        fd = open(ledFile .. "/brightness", "r")
-        if not fd then
-          break
-        end
-        output = fd:read("*all")
-        if output then
-          local brightness = tonumber(output)
-          if brightness then
-            ledsInfo[name][color].brightness = brightness
-          end
-        end
-        fd:close()
-        fd = open(ledFile .. "/max_brightness", "r")
-        if not fd then
-          break
-        end
-        output = fd:read("*all")
-        if output then
-          local max_brightness = tonumber(output)
-          if max_brightness then
-            ledsInfo[name][color].max_brightness = max_brightness
-          end
-        end
-        fd:close()
-      end
-    end
-  end
-  if next(ledsInfo) == nil then
-    local uci_lib = require("uci")
-    local cursor = uci_lib and uci_lib.cursor and uci_lib.cursor()
-    if cursor then
-      cursor:foreach("ledfw", "control", function(t)
-        local name = t["name"]
-        if name then
-          local colors = {"red", "green", "blue", "orange"}
-          for _, col in ipairs(colors) do
-            local id = t[col]
-            if id and lfs.attributes(ledPath .. id, "mode") == "directory" then
-              if ledsInfo[name] == nil then
-                ledsInfo[name] = {}
-              end
-              ledsInfo[name][col] = {}
-              local ledFile = ledPath .. id
-              local fd = open(ledFile .. "/trigger", "r")
-              if fd then
-                local output = fd:read("*all")
-                if output then
-                  local trigger = match(output, "%[(.+)%]")
-                  if trigger then
-                    ledsInfo[name][col].trigger = trigger
-                  end
-                end
-                fd:close()
-              end
-              fd = open(ledFile .. "/brightness", "r")
-              if fd then
-                local output = fd:read("*all")
-                if output then
-                  local brightness = tonumber(output)
-                  if brightness then
-                    ledsInfo[name][col].brightness = brightness
-                  end
-                end
-                fd:close()
-              end
-              fd = open(ledFile .. "/max_brightness", "r")
-              if fd then
-                local output = fd:read("*all")
-                if output then
-                  local max_brightness = tonumber(output)
-                  if max_brightness then
-                    ledsInfo[name][col].max_brightness = max_brightness
-                  end
-                end
-                fd:close()
-              end
+
+  local uci_lib = require("uci")
+  local cursor = uci_lib and uci_lib.cursor and uci_lib.cursor()
+  local has_ledfw_controls = false
+  if cursor then
+    cursor:foreach("ledfw", "control", function(t)
+      local name = t["name"]
+      if name then
+        local colors = {"red", "green", "blue", "orange", "white"}
+        for _, col in ipairs(colors) do
+          local id = t[col]
+          if id and isDir(ledPath .. id) then
+            has_ledfw_controls = true
+            if ledsInfo[name] == nil then
+              ledsInfo[name] = {}
             end
+            ledsInfo[name][col] = readLedFromDir(ledPath .. id)
           end
         end
-      end)
+      end
+    end)
+  end
+
+  if not has_ledfw_controls then
+    for file in lfs.dir(ledPath) do
+      local name = match(file, "(.+):")
+      local color = match(file, ":(.+)")
+      if name and color then
+        local ledFile = ledPath .. file
+        if isDir(ledFile) then
+          if ledsInfo[name] == nil then
+            ledsInfo[name] = {}
+          end
+          ledsInfo[name][color] = readLedFromDir(ledFile)
+        end
+      end
     end
   end
   if next(ledsInfo) == nil then
@@ -365,6 +362,9 @@ function M.getLedsInfo()
         greenInfo = v2
       elseif k2 == "blue" then
         blueInfo = v2
+      elseif k2 == "orange" and v2.brightness and v2.brightness > 0 then
+        if not redInfo then redInfo = v2 end
+        if not greenInfo then greenInfo = v2 end
       elseif k2 == "white" and v1["red"] == nil and v1["green"] == nil and v1["blue"] == nil then --needed for ambient led of DGA4131FWB
         redInfo = v2
         greenInfo = v2

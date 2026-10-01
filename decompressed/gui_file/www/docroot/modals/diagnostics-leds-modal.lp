@@ -119,8 +119,8 @@ elseif is_dga4132 then
 else
 	-- DGA4331 (TIM HUB+) and default: Power -> Linea -> Web -> LAN -> WiFi -> WPS -> Voce
 	name_mapping = {
-		["power"] = T"Power",
-		["info"] = T"Power",
+		["power"] = "Power",
+		["info"] = "Power",
 		["broadband"] = T"Linea",
 		["internet"] = T"Web",
 		["ethernet"] = T"LAN",
