@@ -79,11 +79,11 @@ local wlanconfstr = ""
 if content.ssid and content.ssid ~= "" then
     local mode = secmodes[content.secmode] or "WPA"
     local password = keypassphrases[content.secmode] or wpakey or ""
-    local ssid = tostring(content.ssid)
+    local ssid = string.untaint(content.ssid)
     local public = content.public
     --qr code escaping of dynamic data
     ssid = ssid:gsub('[\\\'".:,;]', qrcode_escape_entities)
-    password = tostring(password):gsub('[\\\'".:,;]', qrcode_escape_entities)
+    password = string.untaint(password):gsub('[\\\'".:,;]', qrcode_escape_entities)
 
     local hidden = ";H:false;;"
     if public == "0" then
