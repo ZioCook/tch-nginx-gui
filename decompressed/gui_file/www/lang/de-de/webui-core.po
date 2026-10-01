@@ -4923,3 +4923,24 @@ msgstr "Durchschnittliche Last (1m, 5m, 15m): %s"
 
 msgid "Load average (1m, 5m, 15m):"
 msgstr "Durchschnittliche Last (1m, 5m, 15m):"
+
+msgid "Beamforming"
+msgstr "Beamforming"
+
+msgid "Managed automatically by regulatory tables (Quantenna 5GHz)"
+msgstr "Wird automatisch durch Regulierungstabellen verwaltet (Quantenna 5GHz)"
+
+msgid "Eco Settings"
+msgstr "Eco-Einstellungen"
+
+msgid "Force Radio Down"
+msgstr "Funkmodul zwangsweise deaktivieren"
+
+msgid "Auto (20/40/80/160MHz)"
+msgstr "Auto (20/40/80/160MHz)"
+
+msgid "Auto (20/40/80MHz)"
+msgstr "Auto (20/40/80MHz)"
+
+msgid "Auto (20/40MHz)"
+msgstr "Auto (20/40MHz)"

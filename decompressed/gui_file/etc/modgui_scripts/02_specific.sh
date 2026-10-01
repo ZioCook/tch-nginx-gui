@@ -411,14 +411,11 @@ fi
 # starving Nginx/Transformer. Moving it to Core 1 (bitmask 0x2)
 # leaves Core 0 free for latency-sensitive GUI and routing tasks.
 if [ "$hw_ver" = "hw19" ]; then
-  # Find the IRQ number for the WiFi interface (wl0) from /proc/interrupts
-  # The actions file only contains the driver name (e.g. 80060000.pcie),
-  # so we must parse /proc/interrupts which lists both driver and interface
-  wifi_irq=$(awk '/wl0/{print $1}' /proc/interrupts 2>/dev/null | tr -d ':' | head -1)
-  if [ -n "$wifi_irq" ] && [ -f "/proc/irq/$wifi_irq/smp_affinity" ]; then
-    logecho "Pinning WiFi IRQ $wifi_irq (wl0) to Core 1..."
-    echo 2 > "/proc/irq/$wifi_irq/smp_affinity"
-  else
-    logecho "WiFi IRQ not found, skipping affinity tuning."
-  fi
+  for iface in wl0 wl1; do
+    wifi_irq=$(awk "/$iface/{print \$1}" /proc/interrupts 2>/dev/null | tr -d ':' | head -1)
+    if [ -n "$wifi_irq" ] && [ -f "/proc/irq/$wifi_irq/smp_affinity" ]; then
+      logecho "Pinning WiFi IRQ $wifi_irq ($iface) to Core 1..."
+      echo 2 > "/proc/irq/$wifi_irq/smp_affinity"
+    fi
+  done
 fi

@@ -1053,7 +1053,7 @@ msgid "Force Update"
 msgstr "Forza aggiornamento"
 
 msgid "Frame Bursting"
-msgstr "Frame Bursting"
+msgstr "Frame Bursting (Burst pacchetti)"
 
 msgid "Framing parameters"
 msgstr "Parametri framing"
@@ -2034,7 +2034,7 @@ msgid "Setup Wizard"
 msgstr "Configurazione guidata"
 
 msgid "Short Guard Interval"
-msgstr "Short Guard Interval"
+msgstr "Intervallo di guardia breve (SGI)"
 
 msgid "Sign in"
 msgstr "Accedi"
@@ -2067,7 +2067,7 @@ msgid "Source IP"
 msgstr "IP sorgente"
 
 msgid "Space Time Block Code"
-msgstr "Space Time Block Code"
+msgstr "Codifica a blocchi spazio-temporale (STBC)"
 
 msgid "Speed"
 msgstr "Velocità"
@@ -4944,4 +4944,25 @@ msgstr "Carico medio (1m, 5m, 15m): %s"
 
 msgid "Load average (1m, 5m, 15m):"
 msgstr "Carico medio (1m, 5m, 15m):"
+
+msgid "Beamforming"
+msgstr "Beamforming (Orientamento fascio)"
+
+msgid "Managed automatically by regulatory tables (Quantenna 5GHz)"
+msgstr "Gestito automaticamente dalle tabelle normative (Quantenna 5GHz)"
+
+msgid "Eco Settings"
+msgstr "Impostazioni ECO"
+
+msgid "Force Radio Down"
+msgstr "Forza disattivazione radio"
+
+msgid "Auto (20/40/80/160MHz)"
+msgstr "Auto (20/40/80/160MHz)"
+
+msgid "Auto (20/40/80MHz)"
+msgstr "Auto (20/40/80MHz)"
+
+msgid "Auto (20/40MHz)"
+msgstr "Auto (20/40MHz)"
 

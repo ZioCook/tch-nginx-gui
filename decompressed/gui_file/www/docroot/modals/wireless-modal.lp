@@ -426,6 +426,7 @@ local cw_80 = {
 local cw_160 = {
     {"20MHz", T"20MHz"},
     {"20/40MHz", T"20/40MHz"},
+    {"20/40/80MHz", T"20/40/80MHz"},
     {"auto", T"Auto (20/40/80/160MHz)"},
 }
 
@@ -1199,7 +1200,7 @@ end
         -- Select the standard to use
         local stdattributes = {
             group = {
-                class = "advanced hide",
+                class = "",
             },
             select = {
                 class = "monitor-changes"
@@ -1229,7 +1230,7 @@ end
             ["data-ajaxrefresh"] = "5",
         }})
         if not stbLimit then
-            html[#html + 1] ='<div class ="advanced hide">'
+            html[#html + 1] ='<div>'
             local cw20attributes  = {
                 group = {
                     class ="hide monitor-standard monitor-b monitor-bg",

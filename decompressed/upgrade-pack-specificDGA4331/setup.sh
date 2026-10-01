@@ -35,6 +35,21 @@ if [ -n "$wifi_irq_24g" ] && [ -f "/proc/irq/$wifi_irq_24g/smp_affinity" ]; then
   echo 2 > "/proc/irq/$wifi_irq_24g/smp_affinity"
 fi
 
+# Make Wi-Fi IRQ affinity persistent across reboots
+cat << 'EOF' > /etc/init.d/wifi_irq_tune
+#!/bin/sh /etc/rc.common
+START=99
+
+start() {
+  wifi_irq_5g=$(awk '/wl1/{print $1}' /proc/interrupts 2>/dev/null | tr -d ':' | head -1)
+  wifi_irq_24g=$(awk '/wl0/{print $1}' /proc/interrupts 2>/dev/null | tr -d ':' | head -1)
+  [ -n "$wifi_irq_5g" ] && [ -f "/proc/irq/$wifi_irq_5g/smp_affinity" ] && echo 2 > "/proc/irq/$wifi_irq_5g/smp_affinity"
+  [ -n "$wifi_irq_24g" ] && [ -f "/proc/irq/$wifi_irq_24g/smp_affinity" ] && echo 2 > "/proc/irq/$wifi_irq_24g/smp_affinity"
+}
+EOF
+chmod +x /etc/init.d/wifi_irq_tune
+/etc/init.d/wifi_irq_tune enable 2>/dev/null
+
 # Ensure telnet configuration exists
 if [ ! -f /etc/config/telnet ]; then
   touch /etc/config/telnet
@@ -80,13 +95,56 @@ if [ -f /etc/wlan/brcm_country_map_2G ]; then
   sed -i 's/E0 700/E0 0/g' /etc/wlan/brcm_country_map_2G /etc/wlan/brcm_country_map_5G
 fi
 
-# Ensure Wi-Fi radios are enabled and running
-uci -q set wireless.radio_2G.state='1'
+# Wi-Fi 6 (BCM43684 & BCM63178) Maximum Out-of-the-Box Optimization for DGA4331
+logecho "Optimizing Wi-Fi 6 performance and parameters for DGA4331..."
+
+# 5 GHz Radio (wl1 - Broadcom BCM43684 4x4 Wi-Fi 6)
+# Enables full 160MHz channel bandwidth (2402 Mbps link rate), SGI, LDPC, CDD,
+# Beamforming, Frame Bursting and full transmit power.
 uci -q set wireless.radio_5G.state='1'
-uci -q set wireless.wl0.state='1'
-uci -q set wireless.ap0.state='1'
+uci -q set wireless.radio_5G.standard='anacax'
+uci -q set wireless.radio_5G.channelwidth='auto'
+uci -q set wireless.radio_5G.channel='36'
+uci -q set wireless.radio_5G.sgi='1'
+uci -q set wireless.radio_5G.cdd='1'
+uci -q set wireless.radio_5G.ldpc='1'
+uci -q set wireless.radio_5G.txbf='1'
+uci -q set wireless.radio_5G.frame_bursting='1'
+uci -q set wireless.radio_5G.amsdu='1'
+uci -q set wireless.radio_5G.rx_amsdu_in_ampdu='1'
+uci -q set wireless.radio_5G.tx_power_overrule_reg='1'
+uci -q set wireless.radio_5G.tx_power_adjust='0'
 uci -q set wireless.wl1.state='1'
+uci -q set wireless.wl1.reliable_multicast='1'
 uci -q set wireless.ap1.state='1'
+uci -q set wireless.ap1.security_mode='wpa2-wpa3-psk'
+uci -q set wireless.ap1.pmf='optional'
+
+# 2.4 GHz Radio (wl0 - Broadcom BCM63178 Wi-Fi 6)
+# Enables Wi-Fi 6 modulation on 2.4GHz, SGI, LDPC, Beamforming, and full power.
+uci -q set wireless.radio_2G.state='1'
+uci -q set wireless.radio_2G.standard='bgnax'
+uci -q set wireless.radio_2G.channelwidth='auto'
+uci -q set wireless.radio_2G.sgi='1'
+uci -q set wireless.radio_2G.cdd='1'
+uci -q set wireless.radio_2G.ldpc='1'
+uci -q set wireless.radio_2G.txbf='1'
+uci -q set wireless.radio_2G.frame_bursting='1'
+uci -q set wireless.radio_2G.amsdu='1'
+uci -q set wireless.radio_2G.tx_power_overrule_reg='1'
+uci -q set wireless.radio_2G.tx_power_adjust='0'
+uci -q set wireless.wl0.state='1'
+uci -q set wireless.wl0.reliable_multicast='1'
+uci -q set wireless.ap0.state='1'
+uci -q set wireless.ap0.security_mode='wpa2-wpa3-psk'
+uci -q set wireless.ap0.pmf='optional'
+
+# Band Steering optimizations (bs0)
+if uci -q get wireless.bs0 >/dev/null 2>&1; then
+  uci -q set wireless.bs0.rssi_threshold='-60'
+  uci -q set wireless.bs0.rssi_5g_threshold='-75'
+fi
+
 uci commit wireless
 rm -f /tmp/hostapd_init_once 2>/dev/null
 /etc/init.d/wireless restart 2>/dev/null
