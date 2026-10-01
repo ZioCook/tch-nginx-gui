@@ -280,7 +280,7 @@
 
       local pskclass = {
         group = {
-          class = "monitor-security monitor-wpa-psk monitor-wpa2-psk monitor-wpa-wpa2-psk",
+          class = "monitor-security monitor-wpa-psk monitor-wpa2-psk monitor-wpa-wpa2-psk monitor-wpa3-psk monitor-wpa2-wpa3-psk",
         },
         input = {
           class= "span4",

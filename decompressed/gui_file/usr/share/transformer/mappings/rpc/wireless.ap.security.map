@@ -55,23 +55,36 @@ local function getDataForAP(ap)
     return result[ap] or {}
 end
 
+local namemap = {   mode="security_mode",
+                    wpa_psk_passphrase="wpa_psk_key"
+                }
+
 local function getall(mapping, key)
     local apData = getDataForAP(key)
     local sanitizedData = {}
     for k,v in pairs(apData) do
         sanitizedData[k] = nilToEmptyString(v)
     end
+    if not sanitizedData.wpa_psk_passphrase or sanitizedData.wpa_psk_passphrase == "" then
+        sanitizedData.wpa_psk_passphrase = (sanitizedData.wpa_psk_key and sanitizedData.wpa_psk_key ~= "") and sanitizedData.wpa_psk_key or nilToEmptyString(uci_helper.get_from_uci({config = "wireless", sectionname = key, option = "wpa_psk_key"}))
+    end
+    if not sanitizedData.mode or sanitizedData.mode == "" then
+        sanitizedData.mode = (sanitizedData.security_mode and sanitizedData.security_mode ~= "") and sanitizedData.security_mode or nilToEmptyString(uci_helper.get_from_uci({config = "wireless", sectionname = key, option = "security_mode"}))
+    end
     return sanitizedData
 end
 
 local function get(mapping, paramName, key)
     local apData = getDataForAP(key)
-    return nilToEmptyString(apData[paramName]);
+    local val = apData[paramName]
+    if (val == nil or val == "") and namemap[paramName] then
+        val = apData[namemap[paramName]]
+    end
+    if val == nil or val == "" then
+        val = uci_helper.get_from_uci({config = "wireless", sectionname = key, option = namemap[paramName] or paramName})
+    end
+    return nilToEmptyString(val)
 end
-
-local namemap = {   mode="security_mode",
-                    wpa_psk_passphrase="wpa_psk_key"
-                }
 local set = function(mapping, param, value, key)
   if param == "wpa_psk_passphrase" then
     local pskmatch = "^[ -~]+$"

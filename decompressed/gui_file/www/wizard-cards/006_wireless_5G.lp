@@ -65,7 +65,7 @@ ngx.print('\
         html[#html+1] = ui_helper.createInputSelect(T"Security Key Type:", "security_5G", secmodes, content["security_5G"], secattributes)
         local pskclass = {
             group = {
-                class ="monitor-security monitor-wpa-psk monitor-wpa2-psk monitor-wpa-wpa2-psk",
+                class ="monitor-security monitor-wpa-psk monitor-wpa2-psk monitor-wpa-wpa2-psk monitor-wpa3-psk monitor-wpa2-wpa3-psk",
             },
         }
         html[#html+1] = ui_helper.createInputText(T"Security Key(Minimum of 8 characters):", "wpa_psk_5G", content["wpa_psk_5G"], pskclass, helpmsg["wpa_psk_5G"])
