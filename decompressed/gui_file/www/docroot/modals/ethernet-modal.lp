@@ -797,7 +797,7 @@ end
 -- has to be done for the new limit.
 local function validateLimit(value, object)
     local dhcpIgnore = proxy.get(mapParams["dhcpIgnore"])
-    if GWIPChanged() or ( dhcpIgnore and dhcpIgnore[1].value == "1") then --we bypass validation as the gateway ip has changed
+    if GWIPChanged() or (object and object["dhcpIgnore"] == "1") or ( dhcpIgnore and dhcpIgnore[1].value == "1") then --we bypass validation as the gateway ip has changed or dhcp is disabled
         return true
     end
     if match(value, "^[0-9]*$") then
@@ -845,7 +845,7 @@ end
 -- from the new DHCP Range with respect to the subnet mask & Network Address
 local function validateDHCPStart(value, object)
     local dhcpIgnore = proxy.get(mapParams["dhcpIgnore"])
-    if GWIPChanged() or ( dhcpIgnore and dhcpIgnore[1].value == "1") then --we bypass validation as the gateway ip has changed
+    if GWIPChanged() or (object and object["dhcpIgnore"] == "1") or ( dhcpIgnore and dhcpIgnore[1].value == "1") then --we bypass validation as the gateway ip has changed or dhcp is disabled
         return true
     end
     if match(value, "^[0-9]*$") then
@@ -1146,11 +1146,15 @@ end
 -- in the end we only add the parameter to the parameters list if:
 --    - it exists (get or post)
 --    - we're doing a post -> in this case, we add an entry and delete it if validation fails
-if (dnsIndex < #dhcp.options +1) or ( (ngx.var.request_method == "POST") and (ngx.req.get_post_args().action == "SAVE") ) then
+local post_data_save = (ngx.var.request_method == "POST") and (ngx.req.get_post_args().action == "SAVE")
+local post_dns = post_data_save and ngx.req.get_post_args().dnsServer
+if (dnsIndex < #dhcp.options + 1) then
     mapParams["dnsServer"] = baseDHCPOptions .. "@" .. dnsIndex .. ".value"
-end
-if (dnsIndex == #dhcp.options + 1) and (ngx.var.request_method == "POST") and (ngx.req.get_post_args().action == "SAVE") then
+elseif post_data_save and post_dns and post_dns ~= "" then
+    mapParams["dnsServer"] = baseDHCPOptions .. "@" .. dnsIndex .. ".value"
     proxy.add(baseDHCPOptions)
+else
+    mapValid["dnsServer"] = nil
 end
 
 local rpc_ip_data = proxy.get("rpc.network.interface.@" .. curintf .. ".ipaddr")
@@ -1302,6 +1306,15 @@ elseif ngx.var.request_method == "POST" then
     network = session:retrieve("networkAddr")
 else
     ipstart,ipend,network = "Error","Error","Error"
+end
+
+if (not network or network == "Error") and baseip and netmask then
+    network = num2ipv4(bit.band(baseip, netmask))
+end
+if (not ipstart or ipstart == "Error") and baseip and netmask and start and numips then
+    local s, e = calculateDHCPStartAddress(baseip, netmask, start, numips)
+    ipstart = s or ipstart
+    ipend = e or ipend
 end
 
 if ngx.var.request_method == "POST" and helpmsg["leaseTime"] then
