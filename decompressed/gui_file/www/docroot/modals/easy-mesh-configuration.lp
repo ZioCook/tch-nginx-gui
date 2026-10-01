@@ -16,19 +16,25 @@
   local getValidateInEnumSelect = post_helper.getValidateInEnumSelect
   local message_helper = require("web.uimessage_helper")
   local match, format = string.match, string.format
-  local variant_helper = require("variant_helper")
-  local variantHelper = post_helper.getVariant(variant_helper, "ExtenderPage", "extenderConfig")
+  local has_variant, variant_helper = pcall(require, "variant_helper")
+  local variantHelper = nil
+  if has_variant and variant_helper then
+    variantHelper = post_helper.getVariant(variant_helper, "ExtenderPage", "extenderConfig")
+  end
   local backhaulDetails = post_helper.getVariantValue(variantHelper, "backhaulDetails")
   local easyMeshButton = post_helper.getVariantValue(variantHelper, "easyMeshButton")
   local credShow = post_helper.getVariantValue(variantHelper, "credShow")
-  local json = require("dkjson")
+  local has_json, json = pcall(require, "dkjson")
+  if not has_json then
+    has_json, json = pcall(require, "cjson")
+  end
 
   local lp = require("web.lp")
   lp.setpath("/www/snippets/")
 
   local securityModes = {}
-  local APSec_modes = proxy.get("uci.multiap.controller.supported_security_modes") or ""
-  APSec_modes = APSec_modes and APSec_modes[1].value or ""
+  local raw_modes = proxy.get("uci.multiap.controller.supported_security_modes")
+  local APSec_modes = (type(raw_modes) == "table" and raw_modes[1] and raw_modes[1].value) or ""
   APSec_modes:gsub("[^%s]+", function(c)
     if c == "none" then
       securityModes[#securityModes+1] = { c, T("<strong>"..string.untaint(c:gsub("^%l", string.upper)).."</strong>")}
@@ -83,7 +89,7 @@
       ap_details = content_helper.convertResultToObject("uci.wireless.wifi-ap.", ap_details)
       for _, apVal in ipairs(ap_details) do
         if apVal.bandsteer_id == "bs1" then
-          ap = match(pathVal.paramindex, "@([^%.]+)")
+          ap = match(apVal.paramindex, "@([^%.]+)")
           guestAP[#guestAP + 1] = ap
           content[ap] = "rpc.wireless.ap.@"..ap..".admin_state"
         end

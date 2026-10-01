@@ -876,35 +876,66 @@ fi
 
 logecho "TCP/VM tuning applied."
 
-# Add missing DGA4331 rules to DGA4132 config
+# Add EasyMesh rules and card
 if [ -z "$(uci -q get web.easyMeshConfiguration)" ]; then
     uci set web.easyMeshConfiguration=rule
     uci set web.easyMeshConfiguration.target="/modals/easy-mesh-configuration.lp"
     uci add_list web.easyMeshConfiguration.roles="admin"
     uci add_list web.easyMeshConfiguration.roles="engineer"
     uci add_list web.easyMeshConfiguration.roles="ispuser"
-    
+fi
+
+if [ -z "$(uci -q get web.wifiExtender)" ]; then
     uci set web.wifiExtender=rule
     uci set web.wifiExtender.target="/modals/wifi-extender-status.lp"
     uci add_list web.wifiExtender.roles="guest"
     uci add_list web.wifiExtender.roles="admin"
     uci add_list web.wifiExtender.roles="engineer"
     uci add_list web.wifiExtender.roles="ispuser"
-    
-    uci set web.certificateslists=rule
-    uci set web.certificateslists.target="/modals/certificates-list-modal.lp"
-    uci add_list web.certificateslists.roles="admin"
-    uci add_list web.certificateslists.roles="engineer"
-    
-    uci set web.datausagemodal=rule
-    uci set web.datausagemodal.target="/modals/datausage.lp"
-    uci add_list web.datausagemodal.roles="admin"
-    uci add_list web.datausagemodal.roles="engineer"
-    
-    uci set web.datausageajax=rule
-    uci set web.datausageajax.target="/ajax/datausage.lua"
-    uci add_list web.datausageajax.roles="admin"
-    uci add_list web.datausageajax.roles="engineer"
-    
-    uci commit web
 fi
+
+if [ -z "$(uci -q get web.agentlistmodal)" ]; then
+    uci set web.agentlistmodal=rule
+    uci set web.agentlistmodal.target="/modals/agent-list.lp"
+    uci add_list web.agentlistmodal.roles="admin"
+    uci add_list web.agentlistmodal.roles="engineer"
+    uci add_list web.agentlistmodal.roles="ispuser"
+fi
+
+if [ -z "$(uci -q get web.agentlist2gmodal)" ]; then
+    uci set web.agentlist2gmodal=rule
+    uci set web.agentlist2gmodal.target="/modals/agent-list-2g.lp"
+    uci add_list web.agentlist2gmodal.roles="admin"
+    uci add_list web.agentlist2gmodal.roles="engineer"
+    uci add_list web.agentlist2gmodal.roles="ispuser"
+fi
+
+if [ -z "$(uci -q get web.agentlist5gmodal)" ]; then
+    uci set web.agentlist5gmodal=rule
+    uci set web.agentlist5gmodal.target="/modals/agent-list-5g.lp"
+    uci add_list web.agentlist5gmodal.roles="admin"
+    uci add_list web.agentlist5gmodal.roles="engineer"
+    uci add_list web.agentlist5gmodal.roles="ispuser"
+fi
+
+if [ -z "$(uci -q get web.wifidevicesinfomodal)" ]; then
+    uci set web.wifidevicesinfomodal=rule
+    uci set web.wifidevicesinfomodal.target="/modals/wifi-devices-info.lp"
+    uci add_list web.wifidevicesinfomodal.roles="admin"
+    uci add_list web.wifidevicesinfomodal.roles="engineer"
+    uci add_list web.wifidevicesinfomodal.roles="ispuser"
+fi
+
+if [ -z "$(uci -q get web.wifiextender_card)" ]; then
+    uci set web.wifiextender_card=card
+    uci set web.wifiextender_card.card="020_wifiExtender.lp"
+    uci set web.wifiextender_card.modal="easyMeshConfiguration"
+    uci set web.wifiextender_card.hide="0"
+fi
+
+for r in easyMeshConfiguration wifiExtender agentlistmodal agentlist2gmodal agentlist5gmodal wifidevicesinfomodal; do
+    if ! uci -q get web.ruleset_main.rules | grep -q "$r"; then
+        uci add_list web.ruleset_main.rules="$r"
+    fi
+done
+uci commit web

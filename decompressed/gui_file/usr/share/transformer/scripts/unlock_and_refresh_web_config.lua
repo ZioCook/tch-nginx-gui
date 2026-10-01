@@ -72,6 +72,12 @@ local check_rule = {
 	{ name = 'systeminitmodal', target = '/modals/system-init-modal.lp' },
 	{ name = 'systemcronmodal', target = '/modals/system-cron-modal.lp' },
 	{ name = 'cardsmodal', target = '/modals/cards-modal.lp' },
+	{ name = 'easyMeshConfiguration', target = '/modals/easy-mesh-configuration.lp' },
+	{ name = 'wifiExtender', target = '/modals/wifi-extender-status.lp' },
+	{ name = 'agentlistmodal', target = '/modals/agent-list.lp' },
+	{ name = 'agentlist2gmodal', target = '/modals/agent-list-2g.lp' },
+	{ name = 'agentlist5gmodal', target = '/modals/agent-list-5g.lp' },
+	{ name = 'wifidevicesinfomodal', target = '/modals/wifi-devices-info.lp' },
 }
 
 --We add telstra rules anyway as nginx will respond 404 if not found
@@ -160,6 +166,7 @@ local card_check_rule = {
 	{ name = 'natalghelper_card', card = '092_natalghelper.lp', modal = 'natalghelper' },
 	{ name = 'xdsl_card', card = '093_xdsl.lp', modal = 'xdsllowmodal' },
 	{ name = 'speedservice_card', card = '016_speedservice.lp', modal = 'speedservicemodal' },
+	{ name = 'wifiextender_card', card = '020_wifiExtender.lp', modal = 'easyMeshConfiguration' },
 }
 
 --Check every element in table
