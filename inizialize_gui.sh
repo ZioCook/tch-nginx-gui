@@ -77,7 +77,7 @@ for index in "${modular_dir[@]}"; do
 	if [ "$index" = "base" ] || [ "$index" = "gui_file" ] || [ "$index" = "traffic_mon" ]; then
 		echo "Copying file from "$index" to GUI dir"
 		cp -dr decompressed/$index/* total
-	elif [ "$index" = "upgrade-pack-specificDGA4331" ] || [ "$index" = "upgrade-pack-hw18" ] || [ "$index" = "upgrade-pack-hw19" ] || [ -z "$(echo $index | grep upgrade-pack-)" ]; then
+	elif [ -z "$(echo "$index" | grep upgrade-pack-)" ]; then
 		cp compressed/$index.tar.bz2 total/tmp
 		echo "Adding specific file from "$index" to tmp virtual dir"
 	fi
