@@ -103,23 +103,12 @@ local function sendcmd(cmd)
 end
 
 local function upgradeguifile()
-
-        local update_branch = proxy.get("uci.modgui.gui.update_branch")
-        local filename
-        if update_branch and update_branch[1].value ~= "stable" and update_branch[1].value ~= "" then
-                filename = "GUI_"..untaint(update_branch[1].value)..".tar.bz2"
-        else
-                filename = "GUI.tar.bz2"
-        end
-
-        local fwupgrade_location = "/tmp/"
-
         -- flush the web template cache
         lp.flush()
-        local dl = untaint(fwupgrade_location) .. filename
+        local dl = "/tmp/GUI_upload.tar.bz2"
         local rcv_ok, rcv_errno, rcv_errmsg = receive_file(dl, 'name="upgradefile"')
         if rcv_ok then
-                os.execute("ln -sf /tmp/"..filename.." /tmp/GUI.tar.bz2 2>/dev/null; ln -sf /tmp/"..filename.." /tmp/GUI_dev.tar.bz2 2>/dev/null; ln -sf /tmp/"..filename.." /tmp/GUI_preview.tar.bz2 2>/dev/null")
+                os.execute("rm -f /tmp/GUI.tar.bz2 /tmp/GUI_dev.tar.bz2 /tmp/GUI_preview.tar.bz2 2>/dev/null && mv -f /tmp/GUI_upload.tar.bz2 /tmp/GUI.tar.bz2 && ln -sf /tmp/GUI.tar.bz2 /tmp/GUI_dev.tar.bz2 && ln -sf /tmp/GUI.tar.bz2 /tmp/GUI_preview.tar.bz2")
                 ngx.header.content_type = "text/html"
                 ngx.print('{"success":"true"}')
                 ngx.exit(ngx.OK)
