@@ -2203,9 +2203,7 @@ function confirmationDialogue(t, e) {
 		r = r.prop("checked");
 		("radio" !== a || !0 === r) && ("checkbox" !== a || "_TRUE_" === i || !0 === r) && ("checkbox" === a && "_TRUE_" === i && (i = !0 === r ? 1 : 0), a = $(".monitor-" + o + ":not(.monitor-" + i + ")"), i = $(".monitor-" + o + ".monitor-" + i), r = "monitor-hidden-" + o, o = "monitor-show-" + o, a.addClass(r), a.removeClass(o), a.filter(':not(.monitor-default-show[class*="monitor-show-"])').hide(n), i.removeClass(r), i.addClass(o), i.filter('.monitor-default-show,:not([class*="monitor-hidden-"])').show(n))
 	}
-	function l(t, e) {
-		count += 1;
-		var i = $(".modal form").attr("action"),
+	function l(t, e) {`n`t`tvar i = $(".modal form").attr("action"),
 		o = $(e).closest("table"),
 		r = o.attr("id"),
 		s = $(e).closest("tr").index(),
