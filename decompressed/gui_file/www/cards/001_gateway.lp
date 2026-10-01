@@ -18,9 +18,6 @@ local content = {
 
 content_helper.getExactContent(content)
 content.model = model_helper[string.untaint(content.model)] or content.model
-local readfile = content_helper.readfile
-local initial_load = readfile("/proc/loadavg", "string")
-local initial_loadavg = initial_load and initial_load:sub(1, 14) or ""
 local initial_cpu = (content.cpuusage and content.cpuusage ~= "") and (content.cpuusage .. "%") or ""
 
 local modalPath = nil
@@ -42,7 +39,7 @@ ngx.print('\
 	  <p>\
       <i class="fa fa-info" id="Gateway_=LED_Id"></i>\
       <strong id = "Version_Id">');  ngx.print(string.format(T"Version %s (%s)", content.name, content.version)); ngx.print('</strong><br/>');
-	  ngx.print('<span class="subinfos" id="cpu-info-wrap" rel="tooltip" data-placement="top" data-original-title="' .. string.format(T"Load average (1m, 5m, 15m): %s", initial_loadavg) .. '" style="cursor: help;">' ..  T"CPU Usage"..": " ); ngx.print('\
+	  ngx.print('<span class="subinfos">' ..  T"CPU Usage"..": " ); ngx.print('\
 					<strong data-bind="text: cpuusage">'); ngx.print(initial_cpu); ngx.print('</strong></span>\
       <div data-remote="/modals/gateway-modal.lp" data-id="gateway-modal" style="text-align: center;">\
 	    <picture>\
@@ -58,17 +55,6 @@ ngx.print('\
 <script>\
 $(document).ready(function () {\
 	new modgui.createAjaxUpdateCard("gateway-card","/ajax/cpuload.lua","GatewayCardInterval",5000);\
-	$("#cpu-info-wrap").tooltip();\
-	$(document).ajaxSuccess(function(event, xhr, settings) {\
-		if (settings.url && settings.url.indexOf("/ajax/cpuload.lua") !== -1) {\
-			try {\
-				var d = JSON.parse(xhr.responseText);\
-				if (d && d.cpuload) {\
-					$("#cpu-info-wrap").attr("data-original-title", "'); ngx.print(T"Load average (1m, 5m, 15m):"); ngx.print(' " + d.cpuload);\
-				}\
-			} catch(e) {}\
-		}\
-	});\
 })\
 </script>\
 ');
