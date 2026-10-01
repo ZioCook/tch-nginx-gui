@@ -90,7 +90,7 @@ else
   uci set modgui.gui.autoupgradeview=manual
 fi
 
-URL_BASE="https://github.com/Ansuel/tch-nginx-gui/releases/download"
+URL_BASE="https://github.com/ZioCook/tch-nginx-gui/releases/download"
 
 # Check update_branch
 if [ ! "$(uci get -q modgui.gui.update_branch)" ] || [ "$(uci get modgui.gui.update_branch)" = "stable" ]; then

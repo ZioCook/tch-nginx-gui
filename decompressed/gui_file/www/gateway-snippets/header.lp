@@ -222,7 +222,7 @@ ngx.print('\
       alert_style_upper.alert.class = "alert hide"
     end
     alert_style_upper.alert.id = "upgrade-alert"
-    html[#html + 1] = ui_helper.createAlertBlock(format(T'Update available! Version: <strong id="new-version-text"><a target=\"_blank\" href=https://github.com/Ansuel/tch-nginx-gui/releases/tag/%s>%s</a></strong>',cui.new_ver,cui.new_ver),alert_style_upper)
+    html[#html + 1] = ui_helper.createAlertBlock(format(T'Update available! Version: <strong id="new-version-text"><a target=\"_blank\" href=https://github.com/ZioCook/tch-nginx-gui/releases/tag/%s>%s</a></strong>',cui.new_ver,cui.new_ver),alert_style_upper)
 
     local autoupgrade_view = cui.autoupgrade_view
     if not ( autoupgrade_view == "none" ) and not ( autoupgrade_view == "" ) then
