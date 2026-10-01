@@ -38,6 +38,7 @@ if [ "$CI" = "true" ] && [ -f "$HOME/gui_build/data/type" ]; then
 fi
 
 mkdir -p compressed
+rm -f compressed/GUI*.tar.bz2 compressed/GUI*.zip
 
 for index in "${modular_dir[@]}"; do
 	cd decompressed/$index
