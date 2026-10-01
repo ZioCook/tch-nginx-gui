@@ -41,6 +41,46 @@ check_nanocdn() {
   fi
 }
 
+sync_background_services() {
+  # 1. Disable legacy GRE hotspot daemon if present
+  if [ -f /etc/init.d/gre-hotspotd ]; then
+    /etc/init.d/gre-hotspotd stop 2>/dev/null
+    /etc/init.d/gre-hotspotd disable 2>/dev/null
+    rm -f /etc/rc.d/*gre-hotspotd* 2>/dev/null
+  fi
+
+  # 2. Fix wireless debug_monitor bug (avoid accumulating zombie instances)
+  if [ -f /etc/init.d/wireless ]; then
+    sed -i 's/local OLD_PID_DM=.*/killall -q debug_monitor/' /etc/init.d/wireless 2>/dev/null
+    sed -i '/if \[ \$OLD_PID_DM \]; then/,/fi/d' /etc/init.d/wireless 2>/dev/null
+  fi
+
+  # 3. Sync Parental Control daemons (weburl / dnsfilter)
+  if [ "$(uci get -q parental.general.enable)" != "1" ]; then
+    [ -x /etc/init.d/weburl ] && { /etc/init.d/weburl stop 2>/dev/null; /etc/init.d/weburl disable 2>/dev/null; }
+    [ -x /etc/init.d/dnsfilter ] && { /etc/init.d/dnsfilter stop 2>/dev/null; /etc/init.d/dnsfilter disable 2>/dev/null; }
+  fi
+
+  # 4. Sync Mobile daemons (mobiled / lte-doctor-logger)
+  if [ "$(uci get -q mobiled.device_defaults.enabled)" = "0" ] || [ -z "$(uci get -q mobiled.device_defaults.enabled)" ]; then
+    [ -x /etc/init.d/mobiled ] && { /etc/init.d/mobiled stop 2>/dev/null; /etc/init.d/mobiled disable 2>/dev/null; }
+    [ -x /etc/init.d/lte-doctor-logger ] && { /etc/init.d/lte-doctor-logger stop 2>/dev/null; /etc/init.d/lte-doctor-logger disable 2>/dev/null; }
+    uci set mobiled.globals.enabled='0' 2>/dev/null
+    uci set ltedoctor.config.enabled='0' 2>/dev/null
+    uci commit mobiled 2>/dev/null
+    uci commit ltedoctor 2>/dev/null
+  fi
+
+  # 5. Sync opticald with Bridge mode
+  local is_bridge=0
+  [ "$(uci get -q network.config.wan_mode)" = "bridge" ] && is_bridge=1
+  [ "$(uci get -q network.interface.wan.proto)" = "bridge" ] && is_bridge=1
+  [ "$(uci get -q network.interface.wan.proto)" = "none" ] && [ "$(uci get -q network.interface.wan.auto)" = "0" ] && is_bridge=1
+  if [ "$is_bridge" = "1" ]; then
+    [ -x /etc/init.d/opticald ] && { /etc/init.d/opticald stop 2>/dev/null; /etc/init.d/opticald disable 2>/dev/null; }
+  fi
+}
+
 check_variant_friendly_name() {
   #Get variant friendly name and save
   if [ ! "$(uci get -q env.var.variant_friendly_name)" ]; then
@@ -782,6 +822,7 @@ orig_config_gen #this check if new config are already present
 logecho "Unlocking web interface if needed"
 check_webui_config
 check_nanocdn
+sync_background_services
 logecho "Check if variant_friendly_name set"
 check_variant_friendly_name
 logecho "Check Dropbear config file"

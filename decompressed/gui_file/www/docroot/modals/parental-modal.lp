@@ -108,6 +108,20 @@ local qry_valid = {
 
 local qry_data, qry_helpmsg = post_helper.handleQuery(qry_params, qry_valid)
 
+if ngx.req.get_method() == "POST" and not next(qry_helpmsg) then
+    local post_args = ngx.req.get_post_args()
+    if post_args["sites_enabled"] then
+        local enabled = (string.untaint(post_args["sites_enabled"]) == "1")
+        if enabled then
+            os.execute("[ -x /etc/init.d/weburl ] && { /etc/init.d/weburl enable; /etc/init.d/weburl start; }")
+            os.execute("[ -x /etc/init.d/dnsfilter ] && { /etc/init.d/dnsfilter enable; /etc/init.d/dnsfilter start; }")
+        else
+            os.execute("[ -x /etc/init.d/weburl ] && { /etc/init.d/weburl stop; /etc/init.d/weburl disable; }")
+            os.execute("[ -x /etc/init.d/dnsfilter ] && { /etc/init.d/dnsfilter stop; /etc/init.d/dnsfilter disable; }")
+        end
+    end
+end
+
 local uci_parental_path = "uci.parental.URLfilter.@."
 local parental_columns = {
  {

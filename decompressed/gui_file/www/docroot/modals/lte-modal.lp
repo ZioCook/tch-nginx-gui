@@ -39,6 +39,26 @@ local mapValidSwitch = {
 
 local lte_switch, helpmsg = post_helper.handleQuery(mapParamsSwich , mapValidSwitch)
 
+if ngx.req.get_method() == "POST" and not next(helpmsg) then
+	local post_args = ngx.req.get_post_args()
+	if post_args["lte_enabled"] then
+		local enabled = (string.untaint(post_args["lte_enabled"]) == "1")
+		if enabled then
+			proxy.set("uci.mobiled.globals.enabled", "1")
+			proxy.set("uci.ltedoctor.config.enabled", "1")
+			proxy.apply()
+			os.execute("[ -x /etc/init.d/mobiled ] && { /etc/init.d/mobiled enable; /etc/init.d/mobiled start; }")
+			os.execute("[ -x /etc/init.d/lte-doctor-logger ] && { /etc/init.d/lte-doctor-logger enable; /etc/init.d/lte-doctor-logger start; }")
+		else
+			proxy.set("uci.mobiled.globals.enabled", "0")
+			proxy.set("uci.ltedoctor.config.enabled", "0")
+			proxy.apply()
+			os.execute("[ -x /etc/init.d/mobiled ] && { /etc/init.d/mobiled stop; /etc/init.d/mobiled disable; }")
+			os.execute("[ -x /etc/init.d/lte-doctor-logger ] && { /etc/init.d/lte-doctor-logger stop; /etc/init.d/lte-doctor-logger disable; }")
+		end
+	end
+end
+
 local function imei_in_list(imei, devices)
 	for _, device in pairs(devices) do
 		if device.info.imei == imei then

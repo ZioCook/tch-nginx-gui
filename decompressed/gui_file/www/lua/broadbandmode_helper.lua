@@ -72,6 +72,7 @@ tablecontent[#tablecontent + 1] = {
         proxy.set("uci.network.interface.@wan.proto", "none")
         proxy.set("uci.network.interface.@wan.auto", "0")
         proxy.set("uci.wansensing.global.enable", "0")
+        os.execute("[ -x /etc/init.d/opticald ] && { /etc/init.d/opticald stop; /etc/init.d/opticald disable; }")
         os.execute("/usr/share/transformer/scripts/apply_service_modes.sh &")
     end,
 }
@@ -289,6 +290,7 @@ if sfp == 1 then
             end
             proxy.set("uci.ethernet.globals.eth4lanwanmode", "1")
             proxy.set("uci.wansensing.global.l2type", "SFP")
+            os.execute("[ -x /etc/init.d/opticald ] && { /etc/init.d/opticald enable; /etc/init.d/opticald start; }")
             os.execute("/usr/share/transformer/scripts/apply_service_modes.sh &")
         end,
     }
