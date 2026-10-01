@@ -43,30 +43,31 @@ local modal_link = ""
 local session = ngx.ctx.session
 if session:hasAccess("/modals/easy-mesh-configuration.lp") then
   modalPath = "/modals/easy-mesh-configuration.lp"
-  modal_link='class="modal-link" data-toggle="modal" data-remote="modals/easy-mesh-configuration.lp" data-id="device-modal"'
+  modal_link='class="modal-link" data-toggle="modal" data-remote="/modals/easy-mesh-configuration.lp" data-id="easy-mesh-configuration"'
 elseif not session:isdefaultuser() then
   return
 end
   ngx.print('\
 \
 <div class="span3">\
-  <div class="smallcard">\
+  <div class="smallcard" data-aos="zoom-in" data-aos-anchor-placement="center-bottom" data-aos-easing="ease-in-back">\
     ');  ngx.print( ui_helper.createCardHeader(T"EasyMesh", modalPath, switchName, nil) ); ngx.print('\
     <div class="content card_bg" data-bg-text="&#xf542;">\
-      <div id=\'easy_mesh\'>\
-        <div class="');  ngx.print(statusLed); ngx.print('">\
-        </div>\
-        <p class="easy_mesh">EasyMesh ');  ngx.print(easyMeshState and easyMeshState or ""); ngx.print('<p>\
-        ');  if getState then
-          ngx.print(
-          '<p class="subinfos">',
-          format( N('<strong id="Ext_Count" %1$s>%2$d Extender</strong> connected',
-                    '<strong id="Ext_Count" %1$s>%2$d Extenders</strong> connected', nExt),
-                    modal_link, nExt),
-          '</p>'
-          )
-           end
+      <div class="divtable" style="position: relative; z-index: 20;">\
+        <div id="easy_mesh">\
+          ');
+          ngx.print(ui_helper.createSimpleLight(getState and "1" or "0", format("EasyMesh %s", easyMeshState)))
+          if getState then
+            ngx.print(
+              '<p class="subinfos">',
+              format( N('<strong id="Ext_Count" %1$s>%2$d Extender</strong> connected',
+                        '<strong id="Ext_Count" %1$s>%2$d Extenders</strong> connected', nExt),
+                        modal_link, nExt),
+              '</p>'
+            )
+          end
           ngx.print('\
+        </div>\
       </div>\
     </div>\
   </div>\

@@ -25,6 +25,12 @@ local function reload_config()
     rules[s['.name']] = s
   end)
 
+  if not rules["easyMeshConfiguration"] then
+    rules["easyMeshConfiguration"] = {
+      target = "/modals/easy-mesh-configuration.lp"
+    }
+  end
+
   cursor:foreach('web', 'card', function(card)
     local rule = rules[card.modal]
     if rule and not card['.anonymous'] then
@@ -42,6 +48,22 @@ local function reload_config()
       modal_to_card[target] = orig_card
     end
   end)
+
+  if not card_to_modal["020_wifiExtender.lp"] and not card_to_modal["wifiExtender.lp"] then
+    local target = "/modals/easy-mesh-configuration.lp"
+    local orig_card = "020_wifiExtender.lp"
+    local clean_card = "wifiExtender.lp"
+    if not config[clean_card] then
+      config[clean_card] = {
+        card = clean_card,
+        modal = target,
+        hide = false
+      }
+    end
+    card_to_modal[orig_card] = target
+    card_to_modal[clean_card] = target
+    modal_to_card[target] = orig_card
+  end
   cursor:unload('web')
 end
 

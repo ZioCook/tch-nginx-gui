@@ -39,11 +39,13 @@ if ngx.req.get_method() == "POST" and ngx.req.get_post_args().action == "removeM
 end
 
 local mac2g, agent_devices_columns, agent_devices_options, devices_filter
-local radio2G =
-  content_helper.convertResultToObject(
-  "rpc.multiap.device.@" .. getiface .. ".radio.",
-  proxy.get("rpc.multiap.device.@" .. getiface .. ".radio.")
-)
+local radio2G = nil
+if getiface and getiface ~= "" then
+  radio2G = content_helper.convertResultToObject(
+    "rpc.multiap.device.@" .. getiface .. ".radio.",
+    proxy.get("rpc.multiap.device.@" .. getiface .. ".radio.")
+  )
+end
 
 if radio2G then
   for k, l in pairs(radio2G) do

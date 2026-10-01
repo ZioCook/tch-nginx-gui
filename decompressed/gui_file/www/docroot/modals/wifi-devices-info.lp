@@ -14,8 +14,11 @@ local ngx = ngx
 local table, string = table, string
 local tonumber, tostring = tonumber, tostring
 local format, match = string.format, string.match
-local variant_helper = require("variant_helper")
-local variantHelper = post_helper.getVariant(variant_helper, "ExtenderPage", "extenderDeviceList")
+local has_variant, variant_helper = pcall(require, "variant_helper")
+local variantHelper = nil
+if has_variant and variant_helper then
+  variantHelper = post_helper.getVariant(variant_helper, "ExtenderPage", "extenderDeviceList")
+end
 
 local content = {
     hostname = "uci.system.system.@system[0].hostname",

@@ -23,10 +23,36 @@
   end
   local backhaulDetails = post_helper.getVariantValue(variantHelper, "backhaulDetails")
   local easyMeshButton = post_helper.getVariantValue(variantHelper, "easyMeshButton")
-  local credShow = post_helper.getVariantValue(variantHelper, "credShow")
-  local has_json, json = pcall(require, "dkjson")
-  if not has_json then
-    has_json, json = pcall(require, "cjson")
+  local json = nil
+  local ok, mod = pcall(require, "dkjson")
+  if ok and type(mod) == "table" then
+    json = mod
+  else
+    ok, mod = pcall(require, "cjson")
+    if ok and type(mod) == "table" then
+      json = mod
+    end
+  end
+
+  local function safe_json_encode(data)
+    if json and type(json.encode) == "function" then
+      return json.encode(data)
+    end
+    if type(data) ~= "table" then
+      return tostring(data)
+    end
+    local parts = {}
+    if #data > 0 then
+      for _, v in ipairs(data) do
+        parts[#parts + 1] = string.format("%q", tostring(v))
+      end
+      return "[" .. table.concat(parts, ",") .. "]"
+    else
+      for k, v in pairs(data) do
+        parts[#parts + 1] = string.format("%q:%q", tostring(k), tostring(v))
+      end
+      return "{" .. table.concat(parts, ",") .. "}"
+    end
   end
 
   local lp = require("web.lp")
@@ -42,6 +68,12 @@
       securityModes[#securityModes+1] = { c, T("<strong>"..string.untaint(string.upper(c)).."</strong>")}
     end
   end)
+  if #securityModes == 0 then
+    securityModes = {
+      { "none", T"<strong>None</strong>" },
+      { "wpa2-psk", T"<strong>WPA2-PSK</strong>" }
+    }
+  end
 
   local backhaulState = ""
   if backhaulDetails then
@@ -304,6 +336,15 @@
               id = "wifiGuestbandsteerEnable"
           },
       }
+      local wificonductor_enable_class = {
+        group = {
+          class = "hide"
+        },
+        input = {
+              class= "span4",
+              id = "wificonductorEnable"
+          },
+      }
       if easyMeshButton then
         if mapParams.wifibandsteerEnable then
           html[#html+1] = ui_helper.createInputText(T"", "wifibandsteerEnable", params.wifibandsteerEnable, wifibandsteer_enable_class)
@@ -334,8 +375,8 @@
   var devicesList = "');  ngx.print(T'WiFi Devices'); ngx.print('";\
   var disableTitle = "');  ngx.print(T'Disable EasyMesh'); ngx.print('";\
   var enableTitle = "');  ngx.print(T'Enable EasyMesh'); ngx.print('";\
-  var content = ');  ngx.print(json.encode(content) ); ngx.print(';\
-  var guestAP = ');  ngx.print(json.encode(guestAP) ); ngx.print(';\
+  var content = ');  ngx.print(safe_json_encode(content) ); ngx.print(';\
+  var guestAP = ');  ngx.print(safe_json_encode(guestAP) ); ngx.print(';\
   var isGuest = ');  ngx.print(isGuest); ngx.print(';\
   var bandsteerDisabled = ');  ngx.print(post_helper.isFeatureEnabled("bandsteerDisabled" , role)); ngx.print(';\
 </script>\

@@ -10,15 +10,21 @@ local ui_helper = require("web.ui_helper")
 local message_helper = require("web.uimessage_helper")
 local post_helper = require("web.post_helper")
 local lp = require("web.lp")
-local variant_helper = require("variant_helper")
-local variantHelper = post_helper.getVariant(variant_helper, "ExtenderPage", "extendertopology")
+local has_variant, variant_helper = pcall(require, "variant_helper")
+local variantHelper = nil
+if has_variant and variant_helper then
+  variantHelper = post_helper.getVariant(variant_helper, "ExtenderPage", "extendertopology")
+end
 local navigationLink = post_helper.getVariantValue(variantHelper, "navigationLink")
 local extenderName = post_helper.getVariantValue(variantHelper, "extenderName")
 
+local sys_hostname = proxy.get("uci.system.system.@system[0].hostname")
+local mac_addr = proxy.get("uci.multiap.controller.macaddress")
+
 local devices = {
     type = "gateway",
-    name = untaint(proxy.get("uci.system.system.@system[0].hostname")[1].value),
-    controllerMac = untaint(proxy.get("uci.multiap.controller.macaddress")[1].value),
+    name = (sys_hostname and sys_hostname[1] and untaint(sys_hostname[1].value)) or "Gateway",
+    controllerMac = (mac_addr and mac_addr[1] and untaint(mac_addr[1].value)) or "",
     -- bssid2g = string.upper(untaint(proxy.get("sys.class.net.@wl0.address")[1].value)),
     -- bssid5g = string.upper(untaint(proxy.get("sys.class.net.@wl1.address")[1].value)),
     hostNumber = 0,
