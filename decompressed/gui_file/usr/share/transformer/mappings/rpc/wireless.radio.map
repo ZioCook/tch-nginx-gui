@@ -308,16 +308,14 @@ local set = function(mapping, param, value, key)
     if param == "standard" then
         local radioData = network.getRadioInfo(key)
         local standard = radioData and tostring(radioData.supported_standards or "") or ""
+        local modevalue = "none"
         if staModeMap[value] and (standard == "bgnax" or standard == "anacax") then
-            wirelessBinding.sectionname = key
-            wirelessBinding.option = "sta_minimum_mode"
-            uci_helper.set_on_uci(wirelessBinding, staModeMap[value], commitapply)
-            if value ~= "nac" then
-                value = standard
-            else
-                value = "anac"
-            end
+            modevalue = staModeMap[value]
+            value = value ~= "nac" and standard or "anac"
         end
+        wirelessBinding.sectionname = key
+        wirelessBinding.option = "sta_minimum_mode"
+        uci_helper.set_on_uci(wirelessBinding, modevalue, commitapply)
     end
     wirelessBinding.sectionname = key
     wirelessBinding.option = namemap[param] or param

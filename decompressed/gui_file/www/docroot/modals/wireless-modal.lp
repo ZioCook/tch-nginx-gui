@@ -59,9 +59,11 @@ local vQTN = post_helper.validateQTN
 
 -- Take the input options for a listbox, the value and return the associated text
 local listboxToText = function(options, value)
-    for i,v in ipairs(options) do
-        if v[1] == value then
-           return v[2]
+    if type(options) == "table" then
+        for i,v in ipairs(options) do
+            if v[1] == value then
+               return v[2]
+            end
         end
     end
     return value
@@ -181,6 +183,9 @@ for i,v in ipairs(wl_list) do
         curap = match(v.path, "rpc%.wireless%.ap%.@([^%.]+)%.")
         isguest = ap_iso and ap_iso[1] and ap_iso[1].value or "0"
         cur_ssid = ssid_val
+        if radio_val ~= "" and not getradio then
+            curradio = radio_val
+        end
     end
  end
 end
@@ -239,7 +244,8 @@ end
 
 if ngx.req.get_method() == "GET" and ngx.req.get_uri_args().action == "get_reg_status"  then
     local acl_ap = ngx.req.get_uri_args().curap
-    local reg_status = proxy.get("rpc.wireless.ap.@"..acl_ap..".acl.state")[1].value
+    local reg_data = proxy.get("rpc.wireless.ap.@"..acl_ap..".acl.state")
+    local reg_status = reg_data and reg_data[1] and reg_data[1].value or "0"
     ngx.print(reg_status)
     ngx.exit(ngx.HTTP_OK)
 end
@@ -387,11 +393,9 @@ if supported_standards:match("ax") or supported_standards == "bgnax" then
 end
 if supported_standards:match("ax") or supported_standards == "anacax" then
   wifi_standard_5GHz[#wifi_standard_5GHz + 1] = { "anacax", T'802.11a/n/ac/ax'}
+  wifi_standard_5GHz[#wifi_standard_5GHz + 1] = { "nacax", T'802.11n/ac/ax'}
+  wifi_standard_5GHz[#wifi_standard_5GHz + 1] = { "nac", T'802.11n/ac'}
 end
-
-local wifiStandard = {
-  standard = "uci.wireless.wifi-device.@radio_5G.standard"
-}
 
 local wifi_standard={}
 if radioData[curradio].supported_frequency_bands == "5GHz" then
@@ -435,10 +439,15 @@ local cw = {
   ["n"] = "channelwidth40",
   ["bgn"] = "channelwidth40",
   ["bgnax"] = "channelwidth40",
+  ["gnax"] = "channelwidth40",
+  ["nax"] = "channelwidth40",
   ["an"] = "channelwidth40",
   ["ac"] = "channelwidth80",
   ["anac"] = "channelwidth80",
+  ["nac"] = "channelwidth80",
   ["anacax"] = "channelwidth160",
+  ["nacax"] = "channelwidth160",
+  ["acax"] = "channelwidth160",
 }
 
 local cwmaps = {
@@ -454,7 +463,7 @@ local cddList = {
   {"off", T"Off"}
 }
 
-local channelwidth = cwmaps[cw[untaint(radioData[curradio].supported_standards)]]
+local channelwidth = cwmaps[cw[untaint(radioData[curradio].supported_standards)]] or (radioData[curradio].supported_frequency_bands == "5GHz" and cw_160 or cw_40)
 
 local supported_modes_data  = proxy.get("rpc.wireless.ap.@" .. curap .. ".security.supported_modes")
 local supported_modes = format("%s", supported_modes_data and supported_modes_data[1] and supported_modes_data[1].value or "")
@@ -475,6 +484,15 @@ supported_modes:gsub("[^%s]+", function(c)
         secmodes[#secmodes+1] = { c, T(string.upper(c)) }
     end
 end)
+if #secmodes == 0 then
+    secmodes = {
+        { "wpa2-wpa3-psk", secmodes_matched["wpa2-wpa3-psk"] },
+        { "wpa3-psk", secmodes_matched["wpa3-psk"] },
+        { "wpa2-psk", secmodes_matched["wpa2-psk"] },
+        { "wpa-wpa2-psk", secmodes_matched["wpa-wpa2-psk"] },
+        { "none", secmodes_matched["none"] },
+    }
+end
 -- remove radius modes if in guest ap page
 if isguest == "1" then
     local num = #secmodes
@@ -577,7 +595,8 @@ for i,v in ipairs(aap) do
 end
 
 -- If this AP connects to STB, "engineer" role has full access, other roles only have simple stats
-if proxy.get(pathiface .. "stb")[1].value == "1" then
+local stb_data = proxy.get(pathiface .. "stb")
+if stb_data and stb_data[1] and stb_data[1].value == "1" then
     if ngx.ctx.session:getrole() ~= "engineer" then
         stbLimit = true
     end
@@ -593,7 +612,8 @@ local function getValidateBandSteerPeerFields(value, object, key)
     end
     if session:retrieve("bs_check_action") == "TRUE" then
         session:store("bs_check_action", "")
-        bandsteer_enabled = proxy.get("uci.wireless.wifi-ap.@ap0.bandsteer_id")[1].value
+        local bs_data = proxy.get("uci.wireless.wifi-ap.@ap0.bandsteer_id")
+        bandsteer_enabled = bs_data and bs_data[1] and bs_data[1].value or "off"
     else
         bandsteer_enabled = object.band_steer_enabled
     end
@@ -611,6 +631,13 @@ local function getValidateBandSteerPeerFields(value, object, key)
                     object.bspeer_security_mode = object.security
                     object.bspeer_wpa_psk_key = object.wpa_psk
                     object.bspifacessid = object.ssid
+                    if object.security == "wpa3-psk" then
+                        object.bspeer_pmf = "required"
+                    elseif object.security == "wpa2-wpa3-psk" then
+                        object.bspeer_pmf = "optional"
+                    elseif object.security == "none" then
+                        object.bspeer_pmf = "disabled"
+                    end
                 end
             end
             return true
@@ -633,6 +660,13 @@ local function getValidateBandSteerPeerFields(value, object, key)
                         object.bspeer_security_mode = object.security
                         object.bspeer_wpa_psk_key = object.wpa_psk
                         object.bspifacessid = object.ssid
+                        if object.security == "wpa3-psk" then
+                            object.bspeer_pmf = "required"
+                        elseif object.security == "wpa2-wpa3-psk" then
+                            object.bspeer_pmf = "optional"
+                        elseif object.security == "none" then
+                            object.bspeer_pmf = "disabled"
+                        end
                     end
                 end
             end
@@ -785,7 +819,9 @@ local function getParamsAndValidation()
         local bandsteerAddParams = {
           bspifacessid = piface .. "@" .. bandsteeriface .. ".ssid",
           bspeer_security_mode = pap .. "@" .. bspeerap .. ".security_mode",
-          bspeer_wpa_psk_key = pap .. "@" .. bspeerap .. ".wpa_psk_key", }
+          bspeer_wpa_psk_key = pap .. "@" .. bspeerap .. ".wpa_psk_key",
+          bspeer_pmf = pap .. "@" .. bspeerap .. ".pmf",
+        }
         for k,v in pairs(bandsteerAddParams) do
           bandsteerParams[k] = v
         end
@@ -947,18 +983,22 @@ end
          pathap .. "wps.ap_pin",
          pathap .. "wps.ap_setup_locked"
   }
-  local step = 2
-  for i=0, 60, step do
-     ngx.sleep(step)
-     local content_val = proxy.get(unpack(content_ssid))
-     if (content_val and #content_val > 0) then
-        content["macaddress"] = content_val[1].value
-        content["stb"] = content_val[2].value
-        content["ap_display_name"] = content_val[3].value
-        content["wps_ap_pin_code"] = content_val[4].value
-        content["wps_ap_setup_locked"] = content_val[5].value
+  local content_val = proxy.get(unpack(content_ssid))
+  if not (content_val and #content_val > 0) then
+    for i=1, 15 do
+      ngx.sleep(1)
+      content_val = proxy.get(unpack(content_ssid))
+      if (content_val and #content_val > 0) then
         break
-     end
+      end
+    end
+  end
+  if (content_val and #content_val > 0) then
+    content["macaddress"] = content_val[1] and content_val[1].value or ""
+    content["stb"] = content_val[2] and content_val[2].value or "0"
+    content["ap_display_name"] = content_val[3] and content_val[3].value or ""
+    content["wps_ap_pin_code"] = content_val[4] and content_val[4].value or ""
+    content["wps_ap_setup_locked"] = content_val[5] and content_val[5].value or "0"
   end
 
 param = {
@@ -972,7 +1012,7 @@ for i in string.gmatch(param["allowed_channels"], "%S+") do
 end
 
 local radion_data=proxy.get(pathradio)
-for _, v in pairs(radion_data) do
+for _, v in pairs(radion_data or {}) do
     if not content[v.param] then
         content[v.param]=v.value
     end
@@ -1062,7 +1102,7 @@ if #wls > 0 then
     end
     -- If wifi analyzer enabled, draw it
     local wifi_analyzer_disable = proxy.get("uci.wireless.wifi.@global.wifi_analyzer_disable")
-    if wifi_analyzer_disable and wifi_analyzer_disable[1].value ~= "1" then
+    if wifi_analyzer_disable and wifi_analyzer_disable[1] and wifi_analyzer_disable[1].value ~= "1" then
       html[#html+1] = string.format('<li class="nav-header">%s</li>', T"Wireless Data")
       local freq = "2.4"
       local isDuplicate = {}
@@ -1241,7 +1281,7 @@ end
 
             local cw40attributes  = {
                 group = {
-                    class ="hide monitor-standard monitor-bgn monitor-n monitor-an monitor-bgnax",
+                    class ="hide monitor-standard monitor-bgn monitor-n monitor-an monitor-bgnax monitor-gnax monitor-nax",
                 },
 
             }
@@ -1250,7 +1290,7 @@ end
 
             local cw80attributes  = {
                 group = {
-                    class ="hide monitor-standard monitor-anac monitor-ac",
+                    class ="hide monitor-standard monitor-anac monitor-ac monitor-nac",
                 },
             }
 
@@ -1258,7 +1298,7 @@ end
 
             local cw160attributes = {
                 group = {
-                    class ="hide monitor-standard monitor-anacax",
+                    class ="hide monitor-standard monitor-anacax monitor-nacax monitor-acax",
                 },
             }
 

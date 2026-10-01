@@ -14,6 +14,7 @@ local wireless_wifidevice = {
               "acs_trace_level", "acs_rescan_period", "acs_rescan_delay_policy", "acs_allowed_channels", "frame_bursting",
               "stbc", "cdd", "tx_power_adjust", "tx_power_overrule_reg", "wifi_button_enable", "encryptiontype",
               "allowed_channels", "sta_minimum_mode", "txbf", "mumimo", "ldpc", "advanced_qam",
+              "amsdu", "rx_amsdu_in_ampdu", "mcs", "fragmentation_threshold",
  }
 }
 
@@ -45,7 +46,7 @@ local wireless_wifiap = {
               "wps_state", "wsc_state", "wps_ap_setup_locked",
               "acl_mode", "acl_registration_time", "trace_modules", "trace_level", "wps_w7pbc", "bandsteer_id",
               "pmksa_cache", "max_assoc", "eap_reauth_period", "reauth_period_pmksa_lifetime_linked", "nas_wan_intf", "group_id",
-              "wep_key", "wpa_psk_key", "wps_ap_pin" },
+              "wep_key", "wpa_psk_key", "key", "pmf", "wps_ap_pin" },
   lists = { "acl_accept_list", "acl_deny_list", }
 }
 

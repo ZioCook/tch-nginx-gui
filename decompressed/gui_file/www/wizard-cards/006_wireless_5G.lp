@@ -22,12 +22,24 @@ local secmodes_matched = {
   ["none"] = T"None",
   ["wpa2-psk"] = T"WPA2-PSK",
   ["wpa-wpa2-psk"] =  T"WPA+WPA2 PSK",
+  ["wpa3-psk"] = T"WPA3 Personal (SAE)",
+  ["wpa2-wpa3-psk"] = T"WPA2/WPA3 Mixed PSK/SAE",
 }
 
 for mode in supported_modes:gmatch("[^%s]+") do
   if secmodes_matched[mode] then
     secmodes[#secmodes+1] = { mode, secmodes_matched[mode] }
   end
+end
+
+if #secmodes == 0 then
+  secmodes = {
+    { "wpa2-wpa3-psk", secmodes_matched["wpa2-wpa3-psk"] },
+    { "wpa3-psk", secmodes_matched["wpa3-psk"] },
+    { "wpa2-psk", secmodes_matched["wpa2-psk"] },
+    { "wpa-wpa2-psk", secmodes_matched["wpa-wpa2-psk"] },
+    { "none", secmodes_matched["none"] },
+  }
 end
 
 local mapParams = {
@@ -37,7 +49,7 @@ local mapParams = {
 
 local mapValid = {
   security_5G = gVIES(secmodes),
-  wpa_psk_5G = gVIPIL(vPSK,"security", {"wpa-psk", "wpa2-psk", "wpa-wpa2-psk"}),
+  wpa_psk_5G = gVIPIL(vPSK,"security_5G", {"wpa-psk", "wpa2-psk", "wpa-wpa2-psk", "wpa3-psk", "wpa2-wpa3-psk"}),
 }
 
 local content, helpmsg = wizard_helper.handleQuery(mapParams, mapValid)
@@ -77,7 +89,7 @@ ngx.print('\
     <fieldset>\
       ')
         local html = {}
-        html[#html+1] = ui_helper.createLabel(T"Security Key Type: ", secmodes_matched[format("%s",content["security_5G"])])
+        html[#html+1] = ui_helper.createLabel(T"Security Key Type: ", secmodes_matched[format("%s",content["security_5G"])] or content["security_5G"])
         html[#html+1] = ui_helper.createLabel(T"Security Key: ", content["wpa_psk_5G"])
         ngx.print(html)
       ngx.print('\
