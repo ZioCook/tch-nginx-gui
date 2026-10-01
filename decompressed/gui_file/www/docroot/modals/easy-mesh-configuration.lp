@@ -23,6 +23,21 @@
   end
   local backhaulDetails = post_helper.getVariantValue(variantHelper, "backhaulDetails")
   local easyMeshButton = post_helper.getVariantValue(variantHelper, "easyMeshButton")
+  if easyMeshButton == nil then
+    easyMeshButton = true
+  end
+  local credShow = post_helper.getVariantValue(variantHelper, "credShow")
+  if credShow == nil then
+    credShow = true
+  end
+  local fronthaulString = post_helper.getVariantValue(variantHelper, "fronthaulString")
+  if fronthaulString == nil then
+    fronthaulString = true
+  end
+  local extenderInfo = post_helper.getVariantValue(variantHelper, "extenderInfo")
+  if extenderInfo == nil then
+    extenderInfo = true
+  end
   local json = nil
   local ok, mod = pcall(require, "dkjson")
   if ok and type(mod) == "table" then
@@ -143,53 +158,71 @@
     for _, data in pairs(getCredentials) do
       if data.fronthaul == "1" then
         if credShow then
-          credParamIndex = "@cred0"
+          if data.paramindex == "@cred0" or not credParamIndex then
+            credParamIndex = data.paramindex
+            mapParams["state" .. credParamIndex] = "uci.multiap.controller_credentials." .. credParamIndex .. ".state"
+            mapParams["ssid" .. credParamIndex] = "uci.multiap.controller_credentials." .. credParamIndex .. ".ssid"
+            mapParams["securityMode" .. credParamIndex] = "uci.multiap.controller_credentials." .. credParamIndex .. ".security_mode"
+            mapParams["password" .. credParamIndex] = "uci.multiap.controller_credentials." .. credParamIndex .. ".wpa_psk_key"
+            mapParams["frequency" .. credParamIndex] = "uci.multiap.controller_credentials." .. credParamIndex .. ".frequency_bands"
+            mapParams["fronthaul" .. credParamIndex] = "uci.multiap.controller_credentials." .. credParamIndex .. ".fronthaul"
+            mapParams["backhaul" .. credParamIndex] = "uci.multiap.controller_credentials." .. credParamIndex .. ".backhaul"
+
+            mapValid["state" .. credParamIndex] = validateBoolean
+            mapValid["ssid" .. credParamIndex] = getAndValidation(getValidateStringLengthInRange(1,32),getValidateExtraSpaces)
+            mapValid["securityMode" .. credParamIndex] = getValidateInEnumSelect(securityModes)
+            mapValid["password" .. credParamIndex] = getValidationIfPropInList(validatePSK, "securityMode".. credParamIndex, {"wpa2-psk", "wpa-wpa2-psk", "wpa3-psk", "wpa2-wpa3-psk"})
+            mapValid["frequency" .. credParamIndex] = getValidateInEnumSelect(preferredInterface)
+            mapValid["fronthaul" .. credParamIndex] = validateBoolean
+            mapValid["backhaul" .. credParamIndex] = validateBoolean
+            break
+          end
         else
           credParamIndex = data.paramindex
-        end
-        mapParams["state" .. credParamIndex] = "uci.multiap.controller_credentials." .. credParamIndex .. ".state"
-        mapParams["ssid" .. credParamIndex] = "uci.multiap.controller_credentials." .. credParamIndex .. ".ssid"
-        mapParams["securityMode" .. credParamIndex] = "uci.multiap.controller_credentials." .. credParamIndex .. ".security_mode"
-        mapParams["password" .. credParamIndex] = "uci.multiap.controller_credentials." .. credParamIndex .. ".wpa_psk_key"
-        mapParams["frequency" .. credParamIndex] = "uci.multiap.controller_credentials." .. credParamIndex .. ".frequency_bands"
-        mapParams["fronthaul" .. credParamIndex] = "uci.multiap.controller_credentials." .. credParamIndex .. ".fronthaul"
-        mapParams["backhaul" .. credParamIndex] = "uci.multiap.controller_credentials." .. credParamIndex .. ".backhaul"
+          mapParams["state" .. credParamIndex] = "uci.multiap.controller_credentials." .. credParamIndex .. ".state"
+          mapParams["ssid" .. credParamIndex] = "uci.multiap.controller_credentials." .. credParamIndex .. ".ssid"
+          mapParams["securityMode" .. credParamIndex] = "uci.multiap.controller_credentials." .. credParamIndex .. ".security_mode"
+          mapParams["password" .. credParamIndex] = "uci.multiap.controller_credentials." .. credParamIndex .. ".wpa_psk_key"
+          mapParams["frequency" .. credParamIndex] = "uci.multiap.controller_credentials." .. credParamIndex .. ".frequency_bands"
+          mapParams["fronthaul" .. credParamIndex] = "uci.multiap.controller_credentials." .. credParamIndex .. ".fronthaul"
+          mapParams["backhaul" .. credParamIndex] = "uci.multiap.controller_credentials." .. credParamIndex .. ".backhaul"
 
-        mapValid["state" .. credParamIndex] = validateBoolean
-        mapValid["ssid" .. credParamIndex] = getAndValidation(getValidateStringLengthInRange(1,32),getValidateExtraSpaces)
-        mapValid["securityMode" .. credParamIndex] = getValidateInEnumSelect(securityModes)
-        mapValid["password" .. credParamIndex] = getValidationIfPropInList(validatePSK, "securityMode"..  credParamIndex, {"wpa2-psk", "wpa-wpa2-psk", "wpa3-psk", "wpa2-wpa3-psk"})
-        mapValid["frequency" .. credParamIndex] = getValidateInEnumSelect(preferredInterface)
-        mapValid["fronthaul" .. credParamIndex] = validateBoolean
-        mapValid["backhaul" .. credParamIndex] = validateBoolean
-
-        local cond = proxy.get("uci.wifi_conductor.global.multiap_enabled")
-        if cond and #cond > 0 and cond[1].value then
-          mapParams.wificonductorEnable = "uci.wifi_conductor.global.multiap_enabled"
-          mapValid.wificonductorEnable = validateBoolean
-        end
-        local bs0 = proxy.get("uci.wireless.wifi-bandsteer.bs0.state")
-        local bs0_path = "uci.wireless.wifi-bandsteer.bs0.state"
-        if not (bs0 and #bs0 > 0 and bs0[1].value) then
-          bs0 = proxy.get("uci.wireless.wifi-bandsteer.@bs0.state")
-          bs0_path = "uci.wireless.wifi-bandsteer.@bs0.state"
-        end
-        if bs0 and #bs0 > 0 and bs0[1].value then
-          mapParams.wifibandsteerEnable = bs0_path
-          mapValid.wifibandsteerEnable = validateBoolean
-        end
-        local bs1 = proxy.get("uci.wireless.wifi-bandsteer.bs1.state")
-        local bs1_path = "uci.wireless.wifi-bandsteer.bs1.state"
-        if not (bs1 and #bs1 > 0 and bs1[1].value) then
-          bs1 = proxy.get("uci.wireless.wifi-bandsteer.@bs1.state")
-          bs1_path = "uci.wireless.wifi-bandsteer.@bs1.state"
-        end
-        if bs1 and #bs1 > 0 and bs1[1].value then
-          isGuest = true
-          mapParams.wifiGuestbandsteerEnable = bs1_path
-          mapValid.wifiGuestbandsteerEnable = validateBoolean
+          mapValid["state" .. credParamIndex] = validateBoolean
+          mapValid["ssid" .. credParamIndex] = getAndValidation(getValidateStringLengthInRange(1,32),getValidateExtraSpaces)
+          mapValid["securityMode" .. credParamIndex] = getValidateInEnumSelect(securityModes)
+          mapValid["password" .. credParamIndex] = getValidationIfPropInList(validatePSK, "securityMode".. credParamIndex, {"wpa2-psk", "wpa-wpa2-psk", "wpa3-psk", "wpa2-wpa3-psk"})
+          mapValid["frequency" .. credParamIndex] = getValidateInEnumSelect(preferredInterface)
+          mapValid["fronthaul" .. credParamIndex] = validateBoolean
+          mapValid["backhaul" .. credParamIndex] = validateBoolean
         end
       end
+    end
+
+    local cond = proxy.get("uci.wifi_conductor.global.multiap_enabled")
+    if cond and #cond > 0 and cond[1].value then
+      mapParams.wificonductorEnable = "uci.wifi_conductor.global.multiap_enabled"
+      mapValid.wificonductorEnable = validateBoolean
+    end
+    local bs0 = proxy.get("uci.wireless.wifi-bandsteer.bs0.state")
+    local bs0_path = "uci.wireless.wifi-bandsteer.bs0.state"
+    if not (bs0 and #bs0 > 0 and bs0[1].value) then
+      bs0 = proxy.get("uci.wireless.wifi-bandsteer.@bs0.state")
+      bs0_path = "uci.wireless.wifi-bandsteer.@bs0.state"
+    end
+    if bs0 and #bs0 > 0 and bs0[1].value then
+      mapParams.wifibandsteerEnable = bs0_path
+      mapValid.wifibandsteerEnable = validateBoolean
+    end
+    local bs1 = proxy.get("uci.wireless.wifi-bandsteer.bs1.state")
+    local bs1_path = "uci.wireless.wifi-bandsteer.bs1.state"
+    if not (bs1 and #bs1 > 0 and bs1[1].value) then
+      bs1 = proxy.get("uci.wireless.wifi-bandsteer.@bs1.state")
+      bs1_path = "uci.wireless.wifi-bandsteer.@bs1.state"
+    end
+    if bs1 and #bs1 > 0 and bs1[1].value then
+      isGuest = true
+      mapParams.wifiGuestbandsteerEnable = bs1_path
+      mapValid.wifiGuestbandsteerEnable = validateBoolean
     end
   else
     for _, data in pairs(getCredentials) do
@@ -215,18 +248,28 @@
 
   local params, helpmsg = post_helper.handleQuery(mapParams, mapValid)
 
-  ngx.print(ui_helper.createHeader(T"EasyMesh", false, true))  ngx.print('\
-\
-<form class = "modal-body form-horizontal" method = "post" action = "modals/easy-mesh-configuration.lp">\
+  ngx.print(ui_helper.createHeader(T"EasyMesh", false, true))
+  ngx.print('\
+<div class="modal-body update">\
+')
+  lp.include("tabs-easyMesh.lp")
+  ngx.print('\
+<form class="form-horizontal" method="post" action="modals/easy-mesh-configuration.lp">\
   <div class="alert alert-info" style="margin-bottom: 20px;">\
-    <i class="fas fa-project-diagram" style="margin-right: 6px;"></i>\
-    ');  ngx.print( T"EasyMesh standard enables a seamless, synchronized Wi-Fi mesh network between this gateway and compatible extenders." ); ngx.print('\
+    <i class="icon-sitemap" style="margin-right: 6px;"></i>\
+    <strong>EasyMesh:</strong> ')
+  ngx.print(T"EasyMesh standard enables a seamless, synchronized Wi-Fi mesh network between this gateway and compatible extenders.")
+  ngx.print('\
   </div>\
-  ');  lp.include("tabs-easyMesh.lp")  ngx.print('\
-  ');  ngx.print(ui_helper.createMessages(message_helper.popMessages()))  ngx.print('\
-  <fieldset id = "easy-mesh-configuration-tab">\
-    <legend>');  ngx.print( T"General" ); ngx.print('</legend>\
-    ');  
+')
+  ngx.print(ui_helper.createMessages(message_helper.popMessages()))
+  ngx.print('\
+  <fieldset id="easy-mesh-configuration-tab">\
+    <legend>')
+  ngx.print(T"General")
+  ngx.print('</legend>\
+')
+
       local ssidclass = {
         input = {
           pattern = "[!-~][ -~]{0,30}[!-~]",
@@ -258,10 +301,10 @@
       }
 
       local html = {}
-      if post_helper.getVariantValue(variantHelper, "extenderInfo") then
+      if extenderInfo then
         if backhaulDetails and backhaulState ~= "0" then
-          html[#html + 1] = ui_helper.createLabel( T"Backhaul SSID", params.backHaulssid, ssidclass)
-          html[#html + 1] = ui_helper.createLabel( T"Backhaul Password", params.backHaulPassword, pskclass)
+          html[#html + 1] = ui_helper.createLabel(T"Backhaul SSID", params.backHaulssid, ssidclass)
+          html[#html + 1] = ui_helper.createLabel(T"Backhaul Password", params.backHaulPassword, pskclass)
           html[#html + 1] = ui_helper.createLabel(T"Security Mode", params.backHaulSecurityMode)
         elseif easyMeshButton then
           html[#html + 1] = ui_helper.createSwitch(T"EasyMesh Services", "easyMeshEnable", ((params.agentEnable == "1" and params.controllerEnable == "1") and "1" or "0"))
@@ -271,47 +314,49 @@
           <div class="control-group" style="margin-top: -8px; margin-bottom: 20px;">\
             <div class="controls">\
               <span class="help-block" style="font-size: 12px; color: #777;">\
-                ');  ngx.print( T"Enable EasyMesh controller and agent to manage synchronized Wi-Fi extenders." ); ngx.print('\
+                ')
+          ngx.print(T"Enable EasyMesh controller and agent to manage synchronized Wi-Fi extenders.")
+          ngx.print('\
               </span>\
             </div>\
           </div>\
           <div id="fronthaul-config-wrap">\
-          ');
+          ')
           for _, data in pairs(getCredentials) do
             if data.fronthaul == "1" then
-              if credShow and data.paramindex == "@cred0" or not credShow then
-                credParamIndex = data.paramindex
-                if post_helper.getVariantValue(variantHelper, "fronthaulString") then   ngx.print('\
-                  <legend>');  ngx.print( T"Fronthaul Configuration" ); ngx.print('</legend>\
-                ');  else   ngx.print('\
-                  <legend>');  ngx.print( string.upper(string.sub(credParamIndex, 2, -1)) ); ngx.print('</legend>\
-                ');  end
+              if (credShow and data.paramindex == "@cred0") or not credShow then
+                local cIndex = data.paramindex
+                local fTitle = fronthaulString and T"Fronthaul Configuration" or string.upper(string.sub(cIndex, 2, -1))
                 ngx.print('\
+                <legend>' .. fTitle .. '</legend>\
                 <div class="control-group" style="margin-top: -8px; margin-bottom: 15px;">\
                   <div class="controls">\
                     <span class="help-block" style="font-size: 12px; color: #777;">\
-                      ');  ngx.print( T"Network parameters propagated by EasyMesh to all connected extenders." ); ngx.print('\
+                      ' .. T"Network parameters propagated by EasyMesh to all connected extenders." .. '\
                     </span>\
                   </div>\
                 </div>\
-                ');
+                ')
                 if post_helper.getVariantValue(variantHelper, "credStatusSwitch") then
-                  html[#html + 1] = ui_helper.createSwitch(T"State", "state" .. credParamIndex, params["state" ..credParamIndex])
+                  html[#html + 1] = ui_helper.createSwitch(T"State", "state" .. cIndex, params["state" .. cIndex])
                 end
-                html[#html + 1] = ui_helper.createInputText( T"SSID", "ssid" .. credParamIndex, params["ssid" .. credParamIndex], ssidclass, helpmsg["ssid" .. credParamIndex])
-                html[#html + 1] = ui_helper.createInputText( T"Password", "password"..credParamIndex, params["password" .. credParamIndex], pskclass, helpmsg["password" .. credParamIndex])
-                html[#html + 1] = ui_helper.createInputSelect(T"Security Mode", "securityMode"..credParamIndex, securityModes, params["securityMode" .. credParamIndex])
-                html[#html + 1] = ui_helper.createInputSelect(T"Preferred Interface", "frequency"..credParamIndex, preferredInterface, params["frequency" .. credParamIndex])
+                html[#html + 1] = ui_helper.createInputText(T"SSID", "ssid" .. cIndex, params["ssid" .. cIndex], ssidclass, helpmsg["ssid" .. cIndex])
+                html[#html + 1] = ui_helper.createInputText(T"Password", "password" .. cIndex, params["password" .. cIndex], pskclass, helpmsg["password" .. cIndex])
+                html[#html + 1] = ui_helper.createInputSelect(T"Security Mode", "securityMode" .. cIndex, securityModes, params["securityMode" .. cIndex])
+                html[#html + 1] = ui_helper.createInputSelect(T"Preferred Interface", "frequency" .. cIndex, preferredInterface, params["frequency" .. cIndex])
                 if post_helper.getVariantValue(variantHelper, "haulSwitch") then
-                  html[#html + 1] = ui_helper.createSwitch(T"Fronthaul", "fronthaul" .. credParamIndex, params["fronthaul" ..credParamIndex])
-                  html[#html + 1] = ui_helper.createSwitch(T"Backhaul", "backhaul" .. credParamIndex, params["backhaul" ..credParamIndex])
+                  html[#html + 1] = ui_helper.createSwitch(T"Fronthaul", "fronthaul" .. cIndex, params["fronthaul" .. cIndex])
+                  html[#html + 1] = ui_helper.createSwitch(T"Backhaul", "backhaul" .. cIndex, params["backhaul" .. cIndex])
                 end
-             end
-           end
-           ngx.print(html)
-           html = {}
-           ngx.print('</div>')
+                if credShow then
+                  break
+                end
+              end
+            end
           end
+          ngx.print(html)
+          html = {}
+          ngx.print('</div>')
         end
       elseif easyMeshButton then
         html[#html + 1] = ui_helper.createSwitch(T"EasyMesh Agent", "easyMeshEnable", (params.agentEnable == "1" and "1" or "0"))
@@ -326,9 +371,9 @@
           class = "hide"
         },
         input = {
-              class= "span4",
-              id = "agentEnable"
-          }
+          class = "span4",
+          id = "agentEnable"
+        }
       }
       html[#html+1] = ui_helper.createInputText(T"", "agentEnable", params.agentEnable, agent_enable_class)
 
@@ -337,9 +382,9 @@
           class = "hide"
         },
         input = {
-              class= "span4",
-              id = "controllerEnable"
-          }
+          class = "span4",
+          id = "controllerEnable"
+        }
       }
       html[#html+1] = ui_helper.createInputText(T"", "controllerEnable", params.controllerEnable, controller_enable_class)
       local wifibandsteer_enable_class = {
@@ -347,27 +392,27 @@
           class = "hide"
         },
         input = {
-              class= "span4",
-              id = "wifibandsteerEnable"
-          },
+          class = "span4",
+          id = "wifibandsteerEnable"
+        },
       }
       local wifiguestbandsteer_enable_class = {
         group = {
           class = "hide"
         },
         input = {
-              class= "span4",
-              id = "wifiGuestbandsteerEnable"
-          },
+          class = "span4",
+          id = "wifiGuestbandsteerEnable"
+        },
       }
       local wificonductor_enable_class = {
         group = {
           class = "hide"
         },
         input = {
-              class= "span4",
-              id = "wificonductorEnable"
-          },
+          class = "span4",
+          id = "wificonductorEnable"
+        },
       }
       if easyMeshButton then
         if mapParams.wifibandsteerEnable then
@@ -385,7 +430,10 @@
       ngx.print('\
   </fieldset>\
 </form>\
-');  ngx.print(ui_helper.createFooter())   ngx.print('\
+</div>\
+')
+      ngx.print(ui_helper.createFooter())
+      ngx.print('\
 <script>\
   var multiapAgent = "');  ngx.print(params.agentEnable); ngx.print('";\
   var multiapContr = "');  ngx.print(params.controllerEnable); ngx.print('";\

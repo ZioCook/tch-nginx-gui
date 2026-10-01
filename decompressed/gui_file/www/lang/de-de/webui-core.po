@@ -4887,3 +4887,33 @@ msgstr "Mobilfunk"
 
 msgid "Remote Assistance"
 msgstr "Fernwartung"
+
+msgid "General"
+msgstr "Allgemein"
+
+msgid "Fronthaul"
+msgstr "Fronthaul"
+
+msgid "Backhaul"
+msgstr "Backhaul"
+
+msgid "Leading and trailing whitespaces are not allowed."
+msgstr "Leerzeichen am Anfang und Ende sind nicht erlaubt."
+
+msgid "Connected Devices:"
+msgstr "Verbundene Geräte:"
+
+msgid "Wi-Fi Band"
+msgstr "WLAN-Band"
+
+msgid "Download/Upload Link Rate"
+msgstr "Download/Upload Link-Rate"
+
+msgid "Tx/Rx Bytes"
+msgstr "Gesendete/Empfangene Bytes"
+
+msgid "Extender"
+msgstr "Repeater"
+
+msgid "Gateway"
+msgstr "Gateway"

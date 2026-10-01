@@ -139,7 +139,7 @@ devices_columns[#devices_columns+1] = {--[9]
   attr = { input = { class="span1" } },
 }
 lp.setpath("/www/snippets/")
-ngx.print(ui_helper.createHeader(T"EasyMesh Info", false, true))
+ngx.print(ui_helper.createHeader(T"EasyMesh", false, true))
   ngx.print('\
 <form class="form-horizontal" method="post" action="/modals/wifi-devices-info.lp">\
   <div class="modal-body update">\

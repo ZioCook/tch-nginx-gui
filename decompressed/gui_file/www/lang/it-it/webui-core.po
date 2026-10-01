@@ -4909,3 +4909,33 @@ msgstr "Connessione mobile"
 msgid "Remote Assistance"
 msgstr "Assistenza remota"
 
+msgid "General"
+msgstr "Generale"
+
+msgid "Fronthaul"
+msgstr "Fronthaul (Rete Wi-Fi)"
+
+msgid "Backhaul"
+msgstr "Backhaul (Collegamento Ripetitori)"
+
+msgid "Leading and trailing whitespaces are not allowed."
+msgstr "Non sono ammessi spazi all'inizio o alla fine."
+
+msgid "Connected Devices:"
+msgstr "Dispositivi connessi:"
+
+msgid "Wi-Fi Band"
+msgstr "Banda Wi-Fi"
+
+msgid "Download/Upload Link Rate"
+msgstr "Velocità Link Download/Upload"
+
+msgid "Tx/Rx Bytes"
+msgstr "Byte Trasmessi/Ricevuti"
+
+msgid "Extender"
+msgstr "Ripetitore"
+
+msgid "Gateway"
+msgstr "Modem Gateway"
+
