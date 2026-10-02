@@ -226,7 +226,7 @@ local card_check_rule = {
 	{ name = 'assistance_card', card = '010_assistance.lp', modal = 'assistancemodal' },
 	{ name = 'lte_card', card = '010_lte.lp', modal = 'ltemodal' },
 	{ name = 'usermgr_card', card = '011_usermgr.lp', modal = 'usermgrmodal' },
-	{ name = 'datausage_card', card = '011_datausage.lp', modal = 'datausagemodal' },
+	{ name = 'datausage_card', card = '011_datausage.lp', modal = 'datausagemodal', hide = '1' },
 	{ name = 'contentsharing_card', card = '012_contentsharing.lp', modal = 'contentsharing' },
 	{ name = 'printersharing_card', card = '012_printersharing.lp', modal = 'printersharing' },
 	{ name = 'parental_card', card = '013_parental.lp', modal = 'parentalmodal' },
@@ -237,7 +237,7 @@ local card_check_rule = {
 	{ name = 'relaysetup_card', card = '018_relaysetup.lp', modal = 'relaymodal' },
 	{ name = 'eco_card', card = '020_eco.lp', modal = 'ecomodal' },
 	{ name = 'wifiextender_card', card = '020_wifiExtender.lp', modal = 'easyMeshConfiguration' },
-	{ name = 'certificates_card', card = '021_certificates.lp', modal = 'certificateslists' },
+	{ name = 'certificates_card', card = '021_certificates.lp', modal = 'certificateslists', hide = '1' },
 	{ name = 'cwmpconf_card', card = '090_cwmpconf.lp', modal = 'cwmpconf' },
 	{ name = 'system_card', card = '091_system.lp', modal = 'systemmodal' },
 	{ name = 'natalghelper_card', card = '092_natalghelper.lp', modal = 'natalghelper' },
@@ -249,15 +249,18 @@ local easymesh_supported = (ok_em and em_helper and em_helper.is_supported and e
 
 --Check every element in table
 for _ , elem in pairs(card_check_rule) do
+	local target_hide = elem.hide or '0'
 	if elem.name == 'wifiextender_card' and not easymesh_supported then
-		if contains(elem.name, cardset) then
-			uci:set('web', elem.name, 'hide', '1')
-		end
-	elseif not contains(elem.name, cardset) then
+		target_hide = '1'
+	end
+	if not contains(elem.name, cardset) then
 		uci:set('web', elem.name ,'card')
 		uci:set('web', elem.name , 'card', elem.card)
 		uci:set('web', elem.name , 'modal', elem.modal)
-		uci:set('web', elem.name , 'hide', '0')
+		uci:set('web', elem.name , 'hide', target_hide)
+	elseif (elem.hide or elem.name == 'wifiextender_card') and uci:get('web', elem.name, 'hide') ~= target_hide then
+		uci:set('web', elem.name, 'hide', target_hide)
+		new_rule = true
 	end
 end
 
