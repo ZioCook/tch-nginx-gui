@@ -67,10 +67,13 @@ function M.getSSID()
     local iface = path:match("rpc%.wireless%.ssid%.@([^%.]+)%.")
     if iface then
       iface = untaint(iface)
+      local is_backhaul = (iface:find("_2$") ~= nil) or (get_untainted(path .. "backhaul") == "1") or (iface == "wl1_2")
       local is_guest = isGuestInterface(iface)
       local show_ssid = true
 
-      if is_guest then
+      if is_backhaul then
+        show_ssid = false
+      elseif is_guest then
         -- If guest network is deactivated in configuration, do NOT show it on the card
         if not isGuestConfigEnabled(iface) then
           show_ssid = false

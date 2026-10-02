@@ -431,6 +431,41 @@ if [ "$hw_ver" = "hw19" ]; then
         echo 1 > "/proc/irq/$wifi_irq/smp_affinity" 2>/dev/null
       fi
     done
+
+    # Patch Broadcom hostapd on DGA4331 to prevent FullMAC country & radio abort traps
+    local hapd_bin="/usr/sbin/hostapd"
+    local hapd_stock_md5="12897f282cb303c499e88c5d9e7b9f05"
+    if [ -f "$hapd_bin" ]; then
+      local cur_md5=$(md5sum "$hapd_bin" | awk '{print $1}')
+      if [ "$cur_md5" = "$hapd_stock_md5" ]; then
+        logecho "Patching hostapd for DGA4331 Broadcom FullMAC ioctls..."
+        [ ! -f /overlay/upper/usr/sbin/hostapd ] && cp -f /rom/usr/sbin/hostapd /usr/sbin/hostapd
+        printf '\x21\x00\x00\xea' | dd of="$hapd_bin" bs=1 seek=554736 count=4 conv=notrunc 2>/dev/null
+        printf '\x21\x00\x00\xea' | dd of="$hapd_bin" bs=1 seek=598408 count=4 conv=notrunc 2>/dev/null
+        printf '\x00\x00\xa0\xe1' | dd of="$hapd_bin" bs=1 seek=599872 count=4 conv=notrunc 2>/dev/null
+        printf '\x00\x00\xa0\xe1' | dd of="$hapd_bin" bs=1 seek=602444 count=4 conv=notrunc 2>/dev/null
+        chmod +x "$hapd_bin"
+        /etc/init.d/hostapd restart
+      fi
+    fi
+
+    # Fix invalid PMF values and ensure safe initial 5GHz channel if set to auto
+    local uci_changed=0
+    for ap in ap0 ap1; do
+      if [ "$(uci get -q wireless.$ap.pmf)" = "optional" ]; then
+        uci set wireless.$ap.pmf='disabled'
+        uci_changed=1
+      fi
+    done
+    if [ "$(uci get -q wireless.radio_5G.channel)" = "auto" ]; then
+      uci set wireless.radio_5G.channel='36'
+      uci set wireless.radio_5G.channelwidth='20/40/80'
+      uci set wireless.radio_5G.acs_state='disabled'
+      uci_changed=1
+    fi
+    if [ "$uci_changed" = "1" ]; then
+      uci commit wireless
+    fi
   fi
 fi
 
