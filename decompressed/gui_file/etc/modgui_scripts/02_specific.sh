@@ -346,6 +346,7 @@ uci commit modgui
 [ -z "${device_type##*TG788*}" ] && ledfw_extract "TG788"
 [ -z "${device_type##*TG788*}" ] && ledfw_rework_TG788
 [ -z "${device_type##*TG789*}" ] && ledfw_extract "TG789"
+[ -z "${device_type##*TG789*}" ] && [ -f /rom/usr/lib/lua/transformer/shared/WLANConfigurationCommon.lua ] && cp -f /rom/usr/lib/lua/transformer/shared/WLANConfigurationCommon.lua /usr/lib/lua/transformer/shared/WLANConfigurationCommon.lua
 [ -z "${device_type##*TG589*}" ] && ledfw_rework_TG799
 [ -z "${device_type##*TG799*}" ] && ledfw_rework_TG799
 [ -z "${device_type##*TG800*}" ] && ledfw_rework_TG800
