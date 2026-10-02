@@ -78,6 +78,79 @@ local check_rule = {
 	{ name = 'agentlist2gmodal', target = '/modals/agent-list-2g.lp' },
 	{ name = 'agentlist5gmodal', target = '/modals/agent-list-5g.lp' },
 	{ name = 'wifidevicesinfomodal', target = '/modals/wifi-devices-info.lp' },
+	{ name = 'gatewaymodal', target = '/modals/gateway-modal.lp' },
+	{ name = 'systemmodal', target = '/modals/system-modal.lp' },
+	{ name = 'broadbandmodal', target = '/modals/broadband-modal.lp' },
+	{ name = 'internetmodal', target = '/modals/internet-modal.lp' },
+	{ name = 'wirelessmodal', target = '/modals/wireless-modal.lp' },
+	{ name = 'wirelessqrcodemodal', target = '/modals/wireless-qrcode-modal.lp' },
+	{ name = 'ethernetmodal', target = '/modals/ethernet-modal.lp' },
+	{ name = 'devicemodal', target = '/modals/device-modal.lp' },
+	{ name = 'ipv6devicemodal', target = '/modals/ipv6devices-modal.lp' },
+	{ name = 'wanservices', target = '/modals/wanservices-modal.lp' },
+	{ name = 'firewallmodal', target = '/modals/firewall-modal.lp' },
+	{ name = 'diagnosticsconnectionmodal', target = '/modals/diagnostics-connection-modal.lp' },
+	{ name = 'diagnosticsnetworkmodal', target = '/modals/diagnostics-network-modal.lp' },
+	{ name = 'diagnosticspingmodal', target = '/modals/diagnostics-ping-modal.lp' },
+	{ name = 'diagnosticsxdslmodal', target = '/modals/diagnostics-xdsl-modal.lp' },
+	{ name = 'diagnosticstcpdumpmodal', target = '/modals/diagnostics-tcpdump-modal.lp' },
+	{ name = 'usermgrmodal', target = '/modals/usermgr-modal.lp' },
+	{ name = 'syslogmodal', target = '/modals/logviewer-modal.lp' },
+	{ name = 'todmodal', target = '/modals/tod-modal.lp' },
+	{ name = 'todwifimodal', target = '/modals/tod_wireless-modal.lp' },
+	{ name = 'wirelessclientmodal', target = '/modals/wireless-client-modal.lp' },
+	{ name = 'cwmpconf', target = '/modals/cwmpconf-modal.lp' },
+	{ name = 'assistancemodal', target = '/modals/assistance-modal.lp' },
+	{ name = 'iproutesmodal', target = '/modals/iproutes-modal.lp' },
+	{ name = 'relaymodal', target = '/modals/relay-modal.lp' },
+	{ name = 'xdsllowmodal', target = '/modals/xdsl-low-modal.lp' },
+	{ name = 'natalghelper', target = '/modals/nat-alg-helper-modal.lp' },
+	{ name = 'hostmapmodal', target = '/modals/hostmap-modal.lp' },
+	{ name = 'bridgegroupingmodal', target = '/modals/bridge-grouping-modal.lp' },
+	{ name = 'bridgemodal', target = '/modals/bridge-modal.lp' },
+	{ name = 'customdnsmodal', target = '/modals/customdns-modal.lp' },
+	{ name = 'qosclassifymodal', target = '/modals/qos-classify-modal.lp' },
+	{ name = 'qosqueuemodal', target = '/modals/qos-queue-modal.lp' },
+	{ name = 'wizardmodal', target = '/modals/wizard-modal.lp' },
+	{ name = 'portmirrormodal', target = '/modals/port-mirror-modal.lp' },
+	{ name = 'changelog', target = '/modals/changelog.lp' },
+	{ name = 'contentsharing', target = '/modals/contentsharing-modal.lp' },
+	{ name = 'parentalmodal', target = '/modals/parental-modal.lp' },
+	{ name = 'printersharing', target = '/modals/printersharing-modal.lp' },
+	{ name = 'trafficmonitor', target = '/modals/traffic-monitor.lp' },
+	{ name = 'mmpbxglobalmodal', target = '/modals/mmpbx-global-modal.lp' },
+	{ name = 'mmpbxprofilemodal', target = '/modals/mmpbx-profile-modal.lp' },
+	{ name = 'mmpbxinoutgoingmodal', target = '/modals/mmpbx-inoutgoingmap-modal.lp' },
+	{ name = 'mmpbxservicemodal', target = '/modals/mmpbx-service-modal.lp' },
+	{ name = 'mmpbxlogmodal', target = '/modals/mmpbx-log-modal.lp' },
+	{ name = 'mmpbxcontactsmodal', target = '/modals/mmpbx-contacts-modal.lp' },
+	{ name = 'mmpbxcodecTImodal', target = '/modals/mmpbx-codec-modal.lp' },
+	{ name = 'mmpbxstatisticsmodal', target = '/modals/mmpbx-statistics-modal.lp' },
+	{ name = 'mmpbxsipdevicemodal', target = '/modals/mmpbx-sipdevice-modal.lp' },
+	{ name = 'ltemodal', target = '/modals/lte-modal.lp' },
+	{ name = 'ltedoctormodal', target = '/modals/lte-doctor.lp' },
+	{ name = 'ltesms', target = '/modals/lte-sms.lp' },
+	{ name = 'lteprofiles', target = '/modals/lte-profiles.lp' },
+	{ name = 'ltesim', target = '/modals/lte-sim.lp' },
+	{ name = 'ltedoctor', target = '/lte-doctor.lua' },
+	{ name = 'logroutingtablemodal', target = '/modals/log-routingtable-modal.lp' },
+	{ name = 'logconnectionsmodal', target = '/modals/log-connections-modal.lp' },
+	{ name = 'wifinursemodal', target = '/modals/wifi-nurse-modal.lp' },
+	{ name = 'datausagemodal', target = '/modals/datausage.lp' },
+	{ name = 'openvpnservermodal', target = '/modals/openvpn-server-modal.lp' },
+	{ name = 'wireguardmodal', target = '/modals/wireguard-modal.lp' },
+	{ name = 'tailscalemodal', target = '/modals/tailscale-modal.lp' },
+	{ name = 'dumaosmodal', target = '/modals/dumaos-modal.lp' },
+	{ name = 'certificateslists', target = '/modals/certificates-list-modal.lp' },
+	{ name = 'ajaxdatausage', target = '/ajax/datausage.lua' },
+	{ name = 'lteajaxsms', target = '/ajax/sms.lua' },
+	{ name = 'wireguardprofile', target = '/ajax/wireguard_profile.lua' },
+	{ name = 'lteradioparameters', target = '/ajax/radioparameters.lua' },
+	{ name = 'lteajaxmobiletab', target = '/ajax/mobiletab.lua' },
+	{ name = 'ltenetworkscan', target = '/ajax/networkscan.lua' },
+	{ name = 'lteajaxsim', target = '/ajax/sim.lua' },
+	{ name = 'ltedoctorajax', target = '/ajax/lte-doctor.lua' },
+	{ name = 'mmpbxajaxvoicetab', target = '/ajax/voicetab.lua' },
 }
 
 --We add telstra rules anyway as nginx will respond 404 if not found
@@ -131,7 +204,7 @@ end
 local cardset = {}
 
 --Pupulate cardset table with card list from config
-uci:foreach('web', 'ruleset', function(s)
+uci:foreach('web', 'card', function(s)
 	cardset[#cardset+1] = s['.name']
   end)
   
@@ -153,20 +226,22 @@ local card_check_rule = {
 	{ name = 'assistance_card', card = '010_assistance.lp', modal = 'assistancemodal' },
 	{ name = 'lte_card', card = '010_lte.lp', modal = 'ltemodal' },
 	{ name = 'usermgr_card', card = '011_usermgr.lp', modal = 'usermgrmodal' },
+	{ name = 'datausage_card', card = '011_datausage.lp', modal = 'datausagemodal' },
 	{ name = 'contentsharing_card', card = '012_contentsharing.lp', modal = 'contentsharing' },
 	{ name = 'printersharing_card', card = '012_printersharing.lp', modal = 'printersharing' },
 	{ name = 'parental_card', card = '013_parental.lp', modal = 'parentalmodal' },
 	{ name = 'iproutes_card', card = '015_iproutes.lp', modal = 'iproutesmodal' },
 	{ name = 'tod_card', card = '015_tod.lp', modal = 'todmodal' },
 	{ name = 'nfc_card', card = '016_nfc.lp', modal = 'nfcmodal' },
+	{ name = 'speedservice_card', card = '016_speedservice.lp', modal = 'speedservicemodal' },
 	{ name = 'relaysetup_card', card = '018_relaysetup.lp', modal = 'relaymodal' },
 	{ name = 'eco_card', card = '020_eco.lp', modal = 'ecomodal' },
+	{ name = 'wifiextender_card', card = '020_wifiExtender.lp', modal = 'easyMeshConfiguration' },
+	{ name = 'certificates_card', card = '021_certificates.lp', modal = 'certificateslists' },
 	{ name = 'cwmpconf_card', card = '090_cwmpconf.lp', modal = 'cwmpconf' },
 	{ name = 'system_card', card = '091_system.lp', modal = 'systemmodal' },
 	{ name = 'natalghelper_card', card = '092_natalghelper.lp', modal = 'natalghelper' },
 	{ name = 'xdsl_card', card = '093_xdsl.lp', modal = 'xdsllowmodal' },
-	{ name = 'speedservice_card', card = '016_speedservice.lp', modal = 'speedservicemodal' },
-	{ name = 'wifiextender_card', card = '020_wifiExtender.lp', modal = 'easyMeshConfiguration' },
 }
 
 local ok_em, em_helper = pcall(require, "easymesh_helper")
@@ -225,6 +300,7 @@ uci:foreach('web', 'rule', function(s)
 if new_rule then
 	uci:set('web','ruleset_main','rules',ruleset)
 	uci:commit('web')
+	os.execute("pgrep nginx >/dev/null && nginx -s reload >/dev/null 2>&1")
 end
 
 -- Ensure essential firewall sections exist for RPC mappings (mode slider and DMZ)

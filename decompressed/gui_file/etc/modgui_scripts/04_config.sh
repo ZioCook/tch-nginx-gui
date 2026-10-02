@@ -87,6 +87,9 @@ sync_background_services() {
 
   # 6. Ensure Nginx and SSL certificate readiness across reboots
   if [ -f /etc/init.d/nginx ]; then
+    if ! grep -q "unlock_and_refresh_web_config" /etc/init.d/nginx; then
+      sed -i '/start_service() {/a\	[ -x /usr/share/transformer/scripts/unlock_and_refresh_web_config.lua ] && /usr/share/transformer/scripts/unlock_and_refresh_web_config.lua' /etc/init.d/nginx
+    fi
     if ! grep -q "/tmp/ssl/data/cert" /etc/init.d/nginx; then
       sed -i '/start_service() {/a\	[ -d /tmp/ssl/data ] || mkdir -p /tmp/ssl/data\n\t[ -e /tmp/ssl/data/cert ] || ln -sf /etc/nginx/server.crt /tmp/ssl/data/cert\n\t[ -e /tmp/ssl/data/pairing ] || ln -sf /etc/nginx/server.key /tmp/ssl/data/pairing' /etc/init.d/nginx
     fi
