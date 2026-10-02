@@ -408,7 +408,7 @@ function  M.createSimpleInputCheckbox(name, value, attributes, suffixname)
             class = "",
             type = "checkbox",
             name = name,
-            value = tostring(value),
+            value = tostring(string.untaint and string.untaint(value) or value),
         },
     }
     mergeAttributes(defaults, attributes)

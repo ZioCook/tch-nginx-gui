@@ -369,13 +369,16 @@ local function convertResultToObject(basepath, results, sorted)
                         return numA < numB
                     end
                 end
-                if tostring(valA) == tostring(valB) then
+                local untaint = string.untaint
+                local strA = untaint and untaint(valA) or valA
+                local strB = untaint and untaint(valB) or valB
+                if tostring(strA) == tostring(strB) then
                     return false
                 end
                 if reverse then
-                    return tostring(valA) > tostring(valB)
+                    return tostring(strA) > tostring(strB)
                 else
-                    return tostring(valA) < tostring(valB)
+                    return tostring(strA) < tostring(strB)
                 end
             end)
         end
@@ -501,6 +504,13 @@ function M.setObject(object, map, basepath, defaultObject)
         elseif val == nil then
             return ""
         else
+            local untaint = string.untaint
+            if untaint then
+                val = untaint(val)
+            end
+            if type(val) == "boolean" then
+                return val and "1" or "0"
+            end
             return tostring(val)
         end
     end
