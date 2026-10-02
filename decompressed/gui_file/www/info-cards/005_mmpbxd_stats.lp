@@ -28,16 +28,11 @@ end
 
 local mmpbx_info = (mmpbx_state == "1") and T"Telephony enabled" or T"Telephony disabled"
 
-local modalPath = nil
-if session and session:hasAccess("/modals/mmpbx-global-modal.lp") then
-    modalPath = "/modals/mmpbx-global-modal.lp"
-end
-
 ngx.print('\
 \
 <div class="infocard" id="infommpbxdtab">\
   <div class="smallcard">\
-    ');  ngx.print( ui_helper.createCardHeader(T"Telephony Info", modalPath, nil, nil, nil) ); ngx.print('\
+    ');  ngx.print( ui_helper.createCardHeader(T"Telephony Info", nil, nil, nil, nil) ); ngx.print('\
     <div class="content card_bg" data-bg-text="&#xf095;">\
 	<div class="divtable">\
 	<form class="form-horizontal">\
