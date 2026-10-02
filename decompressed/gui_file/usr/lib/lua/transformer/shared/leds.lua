@@ -172,15 +172,15 @@ local function checkNetdevActive(ledFile)
   for dev in devices:gmatch("%S+") do
     local cf = open("/sys/class/net/" .. dev .. "/carrier", "r")
     if cf then
-      local c = cf:read("*all"):gsub("%s+", "")
+      local raw_c = cf:read("*all")
       cf:close()
-      if c == "1" then return true end
+      if raw_c and raw_c:gsub("%s+", "") == "1" then return true end
     end
     local of = open("/sys/class/net/" .. dev .. "/operstate", "r")
     if of then
-      local o = of:read("*all"):gsub("%s+", "")
+      local raw_o = of:read("*all")
       of:close()
-      if o == "up" then return true end
+      if raw_o and raw_o:gsub("%s+", "") == "up" then return true end
     end
   end
   return false
@@ -336,9 +336,9 @@ function M.getLedsInfo()
     for i = 0, 3 do
       local eth = io.open("/sys/class/net/eth" .. i .. "/operstate", "r")
       if eth then
-        local state = eth:read("*all"):gsub("%s+", "")
+        local raw_state = eth:read("*all")
         eth:close()
-        if state == "up" then
+        if raw_state and raw_state:gsub("%s+", "") == "up" then
           ethStatus = "On"
           break
         end

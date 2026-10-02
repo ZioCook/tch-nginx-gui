@@ -27,6 +27,14 @@ end
 local vB = post_helper.validateBoolean
 local vS = post_helper.validateNonEmptyString
 local vP = post_helper.validatePositiveNum
+local gOV = post_helper.getOptionalValidation
+
+-- Live hardware capability checks
+local available_governors = eco_helper.getAvailableGovernors()
+local available_freqs = eco_helper.getAvailableFrequencies()
+local has_governors = (#available_governors > 0)
+local has_freq_scaling = (#available_freqs > 0)
+local has_core_hotplug = (eco_helper.hasCoreHotplug and eco_helper.hasCoreHotplug())
 
 local mapValid = {
   -- Ethernet
@@ -38,10 +46,6 @@ local mapValid = {
   -- CPU
   wait = vB,
   cpuspeed = vS,
-  governor = vS,
-  min_freq = vS,
-  max_freq = vS,
-  cores = vS,
 
   -- VM / Memory
   vfs_cache_pressure = vP,
@@ -61,10 +65,6 @@ local mapParams = {
 
   wait = "uci.power.cpu.wait",
   cpuspeed = "uci.power.cpu.cpuspeed",
-  governor = "uci.power.cpu.governor",
-  min_freq = "uci.power.cpu.min_freq",
-  max_freq = "uci.power.cpu.max_freq",
-  cores = "uci.power.cpu.cores",
 
   vfs_cache_pressure = "uci.power.vm.vfs_cache_pressure",
 
@@ -73,6 +73,23 @@ local mapParams = {
   ledfw_iptv = "uci.ledfw.iptv.check",
   eco_led_timeout = "uci.ledfw.timeout.ms",
 }
+
+if has_governors then
+  mapValid.governor = gOV(vS)
+  mapParams.governor = "uci.power.cpu.governor"
+end
+
+if has_freq_scaling then
+  mapValid.min_freq = gOV(vS)
+  mapValid.max_freq = gOV(vS)
+  mapParams.min_freq = "uci.power.cpu.min_freq"
+  mapParams.max_freq = "uci.power.cpu.max_freq"
+end
+
+if has_core_hotplug then
+  mapValid.cores = gOV(vS)
+  mapParams.cores = "uci.power.cpu.cores"
+end
 
 if prod_name:match("DGA4131") then
   mapValid.ledfw_ambient = vB
@@ -102,20 +119,19 @@ local cpu_status = eco_helper.getCpuStatus()
 local temperatures = eco_helper.getTemperatures()
 local mem_info = eco_helper.getMemoryInfo()
 
-local available_governors = eco_helper.getAvailableGovernors()
-local available_freqs = eco_helper.getAvailableFrequencies()
-
 -- Set defaults from live system if not in UCI
-if not content["governor"] or content["governor"] == "" then
+if has_governors and (not content["governor"] or content["governor"] == "") then
   content["governor"] = cpu_status.governor
 end
-if not content["min_freq"] or content["min_freq"] == "" then
-  content["min_freq"] = cpu_status.min_freq
+if has_freq_scaling then
+  if not content["min_freq"] or content["min_freq"] == "" then
+    content["min_freq"] = cpu_status.min_freq
+  end
+  if not content["max_freq"] or content["max_freq"] == "" then
+    content["max_freq"] = cpu_status.max_freq
+  end
 end
-if not content["max_freq"] or content["max_freq"] == "" then
-  content["max_freq"] = cpu_status.max_freq
-end
-if not content["cores"] or content["cores"] == "" then
+if has_core_hotplug and (not content["cores"] or content["cores"] == "") then
   content["cores"] = tostring(cpu_status.cores_online)
 end
 if not content["vfs_cache_pressure"] or content["vfs_cache_pressure"] == "" then
@@ -188,14 +204,18 @@ end
 -- SEZIONE 2: Configurazione CPU & Prestazioni
 html[#html + 1] = '<legend>' .. T"CPU & Performance Configuration" .. '</legend>'
 
-html[#html + 1] = ui_helper.createInputSelect(T"Governor CPU", "governor", available_governors, content["governor"])
-if #available_freqs > 0 then
+if has_governors then
+  html[#html + 1] = ui_helper.createInputSelect(T"Governor CPU", "governor", available_governors, content["governor"])
+end
+if has_freq_scaling then
   html[#html + 1] = ui_helper.createInputSelect(T"Minimum CPU Frequency", "min_freq", available_freqs, content["min_freq"])
   html[#html + 1] = ui_helper.createInputSelect(T"Maximum CPU Frequency", "max_freq", available_freqs, content["max_freq"])
 end
 html[#html + 1] = ui_helper.createInputSelect(T"Broadcom Clock Ratio", "cpuspeed", cpu_step, content["cpuspeed"])
 html[#html + 1] = ui_helper.createSwitch(T"CPU Wait (Stato WFI)", "wait", content["wait"])
-html[#html + 1] = ui_helper.createInputSelect(T"CPU Core Mode", "cores", cpu_cores_options, content["cores"])
+if has_core_hotplug then
+  html[#html + 1] = ui_helper.createInputSelect(T"CPU Core Mode", "cores", cpu_cores_options, content["cores"])
+end
 
 -- SEZIONE 3: Risparmio Energetico Ethernet
 html[#html + 1] = '<legend>' .. T"Ethernet Energy Saving" .. '</legend>'

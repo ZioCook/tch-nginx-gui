@@ -20,14 +20,17 @@ function M.getAvailableGovernors()
       governors[#governors + 1] = { gov, gov:gsub("^%l", string.upper) }
     end
   end
-  if #governors == 0 then
-    governors = {
-      { "interactive", "Interactive (Default)" },
-      { "ondemand", "Ondemand" },
-      { "userspace", "Userspace" },
-    }
-  end
   return governors
+end
+
+-- Check if CPU core hotplug is supported
+function M.hasCoreHotplug()
+  local f = io.open("/sys/devices/system/cpu/cpu1/online", "r")
+  if f then
+    f:close()
+    return true
+  end
+  return false
 end
 
 -- Get CPU Frequencies
@@ -72,12 +75,13 @@ function M.getCpuStatus()
   end
 
   return {
-    governor = cur_gov or "interactive",
+    governor = cur_gov or "N/A",
     cur_freq = cur_freq_str,
-    cur_freq_raw = cur_freq or "1000000",
-    min_freq = min_freq or "200000",
-    max_freq = max_freq or "1000000",
+    cur_freq_raw = cur_freq or "N/A",
+    min_freq = min_freq or "N/A",
+    max_freq = max_freq or "N/A",
     cores_online = (cpu1_online == "0") and 1 or 2,
+    has_cpufreq = (cur_gov ~= nil or cur_freq ~= nil),
   }
 end
 
