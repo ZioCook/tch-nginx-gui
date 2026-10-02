@@ -407,15 +407,30 @@ if [ -f "/tmp/upgrade-pack-${hw_ver}.tar.bz2" ]; then
 fi
 
 # IRQ Affinity tuning (HW19 / Kernel 4.1 dual-core only)
-# On DGA4132, all WiFi traffic (wl0) is pinned to Core 0 by default,
+# On DGA4132 (VBNT), WiFi traffic (wl0) is pinned to Core 0 by default,
 # starving Nginx/Transformer. Moving it to Core 1 (bitmask 0x2)
 # leaves Core 0 free for latency-sensitive GUI and routing tasks.
+# IMPORTANT: On DGA4331 (VCNT-3 / BCM43684 FullMAC DHD), PCIe interrupts are tightly
+# coupled with Broadcom Runner/HWA packet flow acceleration on Core 0. Migrating
+# dhdpcie IRQ 92/93 away from Core 0 causes flow ring desynchronization and fatal dongle traps!
 if [ "$hw_ver" = "hw19" ]; then
-  for iface in wl0 wl1; do
-    wifi_irq=$(awk "/$iface/{print \$1}" /proc/interrupts 2>/dev/null | tr -d ':' | head -1)
-    if [ -n "$wifi_irq" ] && [ -f "/proc/irq/$wifi_irq/smp_affinity" ]; then
-      logecho "Pinning WiFi IRQ $wifi_irq ($iface) to Core 1..."
-      echo 2 > "/proc/irq/$wifi_irq/smp_affinity"
-    fi
-  done
+  local board_m="$(uci get -q env.rip.board_mnemonic)"
+  local prod_name="$(uci get -q env.var.prod_friendly_name)"
+  if [ "$board_m" != "VCNT-3" ] && [ "$prod_name" != "MediaAccess DGA4331" ]; then
+    for iface in wl0 wl1; do
+      wifi_irq=$(awk "/$iface/{print \$1}" /proc/interrupts 2>/dev/null | tr -d ':' | head -1)
+      if [ -n "$wifi_irq" ] && [ -f "/proc/irq/$wifi_irq/smp_affinity" ]; then
+        logecho "Pinning WiFi IRQ $wifi_irq ($iface) to Core 1..."
+        echo 2 > "/proc/irq/$wifi_irq/smp_affinity"
+      fi
+    done
+  else
+    for iface in wl0 wl1; do
+      wifi_irq=$(awk "/$iface/{print \$1}" /proc/interrupts 2>/dev/null | tr -d ':' | head -1)
+      if [ -n "$wifi_irq" ] && [ -f "/proc/irq/$wifi_irq/smp_affinity" ]; then
+        echo 1 > "/proc/irq/$wifi_irq/smp_affinity" 2>/dev/null
+      fi
+    done
+  fi
 fi
+
