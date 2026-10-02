@@ -4971,3 +4971,15 @@ msgstr "Möchten Sie das Modem wirklich sicher herunterfahren?"
 
 msgid "No registered accounts"
 msgstr "Keine registrierten Konten"
+
+msgid "RAM Usage"
+msgstr "RAM-Auslastung"
+
+msgid "Device IP"
+msgstr "Geräte-IP"
+
+msgid "Default Gateway"
+msgstr "Standard-Gateway"
+
+msgid "Attenuation"
+msgstr "Dämpfung"

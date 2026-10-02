@@ -58,7 +58,10 @@ if datatype and datatype== "xdsl" then
 
 	if not has_xdsl then
 		-- This endpoint is also installed on Ethernet/GPON-only devices.
-		data = {}
+		data = {
+			status = T"Disconnected",
+			dslam_chipset = "N/A",
+		}
 	elseif data.dsl_linerate_down ~= "0" then
 			data.dsl_linerate_up = formatRate(data.dsl_linerate_up)
 			data.dsl_linerate_down = formatRate(data.dsl_linerate_down)

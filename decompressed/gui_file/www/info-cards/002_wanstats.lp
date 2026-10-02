@@ -163,7 +163,7 @@ end
 			html[#html+1] = ui_helper.createLabel(T"Concentrator Name", content["concentrator_name"], basic)
 		end
 		basic.span["data-bind"] = "text: wangateway"
-		html[#html+1] = ui_helper.createLabel(T"Gateway", content["nexthop"], basic)
+		html[#html+1] = ui_helper.createLabel(T"Default Gateway", content["nexthop"], basic)
 		basic.span["data-bind"] = "text: wandns"
 		html[#html+1] = ui_helper.createLabel(T"DNS servers", content["dns_wan"], basic)
 		basic.span["data-bind"] = "text: wan_uptime_extended"
@@ -172,7 +172,7 @@ end
 		basic.span["data-bind"] = "text: WAN_IP"
 		html[#html+1] = ui_helper.createLabel(T"Device IP", lan_data["ipaddr"], basic)
 		basic.span["data-bind"] = "text: wangateway"
-		html[#html+1] = ui_helper.createLabel(T"Gateway", lan_data["gateway"], basic)
+		html[#html+1] = ui_helper.createLabel(T"Default Gateway", lan_data["gateway"], basic)
 		basic.span["data-bind"] = "text: wandns"
 		html[#html+1] = ui_helper.createLabel(T"DNS servers", dns_val, basic)
 	end

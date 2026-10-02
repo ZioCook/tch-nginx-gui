@@ -43,7 +43,13 @@ if content["friendly_product_name"] and content["friendly_product_name"] == "AGH
 end
 
 if not ( content.friendly_product_name == "" ) and not ( content.friendly_product_name == content.product_name ) then
-	content.product_name = format("%s ( %s )",content.product_name,content.friendly_product_name)
+	if content.friendly_product_name:find(content.product_name, 1, true) then
+		content.product_name = content.friendly_product_name
+	elseif content.product_name:find(content.friendly_product_name, 1, true) then
+		content.product_name = content.product_name
+	else
+		content.product_name = format("%s ( %s )", content.product_name, content.friendly_product_name)
+	end
 end
 
 local nf_conntrack_count = io.popen("sysctl -n -e net.nf_conntrack_max net.ipv4.netfilter.ip_conntrack_max")
@@ -59,7 +65,7 @@ nf_conntrack_count:close()
 \
 <div class="infocard" id="gatewaytab">\
   <div class="smallcard">\
-    ');  ngx.print( ui_helper.createCardHeader(T"Gateway", nil, nil, nil, nil) ); ngx.print('\
+    ');  ngx.print( ui_helper.createCardHeader(T"Modem Gateway", nil, nil, nil, nil) ); ngx.print('\
     <div class="content card_bg" data-bg-text="&#xf129;">\
 	<div class="divtable">\
 	<form class="form-horizontal">\

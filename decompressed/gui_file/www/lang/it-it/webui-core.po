@@ -390,7 +390,7 @@ msgid "Broadband"
 msgstr "Banda larga"
 
 msgid "Broadband Connection"
-msgstr "Connessione a banda larga"
+msgstr "Connessione banda larga"
 
 msgid "Broadband type"
 msgstr "Tipo banda larga"
@@ -1785,7 +1785,7 @@ msgid "Ports already Reserved"
 msgstr "Numero porta già in uso"
 
 msgid "Power"
-msgstr "Power"
+msgstr "Potenza"
 
 msgid "Power Transitions"
 msgstr "Transizioni alimentazione"
@@ -4949,7 +4949,7 @@ msgid "Extender"
 msgstr "Ripetitore"
 
 msgid "Gateway"
-msgstr "Modem Gateway"
+msgstr "Gateway"
 
 msgid "Load average (1m, 5m, 15m): %s"
 msgstr "Carico medio (1m, 5m, 15m): %s"
@@ -4993,3 +4993,14 @@ msgstr "Sei sicuro di voler spegnere il modem in sicurezza?"
 msgid "No registered accounts"
 msgstr "Nessun account registrato"
 
+msgid "RAM Usage"
+msgstr "Uso RAM"
+
+msgid "Device IP"
+msgstr "IP dispositivo"
+
+msgid "Default Gateway"
+msgstr "Gateway predefinito"
+
+msgid "Attenuation"
+msgstr "Attenuazione"

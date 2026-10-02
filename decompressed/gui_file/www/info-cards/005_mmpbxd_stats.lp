@@ -33,7 +33,7 @@ ngx.print('\
 <div class="infocard" id="infommpbxdtab">\
   <div class="smallcard">\
     ');  ngx.print( ui_helper.createCardHeader(T"Telephony Info", nil, nil, nil, nil) ); ngx.print('\
-    <div class="content card_bg" data-bg-text="&#xf095;">\
+    <div class="content card_bg" data-bg-text="&#xf095;" style="min-height: 80px; padding: 15px 0;">\
 	<div class="divtable">\
 	<form class="form-horizontal">\
 	<fieldset>\
