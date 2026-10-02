@@ -2154,7 +2154,7 @@ function confirmationDialogue(t, e) {
 									value: n
 								}), r = !0)
 						});
-						r ? $.post(n + "?auto_update=true", e, function (e) {
+						r ? $.post(n + (n.indexOf("?") !== -1 ? "&" : "?") + "auto_update=true", e, function (e) {
 							if ("string" == typeof e)
 								try {
 									e = JSON.parse(e)

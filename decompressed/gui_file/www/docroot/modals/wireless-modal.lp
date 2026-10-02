@@ -71,8 +71,16 @@ end
 
 local getargs = ngx.req.get_uri_args()
 local postargs = (ngx.req.get_method() == "POST") and ngx.req.get_post_args() or {}
-local getradio = getargs.radio or postargs.curradio or postargs.radio
-local getiface = getargs.iface or postargs.curiface or postargs.iface
+local getradio = postargs.curradio or postargs.radio or getargs.radio
+local getiface = postargs.curiface or postargs.iface or getargs.iface
+if getradio then
+  getradio = string.untaint(getradio)
+  getradio = match(getradio, "^([^%?&]+)") or getradio
+end
+if getiface then
+  getiface = string.untaint(getiface)
+  getiface = match(getiface, "^([^%?&]+)") or getiface
+end
 local getWifiAnalyzer = getargs.isWifiAnalyzer
 
 local curradio = "radio_2G"
@@ -1078,7 +1086,7 @@ ngx.print(ui_helper.createHeader(T"Wireless", true, false))   ngx.print('\
     lp.setpath("/www/snippets/")
     lp.include("tabs-wireless.lp")
   ngx.print('\
-<form class="form-horizontal" method="post" action="/modals/wireless-modal.lp?radio=');  ngx.print(curradio); ngx.print('&iface=');  ngx.print(curiface); ngx.print('">\
+<form class="form-horizontal" method="post" action="/modals/wireless-modal.lp">\
 <input type="hidden" name="curradio" value="'); ngx.print(curradio); ngx.print('">\
 <input type="hidden" name="curiface" value="'); ngx.print(curiface); ngx.print('">\
 ');  
