@@ -123,6 +123,20 @@ else
 		}
 		content_helper.getExactContent(lan_data)
 
+		if not lan_data.gateway or lan_data.gateway == "" then
+			local rpc_gw = proxy.get("rpc.network.interface.@lan.nexthop")
+			if rpc_gw and rpc_gw[1] and rpc_gw[1].value ~= "" then
+				lan_data.gateway = rpc_gw[1].value
+			end
+		end
+
+		if not lan_data.ipaddr or lan_data.ipaddr == "" then
+			local rpc_ip = proxy.get("rpc.network.interface.@lan.ipaddr")
+			if rpc_ip and rpc_ip[1] and rpc_ip[1].value ~= "" then
+				lan_data.ipaddr = rpc_ip[1].value
+			end
+		end
+
 		local dns_val = ""
 		local rpc_dns = proxy.get("rpc.network.interface.@lan.dnsservers")
 		if rpc_dns and rpc_dns[1] and rpc_dns[1].value ~= "" then
@@ -139,7 +153,9 @@ else
 			dns_val = dns_val:gsub(",", ", ")
 		end
 
-		local is_connected = (lan_data.operstate == "up" and lan_data.gateway ~= "")
+		local lan_up = proxy.get("rpc.network.interface.@lan.up")
+		local is_up = (lan_data.operstate == "up") or (lan_up and lan_up[1] and lan_up[1].value == "1")
+		local is_connected = is_up and (lan_data.gateway ~= "" or lan_data.ipaddr ~= "")
 		local light_color = is_connected and "1" or "4"
 		local light_text = is_connected and T"Bridge / Access Point" or T"Bridge Not Configured"
 		local attributes = { light = { id = "Internet_State_Led" }, span = { id = "Internet_State_Enabled" } }

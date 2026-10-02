@@ -4406,6 +4406,9 @@ msgstr "Auto (Dynamisch)"
 msgid "Bridge / AP Active"
 msgstr "Bridge / AP Aktiv"
 
+msgid "Bridge / Access Point"
+msgstr "Bridge / Access Point"
+
 msgid "Bridge Disconnected"
 msgstr "Bridge getrennt"
 

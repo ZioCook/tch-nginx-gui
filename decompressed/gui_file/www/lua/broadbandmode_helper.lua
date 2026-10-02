@@ -39,7 +39,12 @@ local function is_bridge_mode()
     end
     local wa = proxy.get("uci.network.interface.@wan.auto")
     local lg = proxy.get("uci.network.interface.@lan.gateway")
-    if wp and wp[1] and wp[1].value == "none" and wa and wa[1] and wa[1].value == "0" and lg and lg[1] and lg[1].value ~= "" then
+    local has_gw = (lg and lg[1] and lg[1].value ~= "")
+    if not has_gw then
+        local rg = proxy.get("rpc.network.interface.@lan.nexthop")
+        has_gw = (rg and rg[1] and rg[1].value ~= "")
+    end
+    if wp and wp[1] and wp[1].value == "none" and wa and wa[1] and wa[1].value == "0" and has_gw then
         return true
     end
     return false

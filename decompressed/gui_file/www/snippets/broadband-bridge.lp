@@ -18,6 +18,20 @@ local lan_info = {
 }
 content_helper.getExactContent(lan_info)
 
+if not lan_info.gateway or lan_info.gateway == "" then
+    local rpc_gw = proxy.get("rpc.network.interface.@lan.nexthop")
+    if rpc_gw and rpc_gw[1] and rpc_gw[1].value ~= "" then
+        lan_info.gateway = rpc_gw[1].value
+    end
+end
+
+if not lan_info.ipaddr or lan_info.ipaddr == "" then
+    local rpc_ip = proxy.get("rpc.network.interface.@lan.ipaddr")
+    if rpc_ip and rpc_ip[1] and rpc_ip[1].value ~= "" then
+        lan_info.ipaddr = rpc_ip[1].value
+    end
+end
+
 local dns_val = ""
 local rpc_dns = proxy.get("rpc.network.interface.@lan.dnsservers")
 if rpc_dns and rpc_dns[1] and rpc_dns[1].value ~= "" then
