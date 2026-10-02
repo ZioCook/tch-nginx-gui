@@ -43,6 +43,9 @@ sync
 
 # 5. Set red power/status LED to blink slowly (1000ms ON / 1000ms OFF)
 echo "Step 5: Activating slow blinking red power LED..."
+if [ ! -d /sys/class/leds/power:red ] && [ ! -d /sys/class/leds/0 ]; then
+    insmod technicolor_led 2>/dev/null || insmod "/lib/modules/$(uname -r)/technicolor_led.ko" 2>/dev/null
+fi
 RED_LED=""
 for candidate in /sys/class/leds/power:red /sys/class/leds/*power*red* /sys/class/leds/*:red; do
     if [ -d "$candidate" ]; then
