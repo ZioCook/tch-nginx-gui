@@ -4421,6 +4421,12 @@ msgstr "Bridge Non Configurato"
 msgid "No lines configured"
 msgstr "Nessuna linea configurata"
 
+msgid "Telephony disabled"
+msgstr "Telefonia disabilitata"
+
+msgid "Telephony enabled"
+msgstr "Telefonia abilitata"
+
 msgid "RAM cache emptied successfully."
 msgstr "Cache RAM svuotata con successo."
 

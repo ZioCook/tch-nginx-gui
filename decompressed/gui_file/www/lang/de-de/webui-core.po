@@ -4418,6 +4418,12 @@ msgstr "Bridge nicht konfiguriert"
 msgid "No lines configured"
 msgstr "Keine Leitungen konfiguriert"
 
+msgid "Telephony disabled"
+msgstr "Telefonie deaktiviert"
+
+msgid "Telephony enabled"
+msgstr "Telefonie aktiviert"
+
 msgid "RAM cache emptied successfully."
 msgstr "RAM-Cache erfolgreich geleert."
 
