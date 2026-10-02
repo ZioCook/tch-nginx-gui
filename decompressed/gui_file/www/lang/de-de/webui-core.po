@@ -4944,3 +4944,15 @@ msgstr "Auto (20/40/80MHz)"
 
 msgid "Auto (20/40MHz)"
 msgstr "Auto (20/40MHz)"
+
+msgid "Safe Shutdown"
+msgstr "Sicheres Herunterfahren"
+
+msgid "Shutdown"
+msgstr "Ausschalten"
+
+msgid "Shutting down..."
+msgstr "Wird heruntergefahren..."
+
+msgid "Are you sure you want to safely shut down the gateway?"
+msgstr "Möchten Sie das Modem wirklich sicher herunterfahren?"

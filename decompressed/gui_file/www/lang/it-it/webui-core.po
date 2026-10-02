@@ -4966,3 +4966,15 @@ msgstr "Auto (20/40/80MHz)"
 msgid "Auto (20/40MHz)"
 msgstr "Auto (20/40MHz)"
 
+msgid "Safe Shutdown"
+msgstr "Arresto di sicurezza"
+
+msgid "Shutdown"
+msgstr "Spegni"
+
+msgid "Shutting down..."
+msgstr "Arresto in corso..."
+
+msgid "Are you sure you want to safely shut down the gateway?"
+msgstr "Sei sicuro di voler spegnere il modem in sicurezza?"
+

@@ -599,6 +599,37 @@ ngx.print(ui_helper.createMessages(message_helper.popMessages()))
           class = "span5"
         },
       }
+      local current_lang = tostring(gettext.language())
+      local shutdown_label = T"Safe Shutdown"
+      local shutdown_btn = T"Shutdown"
+      local shutdown_heading = T"Safe Shutdown"
+      local shutdown_process = T"Shutting down..."
+      local shutdown_confirm = T"Are you sure you want to safely shut down the gateway?"
+      local shutdown_alert = T"Il modem si sta arrestando in sicurezza. Quando il LED rosso lampeggia lentamente, puoi premere il tasto posteriore per spegnere l'alimentazione."
+      local shutdown_done_title = T"Arresto completato!"
+      local shutdown_done_desc = T"Il modem e' stato arrestato in sicurezza. Quando il LED rosso lampeggia lentamente, puoi premere il tasto posteriore per spegnere l'alimentazione."
+
+      if current_lang == "it-it" then
+        if shutdown_label == "Safe Shutdown" then shutdown_label = "Arresto di sicurezza" end
+        if shutdown_btn == "Shutdown" then shutdown_btn = "Spegni" end
+        if shutdown_heading == "Safe Shutdown" then shutdown_heading = "Arresto di sicurezza" end
+        if shutdown_process == "Shutting down..." then shutdown_process = "Arresto in corso..." end
+        if shutdown_confirm == "Are you sure you want to safely shut down the gateway?" then shutdown_confirm = "Sei sicuro di voler spegnere il modem in sicurezza?" end
+      elseif current_lang == "de-de" then
+        if shutdown_label == "Safe Shutdown" then shutdown_label = "Sicheres Herunterfahren" end
+        if shutdown_btn == "Shutdown" then shutdown_btn = "Ausschalten" end
+        if shutdown_heading == "Safe Shutdown" then shutdown_heading = "Sicheres Herunterfahren" end
+        if shutdown_process == "Shutting down..." then shutdown_process = "Wird heruntergefahren..." end
+        if shutdown_confirm == "Are you sure you want to safely shut down the gateway?" then shutdown_confirm = "Möchten Sie das Modem wirklich sicher herunterfahren?" end
+        shutdown_alert = "Das Modem wird sicher heruntergefahren. Wenn die rote LED langsam blinkt, können Sie den Netzschalter auf der Rückseite drücken, um das Gerät auszuschalten."
+        shutdown_done_title = "Herunterfahren abgeschlossen!"
+        shutdown_done_desc = "Das Modem wurde sicher heruntergefahren. Wenn die rote LED langsam blinkt, können Sie den Netzschalter auf der Rückseite drücken, um das Gerät auszuschalten."
+      elseif current_lang == "en-us" or current_lang == "en" then
+        shutdown_alert = "The gateway is shutting down safely. When the red LED blinks slowly, you can press the power button on the back to turn off the power."
+        shutdown_done_title = "Shutdown complete!"
+        shutdown_done_desc = "The gateway has been shut down safely. When the red LED blinks slowly, you can press the power button on the back to turn off the power."
+      end
+
       local wait_for_poweroff = {
         group = {
           class = "wait-for-poweroff"
@@ -820,8 +851,8 @@ ngx.print(ui_helper.createMessages(message_helper.popMessages()))
       html[#html + 1] = ui_helper.createTable(ntp_columns, ntp_data, ntp_options, nil, ntp_helpmsg)
       html[#html + 1] = '</div></div>'
 
-      html[#html + 1] = ui_helper.createAlertBlock(T"Il modem si sta arrestando in sicurezza. Quando il LED rosso lampeggia lentamente, puoi premere il tasto posteriore per spegnere l'alimentazione.", shutting_down)
-      html[#html + 1] = ui_helper.createButton(T"Safe Shutdown", T"Shutdown", "icon-off", wait_for_poweroff)
+      html[#html + 1] = ui_helper.createAlertBlock(shutdown_alert, shutting_down)
+      html[#html + 1] = ui_helper.createButton(shutdown_label, shutdown_btn, "icon-off", wait_for_poweroff)
 
       html[#html + 1] = ui_helper.createAlertBlock(T"Restarting, please wait...", rebooting)
       html[#html + 1] = ui_helper.createButton(T"Restart Device", T"Restart", "icon-refresh", wait_for_reboot)
@@ -966,15 +997,16 @@ ngx.print('\
     })\
     .fail(function() {\
       tch.removeProgress();\
-      $("#poweroff-msg").removeClass("hide").html("<strong>'); ngx.print(T'Arresto completato!'); ngx.print('</strong> '); ngx.print(T'Il modem è stato arrestato in sicurezza. Quando il LED rosso lampeggia lentamente, puoi premere il tasto posteriore per spegnere l\'alimentazione.'); ngx.print('");\
+      $("#poweroff-msg").removeClass("hide").html("<strong>'); ngx.print(shutdown_done_title); ngx.print('</strong> '); ngx.print(shutdown_done_desc); ngx.print('");\
     });\
   }\
   $("#btn-system-poweroff").on("click", function() {\
-      var heading = "');  ngx.print(T'Safe Shutdown'); ngx.print('";\
-      var processMsg = "');  ngx.print(T'Arresto in corso...'); ngx.print('";\
-      confirmationDialogue(\'');  ngx.print(T"Sei sicuro di voler spegnere il modem in sicurezza? Il sistema chiuderà tutti i servizi e salverà i dati su memoria flash. Quando il LED rosso lampeggerà lentamente, potrai spegnere il tasto posteriore."); ngx.print('\',heading);\
-	  var PopUpHeaderText = "."+$(".popUp>.header>.header-title>p").text().split(" ")[0];\
-      $(document).on("click", PopUpHeaderText, function() {\
+      var heading = "');  ngx.print(shutdown_heading); ngx.print('";\
+      var processMsg = "');  ngx.print(shutdown_process); ngx.print('";\
+      confirmationDialogue(\'');  ngx.print(shutdown_confirm); ngx.print('\',heading);\
+      $("#popUp").css({ "position": "fixed", "top": "50%", "left": "50%", "transform": "translate(-50%, -50%)", "margin": "0" });\
+      var PopUpHeaderText = "."+$(".popUp>.header>.header-title>p").text().trim().split(" ")[0];\
+      $(document).off("click", PopUpHeaderText).on("click", PopUpHeaderText, function() {\
            tch.removeProgress();\
            tch.showProgress(processMsg);\
            $("#poweroff-msg").removeClass("hide");\
