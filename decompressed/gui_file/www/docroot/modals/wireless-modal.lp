@@ -70,8 +70,9 @@ local listboxToText = function(options, value)
 end
 
 local getargs = ngx.req.get_uri_args()
-local getradio = getargs.radio
-local getiface = getargs.iface
+local postargs = (ngx.req.get_method() == "POST") and ngx.req.get_post_args() or {}
+local getradio = getargs.radio or postargs.curradio or postargs.radio
+local getiface = getargs.iface or postargs.curiface or postargs.iface
 local getWifiAnalyzer = getargs.isWifiAnalyzer
 
 local curradio = "radio_2G"
@@ -1077,7 +1078,9 @@ ngx.print(ui_helper.createHeader(T"Wireless", true, false))   ngx.print('\
     lp.setpath("/www/snippets/")
     lp.include("tabs-wireless.lp")
   ngx.print('\
-<form class="form-horizontal" method="post" action="');  ngx.print( ngx.var.request_uri ); ngx.print('">\
+<form class="form-horizontal" method="post" action="/modals/wireless-modal.lp?radio=');  ngx.print(curradio); ngx.print('&iface=');  ngx.print(curiface); ngx.print('">\
+<input type="hidden" name="curradio" value="'); ngx.print(curradio); ngx.print('">\
+<input type="hidden" name="curiface" value="'); ngx.print(curiface); ngx.print('">\
 ');  
 -- Do not display the navlist on the list if only 1 SSID
 if #wls > 0 then
@@ -1105,7 +1108,7 @@ if #wls > 0 then
         if v.iface == curiface and getWifiAnalyzer == nil then
             active = "active"
         end
-        local url = "modals/wireless-modal.lp?radio=" .. v.radio .. "&iface=" .. v.iface
+        local url = "/modals/wireless-modal.lp?radio=" .. v.radio .. "&iface=" .. v.iface
         -- Do not display stb ssid
         if v.ap_display_name ~= nil and v.ap_display_name ~= "" then
             html[#html+1] = format('<li class="%s"><a  id = "Wireless_Tab_%s" href="#" data-remote="%s">%s</a></li>', active, i, url, v.ap_display_name)
@@ -1130,7 +1133,7 @@ if #wls > 0 then
             active = "active"
             radio = v.radio
           end
-          local url = "modals/wireless-modal.lp?radio=" .. v.radio .. "&isWifiAnalyzer=" .. v.iface
+          local url = "/modals/wireless-modal.lp?radio=" .. v.radio .. "&isWifiAnalyzer=" .. v.iface
           html[#html+1] = format('<li class="%s"><a href="#" data-remote="%s" id ="wifianalyzer_%s">%s %sGHz</a></li>',active, url,freq,T"Analyzer",freq )
           local link_id = "2"
           if freq == "5" then link_id = "5" end
@@ -1149,7 +1152,7 @@ if #wls > 0 then
       end
     end
     if session:hasAccess("/modals/wireless-client-modal.lp") then
-      html[#html+1] = format('<li><a href="#" data-remote="modals/wireless-client-modal.lp" >%s</a></li>', T"Client Monitoring" )
+      html[#html+1] = format('<li><a href="#" data-remote="/modals/wireless-client-modal.lp" >%s</a></li>', T"Client Monitoring" )
     end
     ngx.print(html)
       ngx.print('\
@@ -2053,7 +2056,7 @@ if(aclmode == "register"){\
 function get_status_acl() {\
    $("#btn_acl").attr(\'disabled\', true);\
    setTimeout(function(){\
-   $.get("modals/wireless-modal.lp?action=get_reg_status&curap=');  ngx.print(curap); ngx.print('", function(res){\
+   $.get("/modals/wireless-modal.lp?action=get_reg_status&curap=');  ngx.print(curap); ngx.print('", function(res){\
      if (res != "register"){\
        get_status_acl();\
      }\
@@ -2066,7 +2069,7 @@ function get_status_acl() {\
 \
 $("#btn_acl").on("click", function() {\
    if($("#btn_acl").attr("disabled")!= undefined ) return false;\
-   $.post("modals/wireless-modal.lp",{ action: "set_reg", curap: "');  ngx.print(curap); ngx.print('", CSRFtoken: $("meta[name=CSRFtoken]").attr("content")},\
+   $.post("/modals/wireless-modal.lp",{ action: "set_reg", curap: "');  ngx.print(curap); ngx.print('", CSRFtoken: $("meta[name=CSRFtoken]").attr("content")},\
       get_status_acl);\
  });\
 \
@@ -2080,26 +2083,34 @@ $(document).ready(function() {\
     }\
 });\
 \
-$("#save-config").click(function(){\
-	var params = [];\
-	params.push({\
-	name : "ssidName",\
-	value : $("#ssid").val()\
-	},{\
-	name : "wpa_psk",\
-	value : $("#wpa_psk").val()\
-	},{\
-	name : "security",\
-	value : $("#security").val()\
-	},{\
-	name : "CSRFtoken",\
-	value :$("meta[name=CSRFtoken]").attr("content")\
-	},{\
-	name : "action",\
-	value: "bs_check"\
+if ("1" == bschecked) {\
+	$("#save-config").click(function(){\
+		var params = [];\
+		params.push({\
+		name : "ssidName",\
+		value : $("#ssid").val()\
+		},{\
+		name : "wpa_psk",\
+		value : $("#wpa_psk").val()\
+		},{\
+		name : "security",\
+		value : $("#security").val()\
+		},{\
+		name : "curradio",\
+		value : "'); ngx.print(curradio); ngx.print('"\
+		},{\
+		name : "curiface",\
+		value : "'); ngx.print(curiface); ngx.print('"\
+		},{\
+		name : "CSRFtoken",\
+		value :$("meta[name=CSRFtoken]").attr("content")\
+		},{\
+		name : "action",\
+		value: "bs_check"\
+		});\
+		$.post("/modals/wireless-modal.lp?radio='); ngx.print(curradio); ngx.print('&iface='); ngx.print(curiface); ngx.print('",params);\
 	});\
-	$.post("modals/wireless-modal.lp",params);\
-});\
+}\
 \
 $(\'input[id="band_steer_enabled"]\').on("click", function(){\
     if ("1" == bschecked) {\
@@ -2113,7 +2124,7 @@ $(\'input[id="band_steer_enabled"]\').on("click", function(){\
 // Guest network toggle handler\
 $(\'#guest_network_switch\').on("change", function(){\
     var newState = $(this).val() === "1" ? "1" : "0";\
-    $.post("modals/wireless-modal.lp", {\
+    $.post("/modals/wireless-modal.lp", {\
         action: "toggle_guest",\
         guest_state: newState,\
         CSRFtoken: $("meta[name=CSRFtoken]").attr("content")\
