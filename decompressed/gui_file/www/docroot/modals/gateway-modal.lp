@@ -374,8 +374,14 @@ if content["friendly_product_name"] and content["friendly_product_name"] == "AGH
 	content["friendly_product_name"] = "AGTHP" --Wrong product name by telecom!
 end
 
-if not ( content.friendly_product_name == "" ) then
-	content.product_name = format("%s ( %s )",content.product_name,content.friendly_product_name)
+if not ( content.friendly_product_name == "" ) and not ( content.friendly_product_name == content.product_name ) then
+	if content.friendly_product_name:find(content.product_name, 1, true) then
+		content.product_name = content.friendly_product_name
+	elseif content.product_name:find(content.friendly_product_name, 1, true) then
+		content.product_name = content.product_name
+	else
+		content.product_name = format("%s ( %s )", content.product_name, content.friendly_product_name)
+	end
 end
 
 
