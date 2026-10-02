@@ -318,6 +318,14 @@ if ngx.req.get_method() == "POST" then
   if action == "system_reboot" then
     return resetreboot("rpc.system.reboot", "GUI")
   end
+  if action == "system_poweroff" then
+    ngx.header.content_type = "application/json"
+    ngx.print('{ "success":"true" }')
+    ngx.timer.at(0.5, function()
+      os.execute("( /usr/bin/safe-poweroff.sh || /sbin/safe-poweroff.sh ) >/dev/null 2>&1 &")
+    end)
+    ngx.exit(ngx.HTTP_OK)
+  end
   if action == "schedulerebootset" then
     return schedulerebootset(ngx.req.get_post_args().paramvalue)
   end
@@ -591,6 +599,21 @@ ngx.print(ui_helper.createMessages(message_helper.popMessages()))
           class = "span5"
         },
       }
+      local wait_for_poweroff = {
+        group = {
+          class = "wait-for-poweroff"
+        },
+        button = {
+          id = "btn-system-poweroff",
+          class = "custom-handler btn-danger"
+        }
+      }
+      local shutting_down = {
+        alert = {
+          class = "alert alert-error hide",
+          id = "poweroff-msg"
+        }
+      }
       local wait_for_reboot = {
         group = {
           class = "wait-for-reboot"
@@ -797,6 +820,9 @@ ngx.print(ui_helper.createMessages(message_helper.popMessages()))
       html[#html + 1] = ui_helper.createTable(ntp_columns, ntp_data, ntp_options, nil, ntp_helpmsg)
       html[#html + 1] = '</div></div>'
 
+      html[#html + 1] = ui_helper.createAlertBlock(T"Il modem si sta arrestando in sicurezza. Quando il LED rosso lampeggia lentamente, puoi premere il tasto posteriore per spegnere l'alimentazione.", shutting_down)
+      html[#html + 1] = ui_helper.createButton(T"Safe Shutdown", T"Shutdown", "icon-off", wait_for_poweroff)
+
       html[#html + 1] = ui_helper.createAlertBlock(T"Restarting, please wait...", rebooting)
       html[#html + 1] = ui_helper.createButton(T"Restart Device", T"Restart", "icon-refresh", wait_for_reboot)
       html[#html + 1] = '<div class="control-group">'
@@ -933,6 +959,37 @@ ngx.print('\
     );\
     return false;\
   }\
+  function wait_for_shutdown() {\
+    $.ajax({ url: "/", timeout: 2000 })\
+    .done(function() {\
+      window.setTimeout(wait_for_shutdown, 1500);\
+    })\
+    .fail(function() {\
+      tch.removeProgress();\
+      $("#poweroff-msg").removeClass("hide").html("<strong>'); ngx.print(T'Arresto completato!'); ngx.print('</strong> '); ngx.print(T'Il modem è stato arrestato in sicurezza. Quando il LED rosso lampeggia lentamente, puoi premere il tasto posteriore per spegnere l\'alimentazione.'); ngx.print('");\
+    });\
+  }\
+  $("#btn-system-poweroff").on("click", function() {\
+      var heading = "');  ngx.print(T'Safe Shutdown'); ngx.print('";\
+      var processMsg = "');  ngx.print(T'Arresto in corso...'); ngx.print('";\
+      confirmationDialogue(\'');  ngx.print(T"Sei sicuro di voler spegnere il modem in sicurezza? Il sistema chiuderà tutti i servizi e salverà i dati su memoria flash. Quando il LED rosso lampeggerà lentamente, potrai spegnere il tasto posteriore."); ngx.print('\',heading);\
+	  var PopUpHeaderText = "."+$(".popUp>.header>.header-title>p").text().split(" ")[0];\
+      $(document).on("click", PopUpHeaderText, function() {\
+           tch.removeProgress();\
+           tch.showProgress(processMsg);\
+           $("#poweroff-msg").removeClass("hide");\
+           $("#poweroff-msg")[0].scrollIntoView();\
+           $("#btn-system-poweroff").replaceWith($("#poweroff-msg"));\
+           modgui.clearKoInterval();\
+           $.post(\
+             target,\
+             { action: "system_poweroff", CSRFtoken: $("meta[name=CSRFtoken]").attr("content") },\
+             wait_for_shutdown,\
+             "json"\
+           );\
+           return false;\
+	  });\
+  });\
   $("#btn-system-reboot").on("click", function() {\
       var heading = "');  ngx.print(T'Restart Device'); ngx.print('";\
       var processMsg = "');  ngx.print(T'Rebooting'); ngx.print('";\
