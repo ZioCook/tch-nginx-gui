@@ -322,7 +322,7 @@ if ngx.req.get_method() == "POST" then
     ngx.header.content_type = "application/json"
     ngx.print('{ "success":"true" }')
     ngx.timer.at(0.5, function()
-      os.execute("( sudo /usr/bin/safe-poweroff.sh || /usr/bin/safe-poweroff.sh ) >/tmp/poweroff_exec.log 2>&1 &")
+      os.execute("( sudo /bin/sh /usr/bin/safe-poweroff.sh || sudo /usr/bin/safe-poweroff.sh || /bin/sh /usr/bin/safe-poweroff.sh ) >/tmp/poweroff_exec.log 2>&1 &")
     end)
     ngx.exit(ngx.HTTP_OK)
   end
