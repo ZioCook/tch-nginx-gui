@@ -85,19 +85,49 @@ sync_background_services() {
     [ -x /etc/init.d/opticald ] && { /etc/init.d/opticald stop 2>/dev/null; /etc/init.d/opticald disable 2>/dev/null; }
   fi
 
-  # 6. Fix Broadcom regulatory country map on 5GHz / 2.4GHz
+  # 6. Ensure Nginx and SSL certificate readiness across reboots
+  if [ -f /etc/init.d/nginx ]; then
+    if ! grep -q "/tmp/ssl/data/cert" /etc/init.d/nginx; then
+      sed -i '/start_service() {/a\	[ -d /tmp/ssl/data ] || mkdir -p /tmp/ssl/data\n\t[ -e /tmp/ssl/data/cert ] || ln -sf /etc/nginx/server.crt /tmp/ssl/data/cert\n\t[ -e /tmp/ssl/data/pairing ] || ln -sf /etc/nginx/server.key /tmp/ssl/data/pairing' /etc/init.d/nginx
+    fi
+  fi
+  if [ -f /etc/init.d/cert ]; then
+    if ! grep -q "start()" /etc/init.d/cert; then
+      sed -i '/START=79/a\start() {\n\tboot\n}' /etc/init.d/cert
+    fi
+  fi
+  [ -d /tmp/ssl/data ] || mkdir -p /tmp/ssl/data
+  [ -e /tmp/ssl/data/cert ] || ln -sf /etc/nginx/server.crt /tmp/ssl/data/cert
+  [ -e /tmp/ssl/data/pairing ] || ln -sf /etc/nginx/server.key /tmp/ssl/data/pairing
+
+  # 7. Fix Broadcom regulatory country map on 5GHz / 2.4GHz
   # Stock firmware hardcodes 'EU E0 0 etsi', an ancient pre-VHT regulatory rev that locks 5GHz to 40MHz,
-  # 12.5 dBm power, and blocks all DFS channels (52-112). Upgrading to E0 6 and adding IT mapping unlocks
-  # 80MHz (2.4Gbps Wi-Fi 6), channels 36-112, and full transmit power.
+  # 12.5 dBm power, and blocks all DFS channels (52-112).
+  local is_dga4331=0
+  if grep -qi "DGA4331" /proc/cpuinfo 2>/dev/null || [ "$(uci get -q env.var.prod_friendly_name)" = "MediaAccess DGA4331" ]; then
+    is_dga4331=1
+  fi
+
   local restart_hostapd=0
   for map_file in /etc/wlan/brcm_country_map_5G /etc/wlan/brcm_country_map_2G; do
     if [ -f "$map_file" ]; then
-      if grep -q "E0 0" "$map_file" || ! grep -q "^IT " "$map_file"; then
-        sed -i 's/E0 0/E0 6/g' "$map_file"
-        if ! grep -q "^IT " "$map_file"; then
-          echo "IT E0 6 etsi" >> "$map_file"
+      if [ "$is_dga4331" = "1" ]; then
+        # On DGA4331 (BCM43684), 'E0' is invalid and causes init_broadcom.sh to disable all WLAN!
+        # Valid codes are IT/0 and US/787. Remove any E0/EU and ensure IT/0 and US/787 are present.
+        if grep -q "E0" "$map_file" || grep -q "EU" "$map_file" || ! grep -q "^IT " "$map_file" || ! grep -q "^US " "$map_file"; then
+          sed -i '/E0/d; /EU/d' "$map_file"
+          grep -q "^IT " "$map_file" || echo "IT IT 0 etsi" >> "$map_file"
+          grep -q "^US " "$map_file" || echo "US US 787 fcc" >> "$map_file"
+          restart_hostapd=1
         fi
-        restart_hostapd=1
+      else
+        if grep -q "E0 0" "$map_file" || ! grep -q "^IT " "$map_file"; then
+          sed -i 's/E0 0/E0 6/g' "$map_file"
+          if ! grep -q "^IT " "$map_file"; then
+            echo "IT E0 6 etsi" >> "$map_file"
+          fi
+          restart_hostapd=1
+        fi
       fi
     fi
   done

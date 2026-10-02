@@ -171,16 +171,8 @@ case "$detected_mode" in
             /etc/init.d/igmpproxy start 2>/dev/null
         fi
 
-        # 4. Enable DHCP Server on LAN
-        dhcp_changed=0
-        if [ "$(uci -q get dhcp.lan.ignore)" != "0" ]; then
-            uci -q set dhcp.lan.ignore='0'
-            dhcp_changed=1
-        fi
-        if [ "$dhcp_changed" = "1" ]; then
-            uci commit dhcp
-            /etc/init.d/dnsmasq restart 2>/dev/null
-        fi
+        # 4. Ensure dnsmasq is reloaded if needed
+        /etc/init.d/dnsmasq reload 2>/dev/null
 
         # Ensure no WAN interface is erroneously attached to br-lan in routed mode
         lan_ifnames=$(uci -q get network.lan.ifname)
@@ -216,16 +208,8 @@ case "$detected_mode" in
             /etc/init.d/igmpproxy start 2>/dev/null
         fi
 
-        # 4. Enable DHCP Server on LAN
-        dhcp_changed=0
-        if [ "$(uci -q get dhcp.lan.ignore)" != "0" ]; then
-            uci -q set dhcp.lan.ignore='0'
-            dhcp_changed=1
-        fi
-        if [ "$dhcp_changed" = "1" ]; then
-            uci commit dhcp
-            /etc/init.d/dnsmasq restart 2>/dev/null
-        fi
+        # 4. Ensure dnsmasq is reloaded if needed
+        /etc/init.d/dnsmasq reload 2>/dev/null
 
         # Ensure no WAN interface is erroneously attached to br-lan in routed mode
         lan_ifnames=$(uci -q get network.lan.ifname)
