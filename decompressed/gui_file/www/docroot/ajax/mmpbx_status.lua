@@ -182,6 +182,7 @@ if mmpbx_state == "1" then
     else
         mmpbx_table_html = flatten_html(ui_helper.createLabel(T"Line Status", T"No registered accounts", basic))
     end
+end
 
 local data = {
     mmpbx_status = mmpbx_status_html,
