@@ -1,5 +1,5 @@
 -- Enable localization
-gettext.textdomain('webui-voice')
+gettext.textdomain('webui-core')
 
 local json = require("dkjson")
 local proxy = require("datamodel")
@@ -31,6 +31,12 @@ end
 
 local mmpbx_info = (mmpbx_state == "1") and T"Telephony enabled" or T"Telephony disabled"
 
+local basic = {
+    span = {
+        class = "span3"
+    },
+}
+
 local function flatten_html(tbl)
     local res = {}
     local function helper(t)
@@ -48,11 +54,10 @@ local function flatten_html(tbl)
     return table.concat(res)
 end
 
-local mmpbx_status_html = flatten_html(ui_helper.createSimpleLight(mmpbx_state, mmpbx_info, { light = { id = "Telephony_LEDStatus" }, span = { id = "Telephony_Status" } }, "fa-phone"))
+local mmpbx_status_html = flatten_html(ui_helper.createLabel(T"Service", ui_helper.createSimpleLight(mmpbx_state, mmpbx_info), basic))
 local mmpbx_table_html = ""
 
 if mmpbx_state == "1" then
-    gettext.textdomain('webui-core')
     local mmpbxd_columns = {
         {
             header = T"Line Status",
@@ -175,9 +180,8 @@ if mmpbx_state == "1" then
         local mmpbx_table = ui_helper.createTable(mmpbxd_columns, mmpbxd_data, mmpbxd_options, nil, nil)
         mmpbx_table_html = flatten_html(mmpbx_table)
     else
-        mmpbx_table_html = '<p class="subinfos" style="margin-top:10px;"><br/>' .. T"No registered accounts" .. '</p>'
+        mmpbx_table_html = flatten_html(ui_helper.createLabel(T"Line Status", T"No registered accounts", basic))
     end
-end
 
 local data = {
     mmpbx_status = mmpbx_status_html,
