@@ -4415,6 +4415,9 @@ msgstr "Bridge getrennt"
 msgid "Bridge Not Configured"
 msgstr "Bridge nicht konfiguriert"
 
+msgid "No lines configured"
+msgstr "Keine Leitungen konfiguriert"
+
 msgid "RAM cache emptied successfully."
 msgstr "RAM-Cache erfolgreich geleert."
 

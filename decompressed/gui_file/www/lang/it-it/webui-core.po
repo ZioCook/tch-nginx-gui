@@ -4418,6 +4418,9 @@ msgstr "Bridge Disconnesso"
 msgid "Bridge Not Configured"
 msgstr "Bridge Non Configurato"
 
+msgid "No lines configured"
+msgstr "Nessuna linea configurata"
+
 msgid "RAM cache emptied successfully."
 msgstr "Cache RAM svuotata con successo."
 

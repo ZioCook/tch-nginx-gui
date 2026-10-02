@@ -25,14 +25,23 @@ local status_map = {
 local untaint_mt = require("web.taint").untaint_mt
 setmetatable(status_map, untaint_mt)
 
-local mmpbx_light = content["status"]=="NA" and "0" or "1"
+local mmpbx_light = (content["status"] == "NA" or content["status"] == "" or not content["status"]) and "0" or "1"
 local mmpbx_status = status_map[content.status] or content.status
+if not mmpbx_status or mmpbx_status == "" then
+    mmpbx_status = T"Not Available"
+end
+
+local session = ngx.ctx.session
+local modalPath = nil
+if session and session:hasAccess("/modals/mmpbx-global-modal.lp") then
+    modalPath = "/modals/mmpbx-global-modal.lp"
+end
 
   ngx.print('\
 \
 <div class="infocard" id="infommpbxdtab">\
   <div class="smallcard">\
-    ');  ngx.print( ui_helper.createCardHeader(T"Telephony Info", nil, nil, nil, nil) ); ngx.print('\
+    ');  ngx.print( ui_helper.createCardHeader(T"Telephony Info", modalPath, nil, nil, nil) ); ngx.print('\
     <div class="content card_bg" data-bg-text="&#xf095;">\
 	<div class="divtable">\
 	<form class="form-horizontal">\
@@ -57,7 +66,11 @@ local mmpbx_status = status_map[content.status] or content.status
 	end
 	
 	html[#html + 1] = '<span data-bind="html: mmpbx_table">'
-    html[#html + 1] = '<div class="spinner3"><div class="rect1"></div><div class="rect2"></div><div class="rect3"></div><div class="rect4"></div><div class="rect5"></div></div>'
+    if content.status == "NA" or content.status == "" or not content.status then
+        html[#html + 1] = ui_helper.createLabel(T"Line Status", T"Not Available", basic)
+    else
+        html[#html + 1] = '<div class="spinner3"><div class="rect1"></div><div class="rect2"></div><div class="rect3"></div><div class="rect4"></div><div class="rect5"></div></div>'
+    end
     html[#html + 1] = '</span>'
 	
 	ngx.print(html)

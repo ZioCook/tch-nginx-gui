@@ -46,8 +46,11 @@ local status_map = {
 }
 setmetatable(status_map, untaint_mt)
 
-local mmpbx_light = content.status == "NA" and "0" or "1"
+local mmpbx_light = (content.status == "NA" or content.status == "" or not content.status) and "0" or "1"
 local mmpbx_status = status_map[content.status] or content.status
+if not mmpbx_status or mmpbx_status == "" then
+    mmpbx_status = T"Not Available"
+end
 
 local callStateMap = {
 	MMPBX_CALLSTATE_IDLE = T"Idle",
@@ -138,6 +141,29 @@ local mmpbxd_filter = function(data)
     return true
 end
 
+local basic = {
+    span = {
+        class = "span3",
+    },
+}
+
+local function flatten_html(tbl)
+    local res = {}
+    local function helper(t)
+        for _, v in pairs(t) do
+            if type(v) == "table" then
+                helper(v)
+            elseif type(v) == "userdata" then
+                res[#res + 1] = string.untaint(v)
+            elseif v ~= nil then
+                res[#res + 1] = tostring(v)
+            end
+        end
+    end
+    helper(tbl)
+    return table.concat(res)
+end
+
 local  mmpbxd_options = {
     canEdit = false,
     canAdd = false,
@@ -148,27 +174,18 @@ local  mmpbxd_options = {
 
 local  mmpbxd_data = content_helper.loadTableData(mmpbxd_options.basepath, mmpbxd_columns ,  mmpbxd_filter , nil)
 
-local mmpbx_table = ui_helper.createTable(mmpbxd_columns, mmpbxd_data, mmpbxd_options, nil, nil)
-
-local mmpbx_string = {}
-
-local function concat_table(mmpbx_table)
-    for _ , table_string in pairs(mmpbx_table) do
-        if type(table_string) == "table" then
-            concat_table(table_string)
-        elseif type(table_string) == "userdata" then
-            mmpbx_string[#mmpbx_string+1] = string.untaint(table_string)
-        else
-            mmpbx_string[#mmpbx_string+1] = table_string
-        end
-    end
+local mmpbx_table_html = ""
+if #mmpbxd_data > 0 then
+    local mmpbx_table = ui_helper.createTable(mmpbxd_columns, mmpbxd_data, mmpbxd_options, nil, nil)
+    mmpbx_table_html = flatten_html(mmpbx_table)
+else
+    local no_lines_text = (content.status == "NA" or content.status == "") and T"Not Available" or T"No lines configured"
+    mmpbx_table_html = flatten_html(ui_helper.createLabel(T"Line Status", no_lines_text, basic))
 end
 
-concat_table(mmpbx_table)
-
 local data = {
-    mmpbx_status = ui_helper.createLabel(T"Service", ui_helper.createSimpleLight(mmpbx_light, mmpbx_status), basic),
-    mmpbx_table = table.concat(mmpbx_string) or ""
+    mmpbx_status = flatten_html(ui_helper.createLabel(T"Service", ui_helper.createSimpleLight(mmpbx_light, mmpbx_status), basic)),
+    mmpbx_table = mmpbx_table_html,
 }
 
 local buffer = {}
