@@ -4968,3 +4968,6 @@ msgstr "Wird heruntergefahren..."
 
 msgid "Are you sure you want to safely shut down the gateway?"
 msgstr "Möchten Sie das Modem wirklich sicher herunterfahren?"
+
+msgid "No registered accounts"
+msgstr "Keine registrierten Konten"

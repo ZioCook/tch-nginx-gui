@@ -1,11 +1,18 @@
 --pretranslated: do not change this file
  
 -- Enable localization
-gettext.textdomain('webui-core')
+gettext.textdomain('webui-voice')
 
 local content_helper = require("web.content_helper")
 local ui_helper = require("web.ui_helper")
 local proxy = require("datamodel")
+
+local session = ngx.ctx.session
+if session and session.getLanguage then
+    gettext.language(session:getLanguage())
+elseif ngx.header['Content-Language'] then
+    gettext.language(ngx.header['Content-Language'])
+end
 
 local mmpbx_state = "0"
 local mmpbx_state_uci = proxy.get("uci.mmpbx.mmpbx.@global.enabled")
@@ -21,7 +28,6 @@ end
 
 local mmpbx_info = (mmpbx_state == "1") and T"Telephony enabled" or T"Telephony disabled"
 
-local session = ngx.ctx.session
 local modalPath = nil
 local switchName = "mmpbx_enabled"
 
@@ -34,7 +40,7 @@ ngx.print('\
 <div class="infocard" id="infommpbxdtab">\
   <div class="smallcard">\
     ');  ngx.print( ui_helper.createCardHeader(T"Telephony", modalPath, switchName, mmpbx_state) ); ngx.print('\
-    <div class="content card_bg" data-bg-text="&#xf095;">\
+    <div class="content card_bg" data-bg-text="&#xf095;" style="padding: 18px 20px 15px 20px; min-height: 120px;">\
 	<div class="divtable">\
 ')
 

@@ -1,9 +1,16 @@
 -- Enable localization
-gettext.textdomain('webui-core')
+gettext.textdomain('webui-voice')
 
 local json = require("dkjson")
 local proxy = require("datamodel")
 local ngx = ngx
+
+local session = ngx.ctx.session
+if session and session.getLanguage then
+    gettext.language(session:getLanguage())
+elseif ngx.header['Content-Language'] then
+    gettext.language(ngx.header['Content-Language'])
+end
 
 local content_helper = require("web.content_helper")
 local post_helper = require("web.post_helper")
@@ -45,6 +52,7 @@ local mmpbx_status_html = flatten_html(ui_helper.createSimpleLight(mmpbx_state, 
 local mmpbx_table_html = ""
 
 if mmpbx_state == "1" then
+    gettext.textdomain('webui-core')
     local mmpbxd_columns = {
         {
             header = T"Line Status",
