@@ -108,7 +108,7 @@ local content, helpmsg = post_helper.handleQuery(mapParams, mapValid)
 -- Trigger power init script reload on successful POST
 if ngx.req.get_method() == "POST" and not helpmsg then
   local post_args = ngx.req.get_post_args()
-  if post_args and post_args.action == "SAVE" then
+  if not post_args or post_args.action ~= "drop_caches" then
     os.execute("/etc/init.d/power reload >/dev/null 2>&1 &")
     os.execute("/etc/init.d/ledfw restart >/dev/null 2>&1 &")
   end
