@@ -438,8 +438,18 @@ end
 local wifipower = {}
 
 for i=-6,6 do
-	i = i < 0 and i or format("+%s",i)
-	tinsert(wifipower,{tostring(i),format("%s dBm",i)})
+	local val = tostring(i)
+	local label = (i > 0 and ("+" .. i) or tostring(i)) .. " dBm"
+	tinsert(wifipower, { val, label })
+end
+
+local function validateTxPower(value, postdata, key)
+	local n = tonumber(value)
+	if n and n >= -6 and n <= 6 then
+		postdata[key] = tostring(n)
+		return true
+	end
+	return nil, T"Invalid value."
 end
 
 local cw_40 = {
@@ -540,14 +550,19 @@ local acl_modes = {
  end
 
 local function getValidateChannelWidth(channelWidth)
+  local val_fn = gVIES(channelWidth)
   return function(value, postdata, key)
-    local success, msg = gVIES(channelWidth)
-    if success then
-      postdata["requested_channel_width"] = postdata[cw[untaint(postdata["standard"])]]
-      return true
-    else
-      return nil, msg
+    local target_cw = cw[untaint(postdata["standard"])]
+    if key == target_cw then
+      local success, msg = val_fn(value, postdata, key)
+      if success then
+        postdata["requested_channel_width"] = value
+        return true
+      else
+        return nil, msg
+      end
     end
+    return true
   end
 end
 
@@ -863,7 +878,7 @@ local function getParamsAndValidation()
     sgi = gOV(vB),
     cdd = gVIES(cddList),
     stbc = gOV(vB),
-    tx_power_adjust = gVIES(wifipower),
+    tx_power_adjust = validateTxPower,
 	tx_power_overrule_reg = vB,
     channelwidth20 = getValidateChannelWidth(cw_40),
     channelwidth40 = getValidateChannelWidth(cw_40),
@@ -1047,6 +1062,13 @@ if content["requested_channel"] ~= nil and content["channel"] ~= nil and content
     content["channel"] = content["requested_channel"]
 end
 
+if content["tx_power_adjust"] then
+    local n = tonumber(content["tx_power_adjust"])
+    if n then
+        content["tx_power_adjust"] = tostring(n)
+    end
+end
+
 local band_steer_supported = 0
 local bs_peer_network_enable = "0"
 local band_steer_enabled = "0"
@@ -1086,7 +1108,7 @@ ngx.print(ui_helper.createHeader(T"Wireless", true, false))   ngx.print('\
     lp.setpath("/www/snippets/")
     lp.include("tabs-wireless.lp")
   ngx.print('\
-<form class="form-horizontal" method="post" action="/modals/wireless-modal.lp">\
+<form class="form-horizontal" method="post" action="/modals/wireless-modal.lp?radio=');  ngx.print(curradio); ngx.print('&iface=');  ngx.print(curiface); ngx.print('">\
 <input type="hidden" name="curradio" value="'); ngx.print(curradio); ngx.print('">\
 <input type="hidden" name="curiface" value="'); ngx.print(curiface); ngx.print('">\
 ');  

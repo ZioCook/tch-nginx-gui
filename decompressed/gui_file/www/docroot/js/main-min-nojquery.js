@@ -2141,6 +2141,12 @@ function confirmationDialogue(t, e) {
 							name: "auto_update",
 							value: "true"
 						});
+						$(".modal form input[name='curradio'], .modal form input[name='curiface']").each(function () {
+							e.push({
+								name: this.name,
+								value: this.value
+							});
+						});
 						var n = $(".modal form").attr("action"),
 						i = $(".modal-body [data-ajaxrefresh]"),
 						o = {},
