@@ -4983,3 +4983,15 @@ msgstr "Standard-Gateway"
 
 msgid "Attenuation"
 msgstr "Dämpfung"
+
+msgid "ETH Linespeed"
+msgstr "Ethernet-Port-Geschwindigkeit"
+
+msgid "ETH-WAN Linespeed"
+msgstr "WAN-Port-Geschwindigkeit"
+
+msgid "ETH-LAN Linespeed"
+msgstr "LAN-Port-Geschwindigkeit"
+
+msgid "Back"
+msgstr "Zurück"

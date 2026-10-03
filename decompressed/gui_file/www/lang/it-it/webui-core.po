@@ -5004,3 +5004,15 @@ msgstr "Gateway predefinito"
 
 msgid "Attenuation"
 msgstr "Attenuazione"
+
+msgid "ETH Linespeed"
+msgstr "Velocità porte Ethernet"
+
+msgid "ETH-WAN Linespeed"
+msgstr "Velocità porta WAN"
+
+msgid "ETH-LAN Linespeed"
+msgstr "Velocità porte LAN"
+
+msgid "Back"
+msgstr "Indietro"
