@@ -84,18 +84,19 @@ nf_conntrack_count:close()
 	html[#html + 1] = ui_helper.createLabel(T"Software Version", format("%s %s",content["software_version"],content["software_name"]), basic)
 	html[#html + 1] = ui_helper.createLabel(T"GUI Version", content["gui_version"], basic)
 	html[#html + 1] = '<div class="control-group">'
-	html[#html + 1] =   '<label class="control-label"><span class="gui_version_status fas fa-cog '..content.outdated_ver..'"></span></label>'
+	html[#html + 1] =   '<label class="control-label">' .. T"Status" .. '</label>'
 	html[#html + 1] =   '<div class="controls">'
 	html[#html + 1] =     '<span class="simple-desc span3 gui_version_status_text">'
+	html[#html + 1] =       '<span class="gui_version_status fas fa-cog ' .. content.outdated_ver .. '"></span> '
 	html[#html + 1] = 		content.outdated_ver_text
 	html[#html + 1] =	  '</span>'
 	html[#html + 1] =   '</div>'
 	html[#html + 1] = '</div>'
 	html[#html + 1] = '<div class="control-group">'
-	html[#html + 1] =   '<label class="control-label"><span class="fa fa-sync check_update_spinner"></span></label>'
+	html[#html + 1] =   '<label class="control-label">' .. T"Check Update" .. '</label>'
 	html[#html + 1] =   '<div class="controls">'
 	html[#html + 1] =     '<span class=" simple-desc span3">'
-	html[#html + 1] = 		format('<a class="check_update" style="cursor: pointer;">%s</a>',T"Check Update")
+	html[#html + 1] = 		format('<a class="check_update" style="cursor: pointer;"><span class="fa fa-sync check_update_spinner"></span> %s</a>', T"Check Update")
 	html[#html + 1] =	  '</span>'
 	html[#html + 1] =   '</div>'
 	html[#html + 1] = '</div>'

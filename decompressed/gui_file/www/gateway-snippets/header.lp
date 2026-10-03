@@ -111,11 +111,11 @@ ngx.print('\
 
     html[#html + 1] = [[<div class="header-button">]]
     if not ( session:getusername() == "guest" ) then
-      html[#html + 1] = '<div class="header-sub-button">'
       local hideUpdateButton = ""
       if cui.outdated_ver == "0" then
         hideUpdateButton = "hide"
       end
+      html[#html + 1] = '<div class="header-sub-button ' .. hideUpdateButton .. '">'
       html[#html + 1] = '<div id="upgradebtn" class="btn someInfos '.. hideUpdateButton  ..'"'
       if not ( cui.gui_skin == "Fritz" ) then
         html[#html + 1] = ' rel="tooltip" data-placement="bottom" data-original-title="'

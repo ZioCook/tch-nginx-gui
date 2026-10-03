@@ -107,8 +107,14 @@ end
 	
 	local html = {}
 	
+	local is_dsl_up = (content.status == "Up")
+	local status_text = is_dsl_up and T"Connected" or (content.status ~= "" and content.status or T"Not Connected")
+	local status_light = is_dsl_up and "1" or "0"
+
 	basic.span["data-bind"] = "text: status"
-	html[#html + 1] = ui_helper.createLabel(T"Status", content["status"], basic)
+	html[#html + 1] = ui_helper.createLabel(T"Status", ui_helper.createSimpleLight(status_light, status_text), basic)
+
+	if is_dsl_up then
 	basic.span["data-bind"] = nil
 	html[#html + 1] = ui_helper.createLabel(T"xDSL Version", content["version"], basic)
 	basic.span["data-bind"] = "text: dslam_chipset"
@@ -189,6 +195,10 @@ end
 	html[#html + 1] =	  '</span>'
 	html[#html + 1] =   '</div>'
 	html[#html + 1] = '</div>'
+	else
+		basic.span["data-bind"] = nil
+		html[#html + 1] = ui_helper.createLabel(T"xDSL Line", T"Not Connected", basic)
+	end
 	
 	ngx.print(html)
 ngx.print('\

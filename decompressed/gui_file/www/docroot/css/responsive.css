@@ -217,12 +217,65 @@
         margin: 0 0 10px 0 !important;
         border-radius: 6px !important;
     }
+    /* --- Watermark Faint Contrast --- */
+    .card_bg:after {
+        opacity: 0.10 !important;
+    }
+
+    /* --- Telephony & Inactive Cards Height --- */
+    #infommpbxdtab .smallcard .content {
+        min-height: auto !important;
+        padding: 8px 0 !important;
+    }
+
+    /* --- Connected Devices Uniform Mobile Layout --- */
+    #infodevicetab table tbody tr {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        padding: 8px 4px !important;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+    }
+    #infodevicetab table tbody tr > td {
+        border-top: none !important;
+        box-sizing: border-box !important;
+    }
+    #infodevicetab table tbody tr > td:first-child {
+        width: 100% !important;
+        font-weight: 600 !important;
+        font-size: 13px !important;
+        margin-bottom: 4px !important;
+        word-break: break-all !important;
+        color: #222 !important;
+    }
+    #infodevicetab table tbody tr > td:not(:first-child) {
+        width: 50% !important;
+        font-size: 12px !important;
+        color: #555 !important;
+        word-break: break-word !important;
+    }
+
+    /* --- Gateway Card font sizing --- */
+    #gatewaytab .divtable > .form-horizontal .controls {
+        font-size: 12px !important;
+        line-height: 1.25 !important;
+    }
+
     /* --- Mobile Compact Buttons --- */
+    #headertab .header-sub-button.hide {
+        display: none !important;
+    }
+    #headertab .header-sub-button {
+        flex: 1 1 0 !important;
+    }
+    #headertab .header-sub-button:has(#wizard-btn) {
+        flex: 0 0 38px !important;
+    }
     #wizard-btn .wizard-text {
         display: none !important;
     }
     #headertab .header-sub-button .btn#wizard-btn {
-        flex: 0 0 36px !important;
+        flex: 0 0 38px !important;
+        width: 38px !important;
         padding: 5px 0 !important;
         text-align: center !important;
     }
