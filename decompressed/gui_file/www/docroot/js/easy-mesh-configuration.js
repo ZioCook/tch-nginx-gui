@@ -23,8 +23,10 @@ function updateTabsVisibility(enabled) {
   }).closest("li");
   if (enabled) {
     $tabs.show();
+    $(".nav-tabs").show();
   } else {
     $tabs.hide();
+    $(".nav-tabs").hide();
   }
 }
 

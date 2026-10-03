@@ -63,6 +63,9 @@
     box-sizing: border-box !important;
     width: calc(100% + 30px) !important;
 }
+.modal-body legend + * {
+    margin-top: 8px !important;
+}
 
 /* ==========================================================================
    Mobile Smartphone Enhancements (max-width: 767px and 480px)
