@@ -217,9 +217,7 @@
         margin: 0 0 10px 0 !important;
         border-radius: 6px !important;
     }
-}
-
-@media (max-width: 480px) {
+    /* --- Mobile Compact Buttons --- */
     #wizard-btn .wizard-text {
         display: none !important;
     }
@@ -227,6 +225,14 @@
         flex: 0 0 36px !important;
         padding: 5px 0 !important;
         text-align: center !important;
+    }
+    #logged.btn-group > .btn.dropdown-toggle {
+        font-size: 0 !important;
+        padding: 5px 6px !important;
+    }
+    #logged.btn-group > .btn.dropdown-toggle .caret {
+        margin-left: 0 !important;
+        margin-top: 6px !important;
     }
 }
 
