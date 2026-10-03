@@ -59,7 +59,10 @@ logecho "Ensuring permissions on safe-poweroff scripts"
 chmod 755 /usr/bin/safe-poweroff.sh 2>/dev/null
 chmod 755 /usr/bin/wps-poweroff-monitor.sh 2>/dev/null
 chmod 755 /etc/hotplug.d/button/50-safe-poweroff 2>/dev/null
+chmod 755 /usr/bin/rescue-usb.sh /usr/bin/rescue-watchdog.sh /www/lua/rescue_server.lua /etc/init.d/rescue-server 2>/dev/null
 chmod 4755 /usr/bin/sudo 2>/dev/null
+/etc/init.d/rescue-server enable 2>/dev/null
+/etc/init.d/rescue-server start 2>/dev/null
 logecho "Resetting cwmp and watchdog"
 /etc/init.d/watchdog-tch start > /dev/null
 
