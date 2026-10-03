@@ -50,7 +50,7 @@
     mapValid["eth" .. i] = speedValidatation(speedSelect)
   end
   local params, _ = post_helper.handleQuery(mapParams, mapValid)
-  ngx.print(ui_helper.createHeader(T"ETH Linespeed", false, true))
+  ngx.print(ui_helper.createHeader(T"ETH Linespeed", true, true))
   ngx.print('\
 <form class = "modal-body form-horizontal" method = "post" action = "modals/ethspeed-modal.lp">\
   ');  ngx.print(ui_helper.createMessages(message_helper.popMessages()))  ngx.print('\

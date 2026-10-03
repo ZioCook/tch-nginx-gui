@@ -1411,6 +1411,10 @@ if #lan_intfs> 1 then
         local url = "modals/ethernet-modal.lp?intf=" .. v.index
         html[#html+1] = format('<li class="%s"><a id = "%s" href="#" data-remote="%s">%s</a></li>', active, v.index, url, v.name)
     end
+    if session:hasAccess("/modals/ethspeed-modal.lp") then
+        html[#html+1] = format('<li class="nav-header">%s</li>', T"Ethernet")
+        html[#html+1] = format('<li><a id="ethspeed_nav" href="#" data-remote="/modals/ethspeed-modal.lp">%s</a></li>', T"ETH Linespeed")
+    end
     ngx.print(html)
     ngx.print('\
         </ul>\
