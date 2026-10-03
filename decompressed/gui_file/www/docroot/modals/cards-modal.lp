@@ -167,6 +167,7 @@ if ngx.req.get_method() == "POST" then
     if apply_needed then
       proxy.apply()
     end
+    pcall(function() require("cards").reload_config() end)
     pcall(function() require("web.lp").flush() end)
     ngx.print(ui_helper.createHeader(T"Card Settings", false, false))
     ngx.print('\n<div class="modal-body update">\n')

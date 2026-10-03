@@ -2,6 +2,8 @@
 
 --Helper script to adds element to web config file
 
+package.path = "/www/lua/?.lua;/usr/lib/lua/?.lua;" .. package.path
+
 local uci = require("uci"):cursor()
 local new_rule
 
@@ -260,8 +262,11 @@ for _ , elem in pairs(card_check_rule) do
 		uci:set('web', elem.name , 'card', elem.card)
 		uci:set('web', elem.name , 'modal', elem.modal)
 		uci:set('web', elem.name , 'hide', target_hide)
-	elseif (elem.hide or elem.name == 'wifiextender_card') and uci:get('web', elem.name, 'hide') ~= target_hide then
+	elseif uci:get('web', elem.name, 'hide') == nil then
 		uci:set('web', elem.name, 'hide', target_hide)
+		new_rule = true
+	elseif elem.name == 'wifiextender_card' and not easymesh_supported and uci:get('web', elem.name, 'hide') ~= '1' then
+		uci:set('web', elem.name, 'hide', '1')
 		new_rule = true
 	end
 end

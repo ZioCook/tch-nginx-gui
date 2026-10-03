@@ -39,7 +39,7 @@ local function reload_config()
       local clean_card = orig_card:gsub("^%d+_", "")
 
       card.modal = target
-      card.hide = (card.hide ~= '0')
+      card.hide = (card.hide == '1')
       card.card = clean_card
 
       config[clean_card] = card
@@ -148,6 +148,7 @@ function M.get_modal_from_card(CardSearch)
 end
 
 function M.cards()
+  reload_config()
   local session = ngx.ctx.session
   local limit_info = get_limit_info()
   local result = {}
