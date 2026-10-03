@@ -173,6 +173,7 @@ local function render_html()
     .fa-play:before { content: "\f04b"; }
     .fa-eraser:before { content: "\f12d"; }
     .fa-spinner:before { content: "\f110"; }
+    .fa-cogs:before { content: "\f085"; }
     .fa-spin { animation: fa-spin 1s infinite linear; }
     @keyframes fa-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
@@ -280,26 +281,31 @@ local function render_html()
       gap: 20px;
     }
 
-    /* Card Styling */
+    /* Card Styling - Pixel Perfect Replica of Technicolor .smallcard */
     .sc {
       position: relative;
       display: flex;
       flex-direction: column;
       background: #fff;
       overflow: hidden;
+      font-family: Helvetica,Arial,sans-serif;
       font-size: 14px;
-      border-radius: 2px;
-      border: 1px solid #c6bec9;
+      border-radius: 0;
+      border: none;
+      -webkit-box-shadow: 0 2px 20px 0px rgba(56, 132, 56, 0.65);
+      -moz-box-shadow: 0 2px 20px 0px rgba(56, 132, 56, 0.65);
       box-shadow: 0 2px 20px 0px rgba(56, 132, 56, 0.65);
       height: 100%;
+      z-index: 2;
     }
 
     /* Card Header - Thick, Bold Technicolor Green Gradient (Identical to Original GUI) */
     .sh {
-      min-height: 46px;
-      padding: 10px 16px;
+      min-height: 44px;
+      height: 44px;
+      padding: 10px 14px;
       font-size: 18px;
-      line-height: 24px;
+      line-height: 22px;
       font-weight: bold;
       color: #fff;
       text-shadow: 0 1px 1px #000;
@@ -308,6 +314,7 @@ local function render_html()
       text-overflow: ellipsis;
       background-color: rgb(30, 116, 30);
       background-image: linear-gradient(to bottom, rgb(30, 116, 30) 20%, rgb(29, 36, 29) 100%);
+      border: 1px solid rgb(30, 116, 30);
       border-bottom: 1px solid rgb(25, 95, 25);
       box-shadow: inset 0 1px 1px rgba(255,255,255,.2);
       display: flex;
@@ -322,24 +329,25 @@ local function render_html()
       z-index: 1;
       flex: 1;
       box-sizing: border-box;
-      min-height: 175px;
-      padding: 16px;
+      min-height: 180px;
+      padding: 14px 15px;
       font-weight: 500;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
     }
 
-    /* Discreet Watermarks (Non-overlapping) */
+    /* Discreet Watermarks (Non-overlapping, Solid Glyph without cutouts) */
     .bgi {
       position: absolute;
-      right: 6px;
-      bottom: 40px;
+      right: 8px;
+      bottom: 30px;
       z-index: 0;
       font-size: 110px;
       line-height: 1;
-      color: rgba(151, 187, 151, 0.16);
+      color: rgba(151, 187, 151, 0.18);
       pointer-events: none;
+      user-select: none;
     }
 
     .li {
@@ -390,12 +398,16 @@ local function render_html()
     .btn-action {
       position: relative;
       z-index: 2;
-      display: inline-block;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
       width: 100%;
       padding: 8px 14px;
       font-size: 14px;
       line-height: 20px;
       font-weight: bold;
+      font-family: inherit;
       text-align: center;
       vertical-align: middle;
       border-radius: 4px;
@@ -521,8 +533,8 @@ local function render_html()
     }
     .shell-input {
       flex: 1;
-      height: 34px;
-      padding: 4px 10px;
+      height: 36px;
+      padding: 6px 10px;
       font-family: Consolas, monospace;
       font-size: 13px;
       background: #141414;
@@ -538,26 +550,33 @@ local function render_html()
     }
     .shell-btn {
       width: auto !important;
-      height: 34px;
-      padding: 6px 16px !important;
+      height: 36px;
+      padding: 6px 18px !important;
       margin: 0 !important;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
     }
 
-    /* Clean Styled File Input */
-    input[type="file"] {
+    /* Styled File Upload Container */
+    .file-wrap {
+      position: relative;
+      z-index: 2;
+      margin-bottom: 14px;
+    }
+    .file-wrap input[type="file"] {
       display: block;
       width: 100%;
       box-sizing: border-box;
-      margin-bottom: 12px;
-      padding: 6px 8px;
+      padding: 7px 8px;
       font-size: 12px;
+      font-family: inherit;
       background: #fafafa;
       border: 1px solid #c6bec9;
       border-radius: 4px;
       color: #333;
+      cursor: pointer;
+    }
+    .file-wrap input[type="file"]:hover {
+      background: #fff;
+      border-color: rgb(30, 116, 30);
     }
 
     /* Clean Footer showing GUI Version */
@@ -573,15 +592,72 @@ local function render_html()
     .copyright p { margin: 4px 0 0; }
     .copyright strong { color: rgb(30, 116, 30); font-weight: 700; }
 
-    /* Responsive Breakpoints */
-    @media (max-width: 1050px) {
-      .cards-grid { grid-template-columns: repeat(2, 1fr); }
-      .logt { grid-column: 1 / -1; }
+    /* Responsive Breakpoints: Desktop (default 4 cols), Tablet (2 cols), Smartphone (1 col) */
+    @media (max-width: 1024px) {
+      .container {
+        padding: 0 16px 30px;
+      }
+      .cards-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 16px;
+      }
+      .logt {
+        grid-column: 1 / -1;
+      }
     }
-    @media (max-width: 620px) {
-      .cards-grid { grid-template-columns: 1fr; }
-      .header { flex-direction: column; align-items: flex-start; gap: 14px; }
-      .container { padding: 0 12px 30px; }
+    @media (max-width: 680px) {
+      .container {
+        padding: 0 10px 25px;
+      }
+      .header {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 12px;
+        padding: 16px 0 12px;
+      }
+      .header-button {
+        flex-direction: column;
+        width: 100%;
+        align-items: stretch;
+        gap: 8px;
+      }
+      .header .btn {
+        width: 100%;
+        justify-content: center;
+      }
+      .alert {
+        word-break: break-word;
+        padding: 10px 12px;
+      }
+      .cards-grid {
+        grid-template-columns: 1fr;
+        gap: 14px;
+        min-width: 0;
+      }
+      .sc {
+        min-width: 0;
+      }
+      .sh {
+        font-size: 16px;
+        padding: 10px 12px;
+      }
+      .logt {
+        grid-column: 1;
+      }
+      .logt .sh {
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+      .shell-bar {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 8px;
+      }
+      .shell-btn {
+        width: 100% !important;
+        justify-content: center;
+      }
     }
   </style>
 </head>
@@ -639,7 +715,7 @@ local function render_html()
     <div class="sc">
       <div class="sh">Servizi Web</div>
       <div class="ct">
-        <span class="bgi fa">&#xf233;</span>
+        <span class="bgi fa">&#xf085;</span>
         <div>
           <div class="li">]] .. nginx_status .. [[</div>
           <div class="li">]] .. trans_status .. [[</div>
@@ -677,7 +753,9 @@ local function render_html()
         <div class="sub" style="margin-bottom: 8px;">
           Seleziona il pacchetto di ripristino dal computer:
         </div>
-        <input id="guiFile" type="file" accept=".tar.bz2,.bz2">
+        <div class="file-wrap">
+          <input id="guiFile" type="file" accept=".tar.bz2,.bz2">
+        </div>
         <div>
           <button id="btnUpload" class="btn-action btn-primary" type="button" onclick="uploadPackage()">
             <i class="fa fa-upload"></i> Carica &amp; Flash
@@ -707,8 +785,8 @@ local function render_html()
     <!-- Card 6: Log Operativo & Shell Root Interattiva (Row 2, Columns 2, 3, 4 - Spans 3 Columns) -->
     <div class="sc logt">
       <div class="sh">
-        <span><i class="fa fa-terminal"></i> Log Operativo Live &amp; Shell Root (/tmp/rescue.log)</span>
-        <button class="btn-clear" type="button" onclick="clearLogBox()"><i class="fa fa-eraser"></i> Pulisci Schermo</button>
+        <span><i class="fa fa-terminal"></i> Log Operativo Live &amp; Shell Root</span>
+        <button class="btn-clear" type="button" onclick="clearLogBox()"><i class="fa fa-eraser"></i> Pulisci</button>
       </div>
       <div class="ct" style="min-height: auto; padding: 14px;">
         <div class="fake_console">
