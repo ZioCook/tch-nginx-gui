@@ -63,6 +63,7 @@ local check_rule = {
 	{ name = 'ecomodal', target = '/modals/eco-modal.lp' },
 	{ name = 'modguimodal', target = '/modals/modgui-modal.lp' },
 	{ name = 'ajaxgatewaytab', target = '/ajax/cpuload.lua' },
+	{ name = 'ajaxdashboardsync', target = '/ajax/dashboard_sync.lua' },
 	{ name = 'ajaxinternet', target = '/ajax/internet.lua' },
 	{ name = 'ajaxinfoconndevicecard', target = '/ajax/connected_device.lua' },
 	{ name = 'ajaxinfoportscard', target = '/ajax/port_status.lua' },

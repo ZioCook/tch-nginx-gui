@@ -1,0 +1,620 @@
+-- UBUS Aggregator (Backend-For-Frontend) for tch-nginx-gui
+-- Batches polling data for Gateway, Internet, xDSL, Ports, Telephony, and Devices
+-- drastically reducing CPU context-switching and HTTP round-trips.
+
+if gettext and gettext.textdomain then
+    gettext.textdomain('webui-core')
+end
+local T = T or function(s) return s end
+
+local json = require("dkjson")
+local proxy = require("datamodel")
+local content_helper = require("web.content_helper")
+local post_helper = require("web.post_helper")
+local ui_helper = require("web.ui_helper")
+local ngx = ngx
+local readfile = content_helper.readfile
+local floor = math.floor
+local format = string.format
+local untaint = string.untaint or function(s) return tostring(s) end
+
+-- Fallback session object for safe execution in any environment
+if not ngx.ctx then ngx.ctx = {} end
+if not ngx.ctx.session then
+    ngx.ctx.session = {
+        retrieve = function() return {} end,
+        store = function() end,
+        getLanguage = function() return "en-us" end,
+        hasAccess = function() return true end,
+        getRoleId = function() return 1 end,
+        checkCSRFtoken = function() return true end,
+    }
+end
+
+-- Localize session language if present
+if gettext and gettext.language then
+    local session = ngx.ctx.session
+    if session and session.getLanguage then
+        gettext.language(session:getLanguage())
+    elseif ngx.header and ngx.header['Content-Language'] then
+        gettext.language(ngx.header['Content-Language'])
+    end
+end
+
+-- Parse requested modules from POST or GET
+local req_modules_str = ""
+if ngx.req and ngx.req.get_method and ngx.req.get_method() == "POST" then
+    pcall(ngx.req.read_body)
+    local post_args = ngx.req.get_post_args and ngx.req.get_post_args()
+    req_modules_str = (post_args and post_args.modules) or ""
+end
+if req_modules_str == "" and ngx.req and ngx.req.get_uri_args then
+    local uri_args = ngx.req.get_uri_args()
+    req_modules_str = (uri_args and uri_args.modules) or ""
+end
+
+req_modules_str = untaint(req_modules_str)
+
+local requested = {}
+if req_modules_str ~= "" and req_modules_str ~= "all" then
+    for mod in req_modules_str:gmatch("([^,]+)") do
+        local m = untaint(mod:gsub("%s+", ""))
+        if m ~= "" then
+            requested[m] = true
+        end
+    end
+else
+    requested["all"] = true
+end
+
+local function need(mod)
+    return requested["all"] == true or requested[mod] == true
+end
+
+local result = {}
+
+--------------------------------------------------------------------------------
+-- 1. GATEWAY (CPU, RAM, Uptime, Load, Connections)
+--------------------------------------------------------------------------------
+local function get_gateway()
+    local ram_data = proxy.get("sys.mem.RAMUsed")
+    local ram = (ram_data and ram_data[1] and tonumber(ram_data[1].value)) or 0
+
+    local cpu_usage = "0"
+    local f = io.open("/proc/stat", "r")
+    if f then
+        local line = f:read("*l")
+        f:close()
+        if line then
+            local user, nice, sys, idle, iowait, irq, softirq, steal = line:match("^cpu%s+(%d+)%s+(%d+)%s+(%d+)%s+(%d+)%s+(%d+)%s+(%d+)%s+(%d+)%s+(%d+)")
+            if user then
+                local cur_idle = tonumber(idle) + tonumber(iowait)
+                local cur_total = cur_idle + tonumber(user) + tonumber(nice) + tonumber(sys) + tonumber(irq) + tonumber(softirq) + tonumber(steal)
+
+                local up_f = io.open("/proc/uptime", "r")
+                local now = up_f and up_f:read("*n")
+                if up_f then up_f:close() end
+                if not now then now = os.time() end
+
+                local prev_file = io.open("/tmp/.cpu_prev", "r")
+                if prev_file then
+                    local prev_total = prev_file:read("*n")
+                    local prev_idle = prev_file:read("*n")
+                    local prev_time = prev_file:read("*n")
+                    prev_file:close()
+                    if prev_total and prev_idle and cur_total > prev_total then
+                        local elapsed = (prev_time and (now - prev_time)) or 999
+                        if elapsed >= 1 and elapsed <= 12 then
+                            local dt = cur_total - prev_total
+                            local di = cur_idle - prev_idle
+                            if dt > 0 and di >= 0 and di <= dt then
+                                cpu_usage = tostring(floor(((dt - di) / dt) * 100))
+                            end
+                        end
+                    end
+                end
+
+                local out_file = io.open("/tmp/.cpu_prev", "w")
+                if out_file then
+                    out_file:write(format("%d %d %.2f\n", cur_total, cur_idle, now))
+                    out_file:close()
+                end
+            end
+        end
+    end
+
+    if cpu_usage == "0" then
+        local c = proxy.get("sys.proc.CurrentCPUUsage")
+        if c and c[1] and c[1].value and c[1].value ~= "" then
+            cpu_usage = c[1].value
+        else
+            local c_old = proxy.get("sys.proc.CPUUsage")
+            if c_old and c_old[1] and c_old[1].value and c_old[1].value ~= "" then
+                cpu_usage = c_old[1].value
+            end
+        end
+    end
+
+    return {
+        cpuusage = cpu_usage .. "%",
+        ram_used = floor(ram / 1024),
+        uptime = post_helper.secondsToTime(readfile("/proc/uptime", "number", floor)),
+        connection = readfile("/proc/sys/net/netfilter/nf_conntrack_count"),
+        system_time = os.date("%d/%m/%Y %Hh:%Mm:%Ss", os.time()),
+        cpuload = (readfile("/proc/loadavg", "string") or ""):sub(1, 14),
+    }
+end
+
+--------------------------------------------------------------------------------
+-- 2. WAN / INTERNET ACCESS
+--------------------------------------------------------------------------------
+local function get_wan()
+    local content_uci = {
+        wan_proto = "uci.network.interface.@wan.proto",
+        wan_auto = "uci.network.interface.@wan.auto",
+        wan_ipv6 = "uci.network.interface.@wan.ipv6",
+    }
+    content_helper.getExactContent(content_uci)
+
+    local is_bridged = (content_uci.wan_proto == "none") or (content_uci.wan_auto == "0" and content_uci.wan_proto == "")
+
+    if is_bridged then
+        local lan_data = {
+            ipaddr = "uci.network.interface.@lan.ipaddr",
+            gateway = "uci.network.interface.@lan.gateway",
+            operstate = "sys.class.net.@br-lan.operstate",
+        }
+        content_helper.getExactContent(lan_data)
+
+        if not lan_data.gateway or lan_data.gateway == "" then
+            local rpc_gw = proxy.get("rpc.network.interface.@lan.nexthop")
+            if rpc_gw and rpc_gw[1] and rpc_gw[1].value ~= "" then
+                lan_data.gateway = rpc_gw[1].value
+            end
+        end
+        if not lan_data.ipaddr or lan_data.ipaddr == "" then
+            local rpc_ip = proxy.get("rpc.network.interface.@lan.ipaddr")
+            if rpc_ip and rpc_ip[1] and rpc_ip[1].value ~= "" then
+                lan_data.ipaddr = rpc_ip[1].value
+            end
+        end
+
+        local dns_val = ""
+        local rpc_dns = proxy.get("rpc.network.interface.@lan.dnsservers")
+        if rpc_dns and rpc_dns[1] and rpc_dns[1].value ~= "" then
+            dns_val = rpc_dns[1].value
+        else
+            local uci_dns = proxy.get("uci.network.interface.@lan.dns.@1.value")
+            if uci_dns and uci_dns[1] and uci_dns[1].value ~= "" then
+                dns_val = uci_dns[1].value
+            elseif lan_data.gateway ~= "" then
+                dns_val = lan_data.gateway
+            end
+        end
+        if dns_val:match(",") then
+            dns_val = dns_val:gsub(",", ", ")
+        end
+
+        local lan_up = proxy.get("rpc.network.interface.@lan.up")
+        local is_up = (lan_data.operstate == "up") or (lan_up and lan_up[1] and lan_up[1].value == "1")
+        local is_connected = is_up and (lan_data.gateway ~= "" or lan_data.ipaddr ~= "")
+        local light_color = is_connected and "1" or "4"
+        local light_text = is_connected and T"Bridge / Access Point" or T"Bridge Not Configured"
+        local attributes = { light = { id = "Internet_State_Led" }, span = { id = "Internet_State_Enabled" } }
+        local status_light = ui_helper.createSimpleLight(light_color, light_text, attributes, "fas fa-network-wired")
+
+        local ip_text = (lan_data.ipaddr ~= "") and format(T'Device IP: <strong>%s</strong><br/>', lan_data.ipaddr) or ""
+        local gw_text = (lan_data.gateway ~= "") and format(T'Gateway: <strong>%s</strong><br/>', lan_data.gateway) or ""
+        local dns_text = (dns_val ~= "") and format(T'DNS: <strong>%s</strong><br/>', dns_val) or ""
+
+        return {
+            status_light = status_light,
+            WAN_IP_text = ip_text,
+            WAN_IPv6_text = gw_text,
+            uptime_text = dns_text,
+            wan_uptime = "",
+            wan_uptime_extended = "",
+            status = is_connected and T"Connected" or T"Disconnected",
+            WAN_IP = lan_data.ipaddr or "",
+            WAN_IPv6 = "",
+            wangateway = lan_data.gateway or "",
+            wandns = dns_val or "",
+        }
+    else
+        local content_rpc = {
+            wan_ppp_state = "rpc.network.interface.@wan.ppp.state",
+            wan_ppp_error = "rpc.network.interface.@wan.ppp.error",
+            ipaddr = "rpc.network.interface.@wan.ipaddr",
+            wan_uptime = "rpc.network.interface.@wan.uptime",
+            up = "rpc.network.interface.@wan.up",
+            nexthop = "rpc.network.interface.@wan.nexthop",
+            dns_wan = "rpc.network.interface.@wan.dnsservers",
+            concentrator_name = "rpc.network.interface.@wan.ppp.access_concentrator_name",
+        }
+
+        local ok_v6, internethelper = pcall(require, "internethelper")
+        if ok_v6 and internethelper and internethelper.getIpv6Content then
+            for v6Key, v6Value in pairs(internethelper.getIpv6Content()) do
+                content_rpc[v6Key] = v6Value
+            end
+        end
+
+        content_helper.getExactContent(content_rpc)
+
+        content_rpc.ipaddr = content_rpc.ipaddr or ""
+        content_rpc.ip6addr = content_rpc.ip6addr or ""
+        content_rpc.dns_wan = content_rpc.dns_wan or ""
+        content_rpc.nexthop = content_rpc.nexthop or ""
+        content_rpc.concentrator_name = content_rpc.concentrator_name or ""
+        content_rpc.wan_uptime = content_rpc.wan_uptime or ""
+
+        if content_rpc.dns_wan:match(",") then
+            content_rpc.dns_wan = content_rpc.dns_wan:gsub(",", ", ")
+        end
+
+        local is_up = (content_rpc.up == "1")
+        local status_str = is_up and T"Connected" or T"Disconnected"
+
+        local attributes = { light = { id = "Internet_State_Led" }, span = { id = "Internet_State_Enabled" } }
+        local light_color = is_up and "1" or "4"
+        local status_light = ui_helper.createSimpleLight(light_color, status_str, attributes, "fa-at")
+
+        local wan_uptime_time = post_helper.secondsToTimeShort(content_rpc.wan_uptime)
+
+        return {
+            status_light = status_light or "",
+            WAN_IP_text = (content_rpc.ipaddr ~= "") and format(T'WAN IP is <strong>%s</strong><br/>', content_rpc.ipaddr) or "",
+            WAN_IPv6_text = (content_rpc.ip6addr ~= "") and format(T'WAN IPv6 is <strong>%s</strong><br/>', content_rpc.ip6addr) or "",
+            uptime_text = (wan_uptime_time and wan_uptime_time ~= "") and format(T"Uptime" .. ": <strong>%s</strong>", wan_uptime_time) or "",
+            wan_uptime = wan_uptime_time or "",
+            wan_uptime_extended = post_helper.secondsToTime(content_rpc.wan_uptime) or "",
+            status = status_str,
+            WAN_IP = content_rpc.ipaddr,
+            WAN_IPv6 = content_rpc.ip6addr,
+            concentrator_name = content_rpc.concentrator_name,
+            wangateway = content_rpc.nexthop,
+            wandns = content_rpc.dns_wan,
+        }
+    end
+end
+
+--------------------------------------------------------------------------------
+-- 3. XDSL STATUS & STATS
+--------------------------------------------------------------------------------
+local function get_xdsl()
+    local xdata = {
+        status = "sys.class.xdsl.@line0.LinkStatus",
+        dsl_linerate_up_max = "sys.class.xdsl.@line0.UpstreamMaxRate",
+        dsl_linerate_down_max = "sys.class.xdsl.@line0.DownstreamMaxRate",
+        dsl_linerate_up = "sys.class.xdsl.@line0.UpstreamCurrRate",
+        dsl_linerate_down = "sys.class.xdsl.@line0.DownstreamCurrRate",
+        dsl_margin_up = "sys.class.xdsl.@line0.UpstreamNoiseMargin",
+        dsl_margin_down = "sys.class.xdsl.@line0.DownstreamNoiseMargin",
+        dsl_attenuation_up = "sys.class.xdsl.@line0.UpstreamAttenuation",
+        dsl_attenuation_down = "sys.class.xdsl.@line0.DownstreamAttenuation",
+        dsl_power_up = "sys.class.xdsl.@line0.UpstreamPower",
+        dsl_power_down = "sys.class.xdsl.@line0.DownstreamPower",
+        dsl_type = "sys.class.xdsl.@line0.ModulationType",
+        dsl_margin_SNRM_up = "sys.class.xdsl.@line0.UpstreamSNRMpb",
+        dsl_margin_SNRM_down = "sys.class.xdsl.@line0.DownstreamSNRMpb",
+        dslam_chipset = "rpc.xdslctl.DslamChipset",
+        dslam_version = "rpc.xdslctl.DslamVersion",
+        dsl_profile = "rpc.xdslctl.DslProfile",
+        dsl_port = "rpc.xdslctl.DslamPort",
+        dslam_version_raw = "rpc.xdslctl.DslamVersionRaw",
+        dsl_serial = "rpc.xdslctl.DslamSerial",
+    }
+    content_helper.getExactContent(xdata)
+
+    local function formatRate(value)
+        local rate = tonumber(value)
+        if not rate then return T"Can't recover data" end
+        return floor(rate / 10) / 100 .. " Mbps"
+    end
+
+    if xdata.dsl_linerate_down and xdata.dsl_linerate_down ~= "0" then
+        xdata.dsl_linerate_up = formatRate(xdata.dsl_linerate_up)
+        xdata.dsl_linerate_down = formatRate(xdata.dsl_linerate_down)
+        xdata.dsl_linerate_up_max = formatRate(xdata.dsl_linerate_up_max)
+        xdata.dsl_linerate_down_max = formatRate(xdata.dsl_linerate_down_max)
+
+        if not string.match(xdata.dsl_type or "", "ADSL") then
+            xdata.dsl_margin_down = xdata.dsl_margin_SNRM_down
+            xdata.dsl_margin_up = xdata.dsl_margin_SNRM_up
+        end
+
+        if string.match(xdata.dslam_chipset or "", "BDCM") then
+            xdata.dslam_chipset = "Broadcom (" .. xdata.dslam_chipset .. ")"
+        elseif string.match(xdata.dslam_chipset or "", "IFTN") then
+            xdata.dslam_chipset = "Infineon (" .. xdata.dslam_chipset .. ")"
+        end
+
+        if string.match(xdata.status or "", "Showtime") then
+            xdata.status = T"Connected"
+        elseif not xdata.status or xdata.status == "" then
+            xdata.status = T"Disconnected"
+        else
+            xdata.status = T(xdata.status)
+        end
+    else
+        for k in pairs(xdata) do
+            if k == "status" then
+                xdata[k] = (xdata.status and xdata.status ~= "") and T(xdata.status) or T"Disconnected"
+            else
+                xdata[k] = "N/A"
+            end
+        end
+    end
+    xdata.dsl_margin_SNRM_down = nil
+    xdata.dsl_margin_SNRM_up = nil
+    xdata.dslam_version_raw = nil
+
+    return xdata
+end
+
+--------------------------------------------------------------------------------
+-- 4. ETHERNET PORTS TABLE
+--------------------------------------------------------------------------------
+local function get_ports()
+    local ethname = "eth3"
+    local p4 = proxy.get("sys.eth.port.@eth4.status")
+    if p4 and p4[1] and p4[1].value then
+        ethname = "eth4"
+    end
+
+    local qtn = proxy.get("uci.env.var.qtn_eth_mac")
+    local quantenna_wifi = (qtn and qtn[1] and qtn[1].value ~= "")
+
+    local port_columns = {
+        { header = T"Type", name = "type", param = "paramindex", type = "text", readonly = true },
+        { header = T"Status", name = "status", param = "status", type = "text", readonly = true },
+        { header = T"Speed", name = "speed", param = "speed", type = "text", readonly = true },
+        { header = T"Mode", name = "mode", param = "mode", type = "text", readonly = true },
+    }
+    local port_options = { canEdit = false, canAdd = false, canDelete = false, tableid = "port", basepath = "sys.eth.port.@." }
+
+    local port_filter = function(d)
+        d.status_light = "1"
+        if d.speed == "1000" then
+            d.status_light = "1"
+            d.speed = "1 Gbps"
+        elseif d.speed == "100" then
+            d.status_light = "2"
+            d.speed = "100 Mbps"
+        elseif d.speed == "10" then
+            d.status_light = "3"
+            d.speed = "10 Mbps"
+        elseif d.speed == "" or d.speed == "0" then
+            d.status_light = "0"
+            d.speed = "-"
+        end
+        if not d.mode or d.mode == "" or d.mode == "0BASE-T" then d.mode = "-" end
+        d.status = ui_helper.createSimpleLight(d.status_light, "", {}, "fas fa-ethernet")
+
+        if quantenna_wifi and d.paramindex:match("eth5") then
+            return false
+        elseif d.paramindex == ethname then
+            local uwan = proxy.get("uci.ethernet.port.@" .. ethname .. ".wan")
+            if uwan and uwan[1] and uwan[1].value == "1" then
+                d.paramindex = "WAN"
+            end
+        else
+            local port = d.paramindex:match("^eth(%d+)$")
+            if port then
+                d.paramindex = "LAN " .. (tonumber(port) + 1)
+            end
+        end
+        return true
+    end
+
+    local port_data = content_helper.loadTableData(port_options.basepath, port_columns, port_filter, nil)
+    local port_table = ui_helper.createTable(port_columns, port_data, port_options, nil, nil)
+
+    local res = {}
+    local function concat_t(tbl)
+        for _, v in pairs(tbl) do
+            if type(v) == "table" then
+                concat_t(v)
+            elseif type(v) == "userdata" then
+                res[#res + 1] = string.untaint(v)
+            elseif v ~= nil then
+                res[#res + 1] = tostring(v)
+            end
+        end
+    end
+    concat_t(port_table)
+    return { port_table = table.concat(res) }
+end
+
+--------------------------------------------------------------------------------
+-- 5. CONNECTED DEVICES TABLE
+--------------------------------------------------------------------------------
+local function get_devices()
+    local devices_columns = {
+        { header = T"Hostname", name = "FriendlyName", param = "FriendlyName", type = "text", additional_class = 'data-toggle="tooltip_mac"' },
+        { header = T"IPv4", name = "ipv4", param = "IPv4", type = "text" },
+        { header = T"InterfaceType", name = "interfacetype", param = "InterfaceType", type = "text" },
+        { header = T"SSID", name = "ssid", param = "SSID", type = "text" },
+    }
+    local devices_options = { canEdit = false, canAdd = false, canDelete = false, tableid = "devices", basepath = "rpc.hosts.host." }
+
+    local devices_filter = function(d)
+        if d["State"] and d["State"] == "0" then return false end
+        local l2 = d["L2Interface"] or ""
+        if l2:match("^wl0") then
+            d["InterfaceType"] = "Wireless - 2.4GHz"
+        elseif l2:match("^wl1") then
+            d["InterfaceType"] = "Wireless - 5GHz"
+        elseif l2:match("eth*") then
+            d["InterfaceType"] = "Ethernet - " .. (d.Port or "")
+        elseif l2:match("moca*") then
+            d["InterfaceType"] = "MoCA"
+        end
+        d["FriendlyName"] = (d["FriendlyName"] or "") .. '<div id="mac_data" style="display:none">' .. (d["MACAddress"] or "") .. '</div>'
+        return true
+    end
+
+    local devices_data = content_helper.loadTableData(devices_options.basepath, devices_columns, devices_filter, nil)
+    local dev_table = ui_helper.createTable(devices_columns, devices_data, devices_options, nil, nil)
+
+    local res = {}
+    local function concat_t(tbl)
+        for _, v in pairs(tbl) do
+            if type(v) == "table" then
+                concat_t(v)
+            elseif type(v) == "userdata" then
+                res[#res + 1] = string.untaint(v)
+            elseif v ~= nil then
+                res[#res + 1] = tostring(v)
+            end
+        end
+    end
+    concat_t(dev_table)
+    return { device_table = table.concat(res) }
+end
+
+--------------------------------------------------------------------------------
+-- 6. TELEPHONY (MMPBX) STATUS & TABLE
+--------------------------------------------------------------------------------
+local function get_mmpbx()
+    local mmpbx_state = "0"
+    local mmpbx_state_uci = proxy.get("uci.mmpbx.mmpbx.@global.enabled")
+    if not mmpbx_state_uci or not mmpbx_state_uci[1] or mmpbx_state_uci[1].value == "" then
+        mmpbx_state_uci = proxy.get("uci.mmpbx.global.enabled")
+    end
+    if mmpbx_state_uci and mmpbx_state_uci[1] and mmpbx_state_uci[1].value == "1" then
+        local rpc_state = proxy.get("rpc.mmpbx.state")
+        if not rpc_state or not rpc_state[1] or rpc_state[1].value ~= "NA" then
+            mmpbx_state = "1"
+        end
+    end
+
+    local basic = { span = { class = "span3" } }
+    local function flat_h(tbl)
+        local res = {}
+        local function h(t)
+            if type(t) == "table" then
+                for _, v in pairs(t) do h(v) end
+            elseif type(t) == "userdata" then
+                res[#res + 1] = string.untaint(t)
+            elseif t ~= nil then
+                res[#res + 1] = tostring(t)
+            end
+        end
+        h(tbl)
+        return table.concat(res)
+    end
+
+    local mmpbx_info = (mmpbx_state == "1") and T"Telephony enabled" or T"Telephony disabled"
+    local mmpbx_status_html = flat_h(ui_helper.createLabel(T"Service", ui_helper.createSimpleLight(mmpbx_state, mmpbx_info), basic))
+    local mmpbx_table_html = ""
+
+    if mmpbx_state == "1" then
+        local mmpbxd_columns = {
+            { header = T"Name", name = "sip_account_name", param = "name", type = "text", readonly = true },
+            { header = T"User Name", name = "sip_user_name", param = "uri", type = "text", readonly = true },
+            { header = T"Status", name = "sip_status", param = "profileUsable", type = "text", readonly = true },
+        }
+        local mmpbxd_options = { canEdit = false, canAdd = false, canDelete = false, tableid = "mmpbxd", basepath = "rpc.mmpbx.profile." }
+        local mmpbxd_filter = function(d)
+            if d.profileUsable == "true" then
+                d.profileUsable = ui_helper.createSimpleLight("1", T"Registered")
+            else
+                d.profileUsable = ui_helper.createSimpleLight("4", T"Registration failed")
+            end
+            return true
+        end
+        local mmpbxd_data = content_helper.loadTableData(mmpbxd_options.basepath, mmpbxd_columns, mmpbxd_filter, nil)
+        if #mmpbxd_data > 0 then
+            mmpbx_table_html = flat_h(ui_helper.createTable(mmpbxd_columns, mmpbxd_data, mmpbxd_options, nil, nil))
+        else
+            mmpbx_table_html = flat_h(ui_helper.createLabel(T"Line Status", T"No registered accounts", basic))
+        end
+    end
+
+    return {
+        mmpbx_status = mmpbx_status_html,
+        mmpbx_table = mmpbx_table_html,
+    }
+end
+
+--------------------------------------------------------------------------------
+-- DISPATCH REQUESTED MODULES SAFELY
+--------------------------------------------------------------------------------
+if need("gateway") then
+    local ok, res = pcall(get_gateway)
+    if not ok and ngx and ngx.log then ngx.log(ngx.ERR, "dashboard_sync gateway: " .. tostring(res)) end
+    if ok and res then result.gateway = res end
+end
+
+if need("wan") then
+    local ok, res = pcall(get_wan)
+    if not ok and ngx and ngx.log then ngx.log(ngx.ERR, "dashboard_sync wan: " .. tostring(res)) end
+    if ok and res then result.wan = res end
+end
+
+if need("xdsl") then
+    local ok, res = pcall(get_xdsl)
+    if not ok and ngx and ngx.log then ngx.log(ngx.ERR, "dashboard_sync xdsl: " .. tostring(res)) end
+    if ok and res then result.xdsl = res end
+end
+
+if need("ports") then
+    local ok, res = pcall(get_ports)
+    if not ok and ngx and ngx.log then ngx.log(ngx.ERR, "dashboard_sync ports: " .. tostring(res)) end
+    if ok and res then result.ports = res end
+end
+
+if need("devices") then
+    local ok, res = pcall(get_devices)
+    if not ok and ngx and ngx.log then ngx.log(ngx.ERR, "dashboard_sync devices: " .. tostring(res)) end
+    if ok and res then result.devices = res end
+end
+
+if need("mmpbx") then
+    local ok, res = pcall(get_mmpbx)
+    if not ok and ngx and ngx.log then ngx.log(ngx.ERR, "dashboard_sync mmpbx: " .. tostring(res)) end
+    if ok and res then result.mmpbx = res end
+end
+
+local function sanitize_value(v)
+    local tv = type(v)
+    if tv == "table" then
+        local res = {}
+        for k, val in pairs(v) do
+            local clean_k = (type(k) == "userdata") and tostring(untaint(k)) or k
+            res[clean_k] = sanitize_value(val)
+        end
+        return res
+    elseif tv == "userdata" then
+        return tostring(untaint(v))
+    else
+        return v
+    end
+end
+
+local clean_result = sanitize_value(result)
+
+local function json_exception(reason, value, state, defaultmessage)
+    if type(value) == "userdata" then
+        return json.quotestring(tostring(untaint(value)))
+    end
+    if json.encodeexception then
+        return json.encodeexception(reason, value, state, defaultmessage)
+    end
+    return json.quotestring("<" .. tostring(defaultmessage) .. ">")
+end
+
+if ngx and ngx.header then
+    ngx.header["Content-Type"] = "application/json"
+end
+
+local buffer = {}
+if json.encode(clean_result, { indent = false, buffer = buffer, exception = json_exception }) then
+    ngx.say(buffer)
+else
+    ngx.say("{}")
+end
+if ngx and ngx.exit and ngx.HTTP_OK then
+    ngx.exit(ngx.HTTP_OK)
+end

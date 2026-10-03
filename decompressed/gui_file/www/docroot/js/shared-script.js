@@ -2,19 +2,167 @@ var KoRequest={};var connectionissue=0;var modgui=modgui||{};!function(module){f
 function postAction(action,logModal,customCloseAction,customTarget){var onClose=(typeof customCloseAction==="function")&&customCloseAction||function(){tch.showProgress(waitMsg);window.location.reload(true);}
 var target=customTarget?customTarget:$(".modal form").attr("action");$.post(target,{action:action,CSRFtoken:$("meta[name=CSRFtoken]").attr("content")},null,"json");if(logModal){clearKoInterval();$(window).on('shown.bs.modal',function(){$(".modal-backdrop").unbind();$("#close-config,.modal-action-close").unbind("click");$("#close-config,.modal-action-close").on("click",function(){onClose();});});tch.openModal("/modals/command-log-read-modal.lp");}
 return false;}
-function createAjaxUpdateCard(CardIdRefresh,ajaxLink,IntervalVar,RefreshTime,CustomRefreshFunction){var element=document.getElementById(CardIdRefresh);if(!element)return;var ElementBinding={};var ElementBindingList=[];var ObserveElement;$("#"+CardIdRefresh).find("[data-bind]").each(function(){ObserveElement=$(this).data("bind").split(":")[1].trim();ElementBindingList.push(ObserveElement);ElementBinding[ObserveElement]=ko.observable();});var arrayLength=ElementBindingList.length;var AjaxRefresh=(typeof CustomRefreshFunction==="function")&&CustomRefreshFunction||function(){if(document.hidden)return;if(ElementBinding._isIntersecting===false)return;var updateLink="auto_update=true";if(/[a-z]+=[a-z]+/.test(ajaxLink)){updateLink="&"+updateLink;}else{updateLink="?"+updateLink;};$.post(ajaxLink+updateLink,[tch.elementCSRFtoken()],function(data){for(var i=0;i<arrayLength;i++){if(data[ElementBindingList[i]]!=undefined){ElementBinding[ElementBindingList[i]](data[ElementBindingList[i]]);}}},"json").done(function(data){if(connectionissue==1){if($("#popUp").is(":visible"))
-tch.removeProgress();connectionissue=0;}}).fail(function(data){connectionissue=1;switch(data.status){case 200:if(data.responseText.indexOf("sign-me-in")!==-1){if(!$("#popUp").is(":visible"))
-tch.showProgress(loginMsg);window.location.href="/";}
-break;case 500:window.location.href="/error.lp?status="+data.status+"&err="+data.getResponseHeader("error-msg");break;default:if(!$("#popUp").is(":visible"))
-tch.showProgress(connectionLost+" "+data.statusText);}});};AjaxRefresh(ElementBinding);if(!ko.dataFor(element))
-ko.applyBindings(ElementBinding,element);if(window.IntersectionObserver){ElementBinding._isIntersecting=true;var observer=new IntersectionObserver(function(entries){ElementBinding._isIntersecting=entries[0].isIntersecting;if(entries[0].isIntersecting){AjaxRefresh(ElementBinding);}});observer.observe(element);}
-KoRequest[IntervalVar]={interval:setInterval(AjaxRefresh,RefreshTime,ElementBinding),function:AjaxRefresh,binding:ElementBinding,refreshTime:RefreshTime,};}
+var _syncCards={};var _syncTimer=null;var _syncInFlight=false;
+function _getSyncModule(link){
+    if(!link)return null;
+    if(link.indexOf("cpuload.lua")!==-1)return "gateway";
+    if(link.indexOf("internet.lua")!==-1){
+        if(link.indexOf("datatype=xdsl")!==-1)return "xdsl";
+        return "wan";
+    }
+    if(link.indexOf("connected_device.lua")!==-1)return "devices";
+    if(link.indexOf("mmpbx_status.lua")!==-1)return "mmpbx";
+    if(link.indexOf("port_status.lua")!==-1)return "ports";
+    if(link.indexOf("dashboard_sync.lua")!==-1)return "all";
+    return null;
+}
+function _masterSync(){
+    if(document.hidden||_syncInFlight)return;
+    var activeCards=[];var modulesSet={};
+    for(var cardId in _syncCards){
+        var card=_syncCards[cardId];
+        var el=document.getElementById(card.id);
+        if(!el){delete _syncCards[cardId];continue;}
+        if(card.bindings&&card.bindings._isIntersecting===false){continue;}
+        activeCards.push(card);
+        if(card.module)modulesSet[card.module]=true;
+    }
+    if(activeCards.length===0)return;
+    _syncInFlight=true;
+    var modulesList=Object.keys(modulesSet).join(",");
+    var postData=[tch.elementCSRFtoken()];
+    postData.push({name:"modules",value:modulesList});
+    $.post("/ajax/dashboard_sync.lua?auto_update=true",postData,function(data){
+        if(!data)return;
+        for(var c=0;c<activeCards.length;c++){
+            var card=activeCards[c];
+            var modData=data[card.module]||data;
+            for(var i=0;i<card.list.length;i++){
+                var key=card.list[i];
+                var val=(modData[key]!==undefined)?modData[key]:data[key];
+                if(val!==undefined&&typeof card.bindings[key]==="function"){
+                    card.bindings[key](val);
+                }
+            }
+        }
+    },"json").done(function(){
+        if(connectionissue==1){
+            if($("#popUp").is(":visible"))tch.removeProgress();
+            connectionissue=0;
+        }
+    }).fail(function(data){
+        connectionissue=1;
+        switch(data.status){
+            case 200:
+                if(data.responseText&&data.responseText.indexOf("sign-me-in")!==-1){
+                    if(!$("#popUp").is(":visible"))tch.showProgress(loginMsg);
+                    window.location.href="/";
+                }
+                break;
+            case 500:
+                window.location.href="/error.lp?status="+data.status+"&err="+data.getResponseHeader("error-msg");
+                break;
+            default:
+                if(!$("#popUp").is(":visible"))tch.showProgress(connectionLost+" "+data.statusText);
+        }
+    }).always(function(){
+        _syncInFlight=false;
+    });
+}
+function createAjaxUpdateCard(CardIdRefresh,ajaxLink,IntervalVar,RefreshTime,CustomRefreshFunction){
+    var element=document.getElementById(CardIdRefresh);
+    if(!element)return;
+    var ElementBinding={};
+    var ElementBindingList=[];
+    var ObserveElement;
+    $("#"+CardIdRefresh).find("[data-bind]").each(function(){
+        ObserveElement=$(this).data("bind").split(":")[1].trim();
+        ElementBindingList.push(ObserveElement);
+        ElementBinding[ObserveElement]=ko.observable();
+    });
+    var arrayLength=ElementBindingList.length;
+    var syncModule=!CustomRefreshFunction&&_getSyncModule(ajaxLink);
+    if(syncModule){
+        _syncCards[CardIdRefresh]={
+            id:CardIdRefresh,
+            module:syncModule,
+            bindings:ElementBinding,
+            list:ElementBindingList
+        };
+        if(!ko.dataFor(element))ko.applyBindings(ElementBinding,element);
+        if(window.IntersectionObserver){
+            ElementBinding._isIntersecting=true;
+            var observer=new IntersectionObserver(function(entries){
+                ElementBinding._isIntersecting=entries[0].isIntersecting;
+                if(entries[0].isIntersecting){_masterSync();}
+            });
+            observer.observe(element);
+        }
+        if(!_syncTimer){
+            _syncTimer=setInterval(_masterSync,4000);
+            setTimeout(_masterSync,100);
+        }
+        return;
+    }
+    var AjaxRefresh=(typeof CustomRefreshFunction==="function")&&CustomRefreshFunction||function(){
+        if(document.hidden)return;
+        if(ElementBinding._isIntersecting===false)return;
+        var updateLink="auto_update=true";
+        if(/[a-z]+=[a-z]+/.test(ajaxLink)){updateLink="&"+updateLink;}else{updateLink="?"+updateLink;};
+        $.post(ajaxLink+updateLink,[tch.elementCSRFtoken()],function(data){
+            for(var i=0;i<arrayLength;i++){
+                if(data[ElementBindingList[i]]!=undefined){
+                    ElementBinding[ElementBindingList[i]](data[ElementBindingList[i]]);
+                }
+            }
+        },"json").done(function(data){
+            if(connectionissue==1){
+                if($("#popUp").is(":visible"))tch.removeProgress();
+                connectionissue=0;
+            }
+        }).fail(function(data){
+            connectionissue=1;
+            switch(data.status){
+                case 200:
+                    if(data.responseText.indexOf("sign-me-in")!==-1){
+                        if(!$("#popUp").is(":visible"))tch.showProgress(loginMsg);
+                        window.location.href="/";
+                    }
+                    break;
+                case 500:
+                    window.location.href="/error.lp?status="+data.status+"&err="+data.getResponseHeader("error-msg");
+                    break;
+                default:
+                    if(!$("#popUp").is(":visible"))tch.showProgress(connectionLost+" "+data.statusText);
+            }
+        });
+    };
+    AjaxRefresh(ElementBinding);
+    if(!ko.dataFor(element))ko.applyBindings(ElementBinding,element);
+    if(window.IntersectionObserver){
+        ElementBinding._isIntersecting=true;
+        var observer=new IntersectionObserver(function(entries){
+            ElementBinding._isIntersecting=entries[0].isIntersecting;
+            if(entries[0].isIntersecting){AjaxRefresh(ElementBinding);}
+        });
+        observer.observe(element);
+    }
+    KoRequest[IntervalVar]={interval:setInterval(AjaxRefresh,RefreshTime,ElementBinding),function:AjaxRefresh,binding:ElementBinding,refreshTime:RefreshTime,};
+}
 function linkCheckUpdate(){$(".check_update").on("click",function(e){e.stopPropagation();if(KoRequest.CheckVer)return;postAction("checkver",null,null,'/modals/modgui-modal.lp?auto_update=true');$(".check_update_spinner").addClass("fa-spin");KoRequest.CheckVer={interval:setInterval(function(){$.ajax({url:"/ajax/commandlogread.lua?auto_update=true",data:[tch.elementCSRFtoken()],type:"POST",dataType:"json",timeout:500,success:function(data){if(data.state=="Checking"){if(data.new_version_text){if(data.new_version_text=="Unknown"){$(".gui_version_status").removeClass("yellow");$(".gui_version_status").addClass("green");$(".gui_version_status_text").text(gui_var.gui_updated);$("#upgrade-alert").addClass("hide");}else{$(".gui_version_status").removeClass("green");$(".gui_version_status").addClass("yellow");$("#upgradebtn").removeClass("hide");$(".gui_version_status_text").text(gui_var.gui_outdated);$("#upgrade-alert").removeClass("hide");$("#new-version-text").text(data.new_version_text);}}}else if(data.state=="Complete"){$(".gui_version_status_text").parent().fadeOut().fadeIn();$(".check_update_spinner").removeClass("fa-spin");clearInterval(KoRequest.CheckVer.interval);KoRequest.CheckVer=null;}}})},"500")}})};function freshStyle(stylesheet){$("#theme_skin").attr("href","/theme/"+stylesheet);}
 function scrollFunction(){if(document.body.scrollTop>60||document.documentElement.scrollTop>60){$("#scroll-up").removeClass("hide");$("#scroll-down").addClass("hide");}else{$("#scroll-up").addClass("hide");$("#scroll-down").removeClass("hide");}}
-function clearKoInterval(){Object.keys(KoRequest).forEach(function(interval){if(KoRequest[interval])
-clearInterval(KoRequest[interval].interval);});}
-function restartKoInterval(){Object.keys(KoRequest).forEach(function(interval){if(KoRequest[interval])
-KoRequest[interval].interval=setInterval(KoRequest[interval].function,KoRequest[interval].refreshTime,KoRequest[interval].binding);});}
+function clearKoInterval(){
+    if(_syncTimer){clearInterval(_syncTimer);_syncTimer=null;}
+    _syncCards={};
+    Object.keys(KoRequest).forEach(function(interval){if(KoRequest[interval])clearInterval(KoRequest[interval].interval);});
+}
+function restartKoInterval(){
+    if(!_syncTimer&&Object.keys(_syncCards).length>0){
+        _syncTimer=setInterval(_masterSync,4000);
+        _masterSync();
+    }
+    Object.keys(KoRequest).forEach(function(interval){if(KoRequest[interval])KoRequest[interval].interval=setInterval(KoRequest[interval].function,KoRequest[interval].refreshTime,KoRequest[interval].binding);});
+}
 function getVendorFromMac(mac,div){div.addClass("fa fa-sync fa-spin");$.ajax({url:"/modals/modgui-modal.lp?auto_update=true",method:'POST',data:{action:'getVendor',mac:mac,CSRFtoken:$("meta[name=CSRFtoken]").attr("content")},error:function(){div.removeClass("fa fa-sync fa-spin");div.text('Error');},success:function(data){div.removeClass("fa fa-sync fa-spin");div.text(data||'Unknown');}});}
 module.postAction=postAction,module.createAjaxUpdateCard=createAjaxUpdateCard,module.linkCheckUpdate=linkCheckUpdate,module.freshStyle=freshStyle,module.scrollFunction=scrollFunction,module.clearKoInterval=clearKoInterval,module.restartKoInterval=restartKoInterval,module.getVendorFromMac=getVendorFromMac}
 (modgui);window.onscroll=function(){modgui.scrollFunction()};$(function(){$("a[href*=\'#\']").on("click",function(e){e.preventDefault();$("html, body").animate({scrollTop:$($(this).attr("href")).offset().top},500,"linear");});$(document).on('mouseenter','td[data-toggle="tooltip_mac"]',function(){var elem=this;var mac=$(elem).children("#mac_data").text();$(elem).append('<div class="tooltip bottom fade in"><div class="tooltip-arrow"></div><div class="tooltip-inner">'+
