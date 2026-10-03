@@ -32,20 +32,28 @@ function _masterSync(){
     var modulesList=Object.keys(modulesSet).join(",");
     var postData=[tch.elementCSRFtoken()];
     postData.push({name:"modules",value:modulesList});
-    $.post("/ajax/dashboard_sync.lua?auto_update=true",postData,function(data){
-        if(!data)return;
-        for(var c=0;c<activeCards.length;c++){
-            var card=activeCards[c];
-            var modData=data[card.module]||data;
-            for(var i=0;i<card.list.length;i++){
-                var key=card.list[i];
-                var val=(modData[key]!==undefined)?modData[key]:data[key];
-                if(val!==undefined&&typeof card.bindings[key]==="function"){
-                    card.bindings[key](val);
+    $.ajax({
+        url:"/ajax/dashboard_sync.lua?auto_update=true",
+        type:"POST",
+        dataType:"json",
+        timeout:8000,
+        data:postData,
+        success:function(data){
+            if(!data||typeof data!=="object")return;
+            for(var c=0;c<activeCards.length;c++){
+                var card=activeCards[c];
+                var modData=data[card.module];
+                if(!modData||typeof modData!=="object")continue;
+                for(var i=0;i<card.list.length;i++){
+                    var key=card.list[i];
+                    var val=modData[key];
+                    if(val!==undefined&&typeof card.bindings[key]==="function"){
+                        card.bindings[key](val);
+                    }
                 }
             }
         }
-    },"json").done(function(){
+    }).done(function(){
         if(connectionissue==1){
             if($("#popUp").is(":visible"))tch.removeProgress();
             connectionissue=0;
@@ -74,11 +82,19 @@ function createAjaxUpdateCard(CardIdRefresh,ajaxLink,IntervalVar,RefreshTime,Cus
     if(!element)return;
     var ElementBinding={};
     var ElementBindingList=[];
-    var ObserveElement;
     $("#"+CardIdRefresh).find("[data-bind]").each(function(){
-        ObserveElement=$(this).data("bind").split(":")[1].trim();
-        ElementBindingList.push(ObserveElement);
-        ElementBinding[ObserveElement]=ko.observable();
+        var bindVal=$(this).data("bind")||"";
+        var pairs=bindVal.split(",");
+        for(var p=0;p<pairs.length;p++){
+            var parts=pairs[p].split(":");
+            if(parts.length>=2){
+                var obs=parts[1].trim();
+                if(obs&&ElementBindingList.indexOf(obs)===-1){
+                    ElementBindingList.push(obs);
+                    ElementBinding[obs]=ko.observable();
+                }
+            }
+        }
     });
     var arrayLength=ElementBindingList.length;
     var syncModule=!CustomRefreshFunction&&_getSyncModule(ajaxLink);
@@ -101,6 +117,12 @@ function createAjaxUpdateCard(CardIdRefresh,ajaxLink,IntervalVar,RefreshTime,Cus
         if(!_syncTimer){
             _syncTimer=setInterval(_masterSync,4000);
             setTimeout(_masterSync,100);
+            if(!window._syncVisBound){
+                window._syncVisBound=true;
+                document.addEventListener("visibilitychange",function(){
+                    if(!document.hidden){_masterSync();}
+                });
+            }
         }
         return;
     }
@@ -153,15 +175,14 @@ function linkCheckUpdate(){$(".check_update").on("click",function(e){e.stopPropa
 function scrollFunction(){if(document.body.scrollTop>60||document.documentElement.scrollTop>60){$("#scroll-up").removeClass("hide");$("#scroll-down").addClass("hide");}else{$("#scroll-up").addClass("hide");$("#scroll-down").removeClass("hide");}}
 function clearKoInterval(){
     if(_syncTimer){clearInterval(_syncTimer);_syncTimer=null;}
-    _syncCards={};
-    Object.keys(KoRequest).forEach(function(interval){if(KoRequest[interval])clearInterval(KoRequest[interval].interval);});
+    Object.keys(KoRequest).forEach(function(interval){if(KoRequest[interval]&&KoRequest[interval].interval)clearInterval(KoRequest[interval].interval);});
 }
 function restartKoInterval(){
     if(!_syncTimer&&Object.keys(_syncCards).length>0){
         _syncTimer=setInterval(_masterSync,4000);
         _masterSync();
     }
-    Object.keys(KoRequest).forEach(function(interval){if(KoRequest[interval])KoRequest[interval].interval=setInterval(KoRequest[interval].function,KoRequest[interval].refreshTime,KoRequest[interval].binding);});
+    Object.keys(KoRequest).forEach(function(interval){if(KoRequest[interval]&&KoRequest[interval].function)KoRequest[interval].interval=setInterval(KoRequest[interval].function,KoRequest[interval].refreshTime,KoRequest[interval].binding);});
 }
 function getVendorFromMac(mac,div){div.addClass("fa fa-sync fa-spin");$.ajax({url:"/modals/modgui-modal.lp?auto_update=true",method:'POST',data:{action:'getVendor',mac:mac,CSRFtoken:$("meta[name=CSRFtoken]").attr("content")},error:function(){div.removeClass("fa fa-sync fa-spin");div.text('Error');},success:function(data){div.removeClass("fa fa-sync fa-spin");div.text(data||'Unknown');}});}
 module.postAction=postAction,module.createAjaxUpdateCard=createAjaxUpdateCard,module.linkCheckUpdate=linkCheckUpdate,module.freshStyle=freshStyle,module.scrollFunction=scrollFunction,module.clearKoInterval=clearKoInterval,module.restartKoInterval=restartKoInterval,module.getVendorFromMac=getVendorFromMac}

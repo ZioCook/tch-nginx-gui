@@ -1,6 +1,6 @@
 -- UBUS Aggregator (Backend-For-Frontend) for tch-nginx-gui
 -- Batches polling data for Gateway, Internet, xDSL, Ports, Telephony, and Devices
--- drastically reducing CPU context-switching and HTTP round-trips.
+-- drastically reducing CPU context-switching, thread creation, and HTTP round-trips.
 
 if gettext and gettext.textdomain then
     gettext.textdomain('webui-core')
@@ -39,6 +39,28 @@ if gettext and gettext.language then
     elseif ngx.header and ngx.header['Content-Language'] then
         gettext.language(ngx.header['Content-Language'])
     end
+end
+
+-- Universal HTML flattener for nested tables produced by ui_helper
+local function html_flatten(tbl)
+    if not tbl then return "" end
+    if type(tbl) == "string" then return tbl end
+    if type(tbl) == "userdata" then return tostring(untaint(tbl)) end
+    local parts = {}
+    local function walk(t)
+        local tt = type(t)
+        if tt == "table" then
+            for _, v in pairs(t) do
+                walk(v)
+            end
+        elseif tt == "userdata" then
+            parts[#parts + 1] = tostring(untaint(t))
+        elseif t ~= nil then
+            parts[#parts + 1] = tostring(t)
+        end
+    end
+    walk(tbl)
+    return table.concat(parts)
 end
 
 -- Parse requested modules from POST or GET
@@ -136,10 +158,10 @@ local function get_gateway()
     end
 
     return {
-        cpuusage = cpu_usage .. "%",
+        cpuusage = (cpu_usage or "0") .. "%",
         ram_used = floor(ram / 1024),
-        uptime = post_helper.secondsToTime(readfile("/proc/uptime", "number", floor)),
-        connection = readfile("/proc/sys/net/netfilter/nf_conntrack_count"),
+        uptime = post_helper.secondsToTime(readfile("/proc/uptime", "number", floor)) or "",
+        connection = readfile("/proc/sys/net/netfilter/nf_conntrack_count") or "",
         system_time = os.date("%d/%m/%Y %Hh:%Mm:%Ss", os.time()),
         cpuload = (readfile("/proc/loadavg", "string") or ""):sub(1, 14),
     }
@@ -153,10 +175,11 @@ local function get_wan()
         wan_proto = "uci.network.interface.@wan.proto",
         wan_auto = "uci.network.interface.@wan.auto",
         wan_ipv6 = "uci.network.interface.@wan.ipv6",
+        wan_mode = "uci.network.config.wan_mode",
     }
     content_helper.getExactContent(content_uci)
 
-    local is_bridged = (content_uci.wan_proto == "none") or (content_uci.wan_auto == "0" and content_uci.wan_proto == "")
+    local is_bridged = (content_uci.wan_mode == "bridge") or (content_uci.wan_proto == "none") or (content_uci.wan_auto == "0" and content_uci.wan_proto == "")
 
     if is_bridged then
         local lan_data = {
@@ -187,7 +210,7 @@ local function get_wan()
             local uci_dns = proxy.get("uci.network.interface.@lan.dns.@1.value")
             if uci_dns and uci_dns[1] and uci_dns[1].value ~= "" then
                 dns_val = uci_dns[1].value
-            elseif lan_data.gateway ~= "" then
+            elseif lan_data.gateway and lan_data.gateway ~= "" then
                 dns_val = lan_data.gateway
             end
         end
@@ -217,8 +240,14 @@ local function get_wan()
             status = is_connected and T"Connected" or T"Disconnected",
             WAN_IP = lan_data.ipaddr or "",
             WAN_IPv6 = "",
+            concentrator_name = "",
             wangateway = lan_data.gateway or "",
             wandns = dns_val or "",
+            ppp_status = "",
+            ppp_light = "",
+            ppp_state = "",
+            ipv6_light = "",
+            ipv6_state = "",
         }
     else
         local content_rpc = {
@@ -243,9 +272,12 @@ local function get_wan()
 
         content_rpc.ipaddr = content_rpc.ipaddr or ""
         content_rpc.ip6addr = content_rpc.ip6addr or ""
+        content_rpc.ip6prefix = content_rpc.ip6prefix or ""
         content_rpc.dns_wan = content_rpc.dns_wan or ""
         content_rpc.nexthop = content_rpc.nexthop or ""
         content_rpc.concentrator_name = content_rpc.concentrator_name or ""
+        content_rpc.wan_ppp_state = content_rpc.wan_ppp_state or ""
+        content_rpc.wan_ppp_error = content_rpc.wan_ppp_error or ""
         content_rpc.wan_uptime = content_rpc.wan_uptime or ""
 
         if content_rpc.dns_wan:match(",") then
@@ -255,18 +287,99 @@ local function get_wan()
         local is_up = (content_rpc.up == "1")
         local status_str = is_up and T"Connected" or T"Disconnected"
 
-        local attributes = { light = { id = "Internet_State_Led" }, span = { id = "Internet_State_Enabled" } }
-        local light_color = is_up and "1" or "4"
-        local status_light = ui_helper.createSimpleLight(light_color, status_str, attributes, "fa-at")
+        local IPv6State = "none"
+        if content_uci.wan_ipv6 ~= "1" then
+            IPv6State = "disabled"
+        elseif content_rpc.ip6prefix ~= "" then
+            IPv6State = "prefix"
+        else
+            IPv6State = "noprefix"
+        end
 
-        local wan_uptime_time = post_helper.secondsToTimeShort(content_rpc.wan_uptime)
+        local ipv6_light_map = { none = "0", noprefix = "2", prefix = "1" }
+        local ipv6_state_map = { none = T"IPv6 Disabled", noprefix = T"IPv6 Connecting", prefix = T"IPv6 Connected" }
+
+        local is_pppoe = (content_uci.wan_mode == "pppoe" or content_uci.wan_mode == "pppoa" or content_uci.wan_proto == "pppoe" or content_uci.wan_proto == "pppoa")
+        local is_static = (content_uci.wan_mode == "static" or content_uci.wan_proto == "static")
+
+        local status_light = ""
+        local ppp_status = ""
+        local ppp_light = ""
+        local ppp_state = ""
+        local attributes = { light = {}, span = {} }
+
+        if is_pppoe then
+            local ppp_state_map = {
+                disabled = T"PPP disabled",
+                disconnecting = T"PPP disconnecting",
+                connected = T"PPP connected",
+                connecting = T"PPP connecting",
+                disconnected = T"PPP disconnected",
+                error = T"PPP error",
+                AUTH_TOPEER_FAILED = T"PPP authentication failed",
+                NEGOTIATION_FAILED = T"PPP negotiation failed",
+            }
+            local ppp_light_map = {
+                disabled = "0",
+                disconnected = "4",
+                disconnecting = "2",
+                connecting = "2",
+                connected = "1",
+                error = "4",
+                AUTH_TOPEER_FAILED = "4",
+                NEGOTIATION_FAILED = "4",
+            }
+
+            if content_uci.wan_auto ~= "0" then
+                content_uci.wan_auto = "1"
+                ppp_status = format("%s", content_rpc.wan_ppp_state)
+                if ppp_status == "" or ppp_status == "authenticating" then
+                    ppp_status = "connecting"
+                elseif not ppp_state_map[ppp_status] then
+                    ppp_status = "error"
+                end
+
+                if not (content_rpc.wan_ppp_error == "" or content_rpc.wan_ppp_error == "USER_REQUEST") then
+                    if ppp_state_map[content_rpc.wan_ppp_error] then
+                        ppp_status = content_rpc.wan_ppp_error
+                    else
+                        ppp_status = "error"
+                    end
+                end
+            else
+                ppp_status = "disabled"
+            end
+
+            ppp_light = ppp_light_map[ppp_status] or "4"
+            ppp_state = ppp_state_map[ppp_status] or T"Unknown"
+            attributes.light.id = "Internet_State_Led"
+            attributes.span.id = "Internet_State_Enabled"
+            status_light = ui_helper.createSimpleLight(ppp_light, ppp_state, attributes, "fa-at")
+        elseif is_static then
+            local static_state_map = { disabled = T"Static disabled", connected = T"Static on" }
+            local static_light_map = { disabled = "0", connected = "1" }
+            local static_state = (content_uci.wan_auto ~= "0" and content_rpc.ipaddr ~= "") and "connected" or "disabled"
+            attributes.light.id = "Internet_State_Led"
+            attributes.span.id = "Internet_State_Enabled"
+            status_light = ui_helper.createSimpleLight(static_light_map[static_state], static_state_map[static_state], attributes, "fa-at")
+        else
+            -- DHCP routed mode or default
+            local dhcp_state_map = { disabled = T"DHCP disabled", connected = T"DHCP on", connecting = T"DHCP connecting" }
+            local dhcp_light_map = { disabled = "0", connecting = "2", connected = "1" }
+            local dhcp_state = (content_uci.wan_auto == "0") and "disabled" or ((content_rpc.ipaddr ~= "") and "connected" or "connecting")
+            attributes.light.id = "Internet_DHCP_LED"
+            attributes.span.id = "Internet_DHCP_Status"
+            status_light = ui_helper.createSimpleLight(dhcp_light_map[dhcp_state], dhcp_state_map[dhcp_state], attributes, "fa-at")
+        end
+
+        local wan_uptime_time = post_helper.secondsToTimeShort(content_rpc.wan_uptime) or ""
 
         return {
             status_light = status_light or "",
             WAN_IP_text = (content_rpc.ipaddr ~= "") and format(T'WAN IP is <strong>%s</strong><br/>', content_rpc.ipaddr) or "",
             WAN_IPv6_text = (content_rpc.ip6addr ~= "") and format(T'WAN IPv6 is <strong>%s</strong><br/>', content_rpc.ip6addr) or "",
-            uptime_text = (wan_uptime_time and wan_uptime_time ~= "") and format(T"Uptime" .. ": <strong>%s</strong>", wan_uptime_time) or "",
-            wan_uptime = wan_uptime_time or "",
+            uptime_text = (wan_uptime_time ~= "") and format(T"Uptime: <strong>%s</strong>", wan_uptime_time) or "",
+            wan_uptime = wan_uptime_time,
             wan_uptime_extended = post_helper.secondsToTime(content_rpc.wan_uptime) or "",
             status = status_str,
             WAN_IP = content_rpc.ipaddr,
@@ -274,6 +387,11 @@ local function get_wan()
             concentrator_name = content_rpc.concentrator_name,
             wangateway = content_rpc.nexthop,
             wandns = content_rpc.dns_wan,
+            ppp_status = ppp_status,
+            ppp_light = ppp_light,
+            ppp_state = ppp_state,
+            ipv6_light = ipv6_light_map[IPv6State] or "0",
+            ipv6_state = ipv6_state_map[IPv6State] or "",
         }
     end
 end
@@ -312,7 +430,7 @@ local function get_xdsl()
         return floor(rate / 10) / 100 .. " Mbps"
     end
 
-    if xdata.dsl_linerate_down and xdata.dsl_linerate_down ~= "0" then
+    if xdata.dsl_linerate_down and xdata.dsl_linerate_down ~= "0" and xdata.dsl_linerate_down ~= "" then
         xdata.dsl_linerate_up = formatRate(xdata.dsl_linerate_up)
         xdata.dsl_linerate_down = formatRate(xdata.dsl_linerate_down)
         xdata.dsl_linerate_up_max = formatRate(xdata.dsl_linerate_up_max)
@@ -410,20 +528,7 @@ local function get_ports()
     local port_data = content_helper.loadTableData(port_options.basepath, port_columns, port_filter, nil)
     local port_table = ui_helper.createTable(port_columns, port_data, port_options, nil, nil)
 
-    local res = {}
-    local function concat_t(tbl)
-        for _, v in pairs(tbl) do
-            if type(v) == "table" then
-                concat_t(v)
-            elseif type(v) == "userdata" then
-                res[#res + 1] = string.untaint(v)
-            elseif v ~= nil then
-                res[#res + 1] = tostring(v)
-            end
-        end
-    end
-    concat_t(port_table)
-    return { port_table = table.concat(res) }
+    return { port_table = html_flatten(port_table) }
 end
 
 --------------------------------------------------------------------------------
@@ -457,20 +562,7 @@ local function get_devices()
     local devices_data = content_helper.loadTableData(devices_options.basepath, devices_columns, devices_filter, nil)
     local dev_table = ui_helper.createTable(devices_columns, devices_data, devices_options, nil, nil)
 
-    local res = {}
-    local function concat_t(tbl)
-        for _, v in pairs(tbl) do
-            if type(v) == "table" then
-                concat_t(v)
-            elseif type(v) == "userdata" then
-                res[#res + 1] = string.untaint(v)
-            elseif v ~= nil then
-                res[#res + 1] = tostring(v)
-            end
-        end
-    end
-    concat_t(dev_table)
-    return { device_table = table.concat(res) }
+    return { device_table = html_flatten(dev_table) }
 end
 
 --------------------------------------------------------------------------------
@@ -490,23 +582,8 @@ local function get_mmpbx()
     end
 
     local basic = { span = { class = "span3" } }
-    local function flat_h(tbl)
-        local res = {}
-        local function h(t)
-            if type(t) == "table" then
-                for _, v in pairs(t) do h(v) end
-            elseif type(t) == "userdata" then
-                res[#res + 1] = string.untaint(t)
-            elseif t ~= nil then
-                res[#res + 1] = tostring(t)
-            end
-        end
-        h(tbl)
-        return table.concat(res)
-    end
-
     local mmpbx_info = (mmpbx_state == "1") and T"Telephony enabled" or T"Telephony disabled"
-    local mmpbx_status_html = flat_h(ui_helper.createLabel(T"Service", ui_helper.createSimpleLight(mmpbx_state, mmpbx_info), basic))
+    local mmpbx_status_html = html_flatten(ui_helper.createLabel(T"Service", ui_helper.createSimpleLight(mmpbx_state, mmpbx_info), basic))
     local mmpbx_table_html = ""
 
     if mmpbx_state == "1" then
@@ -525,10 +602,10 @@ local function get_mmpbx()
             return true
         end
         local mmpbxd_data = content_helper.loadTableData(mmpbxd_options.basepath, mmpbxd_columns, mmpbxd_filter, nil)
-        if #mmpbxd_data > 0 then
-            mmpbx_table_html = flat_h(ui_helper.createTable(mmpbxd_columns, mmpbxd_data, mmpbxd_options, nil, nil))
+        if mmpbxd_data and #mmpbxd_data > 0 then
+            mmpbx_table_html = html_flatten(ui_helper.createTable(mmpbxd_columns, mmpbxd_data, mmpbxd_options, nil, nil))
         else
-            mmpbx_table_html = flat_h(ui_helper.createLabel(T"Line Status", T"No registered accounts", basic))
+            mmpbx_table_html = html_flatten(ui_helper.createLabel(T"Line Status", T"No registered accounts", basic))
         end
     end
 
@@ -577,13 +654,16 @@ if need("mmpbx") then
     if ok and res then result.mmpbx = res end
 end
 
-local function sanitize_value(v)
+local function sanitize_value(v, seen)
+    seen = seen or {}
     local tv = type(v)
     if tv == "table" then
+        if seen[v] then return nil end
+        seen[v] = true
         local res = {}
         for k, val in pairs(v) do
-            local clean_k = (type(k) == "userdata") and tostring(untaint(k)) or k
-            res[clean_k] = sanitize_value(val)
+            local clean_k = (type(k) == "userdata") and tostring(untaint(k)) or tostring(k)
+            res[clean_k] = sanitize_value(val, seen)
         end
         return res
     elseif tv == "userdata" then
@@ -606,7 +686,8 @@ local function json_exception(reason, value, state, defaultmessage)
 end
 
 if ngx and ngx.header then
-    ngx.header["Content-Type"] = "application/json"
+    ngx.header["Content-Type"] = "application/json; charset=utf-8"
+    ngx.header["Cache-Control"] = "no-cache, no-store, must-revalidate"
 end
 
 local buffer = {}
