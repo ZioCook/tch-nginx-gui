@@ -782,20 +782,21 @@ local function render_html()
       </div>
     </div>
 
-    <!-- Card 6: Log Operativo & Shell Root Interattiva (Row 2, Columns 2, 3, 4 - Spans 3 Columns) -->
+    <!-- Card 6: Shell Root Interattiva (Row 2, Columns 2, 3, 4 - Spans 3 Columns) -->
     <div class="sc logt">
       <div class="sh">
-        <span><i class="fa fa-terminal"></i> Log Operativo Live &amp; Shell Root</span>
-        <button class="btn-clear" type="button" onclick="clearLogBox()"><i class="fa fa-eraser"></i> Pulisci</button>
+        <span><i class="fa fa-terminal"></i> Shell Root</span>
+        <button class="btn-clear" type="button" onclick="clearShell()"><i class="fa fa-eraser"></i> Pulisci</button>
       </div>
       <div class="ct" style="min-height: auto; padding: 14px;">
         <div class="fake_console">
-          <pre id="logBox">In attesa di istruzioni...</pre>
+          <pre id="logBox">BusyBox v1.31.0 &mdash; Technicolor Emergency Root Shell
+Digita qualsiasi comando root (es. ls -la, ifconfig, ping 8.8.8.8, ps, df -h, free -m) e premi Invio.</pre>
         </div>
         <!-- Interactive Root Shell Command Bar -->
         <form class="shell-bar" onsubmit="execShellCommand(event)">
           <span class="shell-prompt">root@rescue:~#</span>
-          <input type="text" id="shellInput" class="shell-input" placeholder="Esegui comando shell root (es. ls -la, df -h, free -m, /etc/init.d/nginx restart)..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+          <input type="text" id="shellInput" class="shell-input" placeholder="Digita comando shell root (es. ls -la, ifconfig, ping 8.8.8.8, df -h)..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" autofocus>
           <button type="submit" id="btnShell" class="btn-action btn-primary shell-btn">
             <i class="fa fa-play"></i> Invia
           </button>
@@ -814,71 +815,68 @@ local function render_html()
 </div><!-- /container -->
 
 <script>
-  var pollInterval = null;
+  var cmdHistory = [];
+  var historyIdx = -1;
 
-  function appendLog(msg) {
+  function appendShell(text) {
     var box = document.getElementById('logBox');
-    box.textContent += '\n' + msg;
+    if (!box) return;
+    if (!box.textContent) {
+      box.textContent = text;
+    } else {
+      box.textContent += '\n' + text;
+    }
     box.scrollTop = box.scrollHeight;
   }
 
-  function clearLogBox() {
-    var xhr = new XMLHttpRequest();
-    xhr.open('POST', '/clear_log', true);
-    xhr.onload = function() {
-      document.getElementById('logBox').textContent = '[LOG RESETTATO]';
-    };
-    xhr.send();
-  }
-
-  function pollLogs() {
-    var xhr = new XMLHttpRequest();
-    xhr.open('GET', '/log', true);
-    xhr.onload = function() {
-      if (xhr.status === 200 && xhr.responseText !== null) {
-        var box = document.getElementById('logBox');
-        box.textContent = xhr.responseText;
-        box.scrollTop = box.scrollHeight;
-      }
-    };
-    xhr.send();
-  }
-
-  function startPolling() {
-    if (!pollInterval) {
-      pollLogs();
-      pollInterval = setInterval(pollLogs, 1500);
-    }
+  function clearShell() {
+    var box = document.getElementById('logBox');
+    if (box) box.textContent = '';
+    var inp = document.getElementById('shellInput');
+    if (inp) inp.focus();
   }
 
   function execShellCommand(event) {
-    event.preventDefault();
+    if (event) event.preventDefault();
     var inp = document.getElementById('shellInput');
     var btn = document.getElementById('btnShell');
     var cmd = inp.value.trim();
     if (!cmd) return;
 
+    if (cmdHistory.length === 0 || cmdHistory[cmdHistory.length - 1] !== cmd) {
+      cmdHistory.push(cmd);
+    }
+    historyIdx = -1;
+
+    if (cmd === 'clear') {
+      clearShell();
+      inp.value = '';
+      return;
+    }
+
     btn.disabled = true;
-    appendLog('root@rescue:~# ' + cmd);
+    appendShell('root@rescue:~# ' + cmd);
+    inp.value = '';
+
     var xhr = new XMLHttpRequest();
     xhr.open('POST', '/exec', true);
     xhr.setRequestHeader('Content-Type', 'text/plain; charset=utf-8');
     xhr.onload = function() {
       btn.disabled = false;
-      inp.value = '';
       inp.focus();
       try {
         var j = JSON.parse(xhr.responseText);
         if (j.output) {
-          appendLog(j.output);
+          appendShell(j.output.replace(/\n+$/, ''));
         }
       } catch(e) {
-        pollLogs();
+        appendShell(xhr.responseText || '[ERRORE RISPOSTA]');
       }
     };
     xhr.onerror = function() {
       btn.disabled = false;
-      appendLog('[ERRORE] Impossibile eseguire il comando.');
+      inp.focus();
+      appendShell('[ERRORE] Impossibile contattare la shell.');
     };
     xhr.send(cmd);
   }
@@ -887,14 +885,13 @@ local function render_html()
     var btn = document.getElementById('btnUsb');
     btn.disabled = true;
     btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Scansione USB...';
-    appendLog('--> Avviata richiesta ripristino da USB...');
-    startPolling();
+    appendShell('--> [USB RECOVERY] Avvio scansione periferiche USB per il ripristino...');
     var xhr = new XMLHttpRequest();
     xhr.open('POST', '/usb_recovery', true);
     xhr.onload = function() {
       try {
         var j = JSON.parse(xhr.responseText);
-        appendLog('[SERVER] ' + (j.message || 'Richiesta accettata'));
+        appendShell('[USB RECOVERY] ' + (j.message || 'Scansione avviata'));
       } catch(e) {}
       setTimeout(function() {
         btn.disabled = false;
@@ -902,7 +899,7 @@ local function render_html()
       }, 5000);
     };
     xhr.onerror = function() {
-      appendLog('[ERRORE] Impossibile contattare il server.');
+      appendShell('[USB RECOVERY] Errore di comunicazione con il server.');
       btn.disabled = false;
       btn.innerHTML = '<i class="fa fa-play"></i> Flash da USB';
     };
@@ -919,8 +916,7 @@ local function render_html()
     var btn = document.getElementById('btnUpload');
     btn.disabled = true;
     btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Caricamento (' + (file.size / 1024 / 1024).toFixed(1) + ' MB)...';
-    appendLog('--> Caricamento del pacchetto: ' + file.name + ' (' + file.size + ' bytes)...');
-    startPolling();
+    appendShell('--> [UPLOAD] Invio pacchetto GUI: ' + file.name + ' (' + (file.size / 1024 / 1024).toFixed(2) + ' MB)...');
     var xhr = new XMLHttpRequest();
     xhr.open('POST', '/upload', true);
     xhr.setRequestHeader('Content-Type', 'application/octet-stream');
@@ -928,13 +924,13 @@ local function render_html()
     xhr.onload = function() {
       try {
         var j = JSON.parse(xhr.responseText);
-        appendLog('[RISULTATO] ' + (j.message || 'Operazione completata'));
+        appendShell('[UPLOAD] ' + (j.message || 'Operazione completata'));
       } catch(e) {}
       btn.disabled = false;
       btn.innerHTML = '<i class="fa fa-upload"></i> Carica &amp; Flash';
     };
     xhr.onerror = function() {
-      appendLog('[ERRORE UPLOAD] Errore durante il trasferimento.');
+      appendShell('[UPLOAD ERRORE] Errore durante il trasferimento.');
       btn.disabled = false;
       btn.innerHTML = '<i class="fa fa-upload"></i> Carica &amp; Flash';
     };
@@ -943,22 +939,52 @@ local function render_html()
 
   function restartServices() {
     if (!confirm('Vuoi riavviare i demoni Transformer e Nginx?')) return;
-    appendLog('--> Richiesta riavvio dei servizi web...');
-    startPolling();
+    appendShell('--> [SERVIZI] Richiesta riavvio dei servizi web primari (Nginx & Transformer)...');
     var xhr = new XMLHttpRequest();
     xhr.open('POST', '/restart_services', true);
+    xhr.onload = function() {
+      appendShell('[SERVIZI] Comando di riavvio inviato con successo.');
+    };
     xhr.send();
   }
 
   function rebootRouter() {
     if (!confirm('Confermi il riavvio completo del router?')) return;
-    appendLog('--> Richiesta riavvio modem inviata...');
+    appendShell('--> [MODEM] Invio comando di reboot hardware del gateway...');
     var xhr = new XMLHttpRequest();
     xhr.open('POST', '/reboot', true);
+    xhr.onload = function() {
+      appendShell('[MODEM] Riavvio del gateway in corso...');
+    };
     xhr.send();
   }
 
-  startPolling();
+  document.addEventListener('DOMContentLoaded', function() {
+    var inp = document.getElementById('shellInput');
+    if (inp) {
+      inp.addEventListener('keydown', function(e) {
+        if (e.key === 'ArrowUp') {
+          if (cmdHistory.length > 0) {
+            if (historyIdx === -1) historyIdx = cmdHistory.length - 1;
+            else if (historyIdx > 0) historyIdx--;
+            inp.value = cmdHistory[historyIdx] || '';
+          }
+          e.preventDefault();
+        } else if (e.key === 'ArrowDown') {
+          if (historyIdx !== -1) {
+            if (historyIdx < cmdHistory.length - 1) {
+              historyIdx++;
+              inp.value = cmdHistory[historyIdx] || '';
+            } else {
+              historyIdx = -1;
+              inp.value = '';
+            }
+          }
+          e.preventDefault();
+        }
+      });
+    }
+  });
 </script>
 </body>
 </html>
@@ -1046,7 +1072,7 @@ end
 
 -- Process incoming connection
 local function handle_client(client)
-    client:settimeout(15) -- 15s timeout for operations
+    client:settimeout(20) -- 20s timeout for socket operations
     local req_line, err = client:receive("*l")
     if not req_line then
         client:close()
@@ -1076,8 +1102,6 @@ local function handle_client(client)
         else
             send_response(client, 404, "text/plain", "Font Not Found")
         end
-        local log_data = read_file(LOG_FILE)
-        send_response(client, 200, "text/plain; charset=utf-8", log_data)
     elseif method == "POST" and uri == "/clear_log" then
         local f = io.open(LOG_FILE, "w")
         if f then f:close() end
@@ -1091,20 +1115,39 @@ local function handle_client(client)
         end
         cmd = cmd:match("^%s*(.-)%s*$")
         if not cmd or cmd == "" then
-            send_response(client, 400, "application/json", '{"status":"error","message":"Comando vuoto"}')
+            send_response(client, 400, "application/json", '{"status":"error","output":"Comando vuoto"}')
         else
             log(string.format("[SHELL] # %s", cmd))
-            local pipe = io.popen(cmd .. " 2>&1")
+
+            -- Auto-add count limit to ping if not specified, preventing endless blocking
+            if cmd:match("^ping%s+") and not cmd:match("%-c%s*%d+") then
+                cmd = cmd:gsub("^ping%s+", "ping -c 4 ", 1)
+            end
+
+            -- Write command to temporary executable script to avoid shell escaping issues
+            local EXEC_SCRIPT = "/tmp/rescue_exec.sh"
+            local f_sh = io.open(EXEC_SCRIPT, "w")
+            if f_sh then
+                f_sh:write("#!/bin/sh\n")
+                f_sh:write(cmd .. "\n")
+                f_sh:close()
+                os.execute("chmod +x " .. EXEC_SCRIPT)
+            end
+
+            -- Execute with busybox timeout (8 seconds) to ensure server NEVER hangs on infinite processes
+            local timeout_secs = 8
+            local pipe = io.popen("/usr/bin/timeout -s KILL " .. timeout_secs .. " " .. EXEC_SCRIPT .. " 2>&1")
             local output = ""
             if pipe then
                 output = pipe:read("*a") or ""
                 pipe:close()
             end
-            if output ~= "" then
-                log(string.format("%s", output))
-            else
-                log("(Nessun output restituito)")
+            os.remove(EXEC_SCRIPT)
+
+            if output == "" then
+                output = "(Comando completato senza output)\n"
             end
+
             -- JSON escape
             local escaped_out = output:gsub("\\", "\\\\"):gsub('"', '\\"'):gsub("\r", ""):gsub("\n", "\\n")
             send_response(client, 200, "application/json", string.format('{"status":"ok","output":"%s"}', escaped_out))
