@@ -24,8 +24,8 @@ killall -9 ledfw.lua status-led-eventing.lua 2>/dev/null
 # 2. Turn off all LEDs first
 echo "Step 2: Turning off all LEDs..."
 for l in /sys/class/leds/*; do
-    [ -f "$l/brightness" ] && echo 0 > "$l/brightness" 2>/dev/null
     [ -f "$l/trigger" ] && echo none > "$l/trigger" 2>/dev/null
+    [ -f "$l/brightness" ] && echo 0 > "$l/brightness" 2>/dev/null
 done
 
 # 3. Flush all filesystem buffers to NAND/eMMC flash
@@ -54,15 +54,44 @@ for candidate in /sys/class/leds/power:red /sys/class/leds/*power*red* /sys/clas
     fi
 done
 
+UCI_RED=$(uci get -q ledfw.ctrl_power.red)
+UCI_GREEN=$(uci get -q ledfw.ctrl_power.green)
+
+# Ensure all other power LEDs (green, orange, blue, etc.) are explicitly turned off
+for p in /sys/class/leds/power:green /sys/class/leds/power:orange /sys/class/leds/power:blue /sys/class/leds/power:white /sys/class/leds/power:cyan /sys/class/leds/power:magenta; do
+    if [ -d "$p" ] && [ "$p" != "$RED_LED" ]; then
+        echo none > "$p/trigger" 2>/dev/null
+        echo 0 > "$p/brightness" 2>/dev/null
+    fi
+done
+if [ -n "$UCI_GREEN" ] && [ -d "/sys/class/leds/$UCI_GREEN" ] && [ "/sys/class/leds/$UCI_GREEN" != "$RED_LED" ]; then
+    echo none > "/sys/class/leds/$UCI_GREEN/trigger" 2>/dev/null
+    echo 0 > "/sys/class/leds/$UCI_GREEN/brightness" 2>/dev/null
+fi
+
 if [ -n "$RED_LED" ]; then
     echo "Found red LED: $RED_LED"
+    echo none > "$RED_LED/trigger" 2>/dev/null
     echo timer > "$RED_LED/trigger" 2>/dev/null
     echo 1000 > "$RED_LED/delay_on" 2>/dev/null
     echo 1000 > "$RED_LED/delay_off" 2>/dev/null
+    if [ -n "$UCI_RED" ] && [ -d "/sys/class/leds/$UCI_RED" ] && [ "/sys/class/leds/$UCI_RED" != "$RED_LED" ]; then
+        echo none > "/sys/class/leds/$UCI_RED/trigger" 2>/dev/null
+        echo timer > "/sys/class/leds/$UCI_RED/trigger" 2>/dev/null
+        echo 1000 > "/sys/class/leds/$UCI_RED/delay_on" 2>/dev/null
+        echo 1000 > "/sys/class/leds/$UCI_RED/delay_off" 2>/dev/null
+    fi
+elif [ -n "$UCI_RED" ] && [ -d "/sys/class/leds/$UCI_RED" ]; then
+    echo "Found UCI red LED: /sys/class/leds/$UCI_RED"
+    echo none > "/sys/class/leds/$UCI_RED/trigger" 2>/dev/null
+    echo timer > "/sys/class/leds/$UCI_RED/trigger" 2>/dev/null
+    echo 1000 > "/sys/class/leds/$UCI_RED/delay_on" 2>/dev/null
+    echo 1000 > "/sys/class/leds/$UCI_RED/delay_off" 2>/dev/null
 else
     # Fallback for devices with numeric sysfs leds
     if [ -d "/sys/class/leds/0" ]; then
         echo "Falling back to /sys/class/leds/0"
+        echo none > "/sys/class/leds/0/trigger" 2>/dev/null
         echo timer > "/sys/class/leds/0/trigger" 2>/dev/null
         echo 1000 > "/sys/class/leds/0/delay_on" 2>/dev/null
         echo 1000 > "/sys/class/leds/0/delay_off" 2>/dev/null
