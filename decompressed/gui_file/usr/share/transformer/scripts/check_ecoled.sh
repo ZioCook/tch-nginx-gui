@@ -14,6 +14,11 @@ if [ "$(uci get -q ledfw.status_led.enable)" = "1" ]; then
 	ubus send statusled '{"state":"enabled"}'
 	ubus send statusled '{"state":"inactive"}'
 	ubus send statusled '{"state":"active"}'
+	if [ "$(uci get -q ledfw.status_led.stealth)" = "1" ]; then
+		for l in /sys/class/leds/*blue* /sys/class/leds/power:*; do
+			[ -f "$l/brightness" ] && echo 0 > "$l/brightness" 2>/dev/null
+		done
+	fi
 else
 	ubus send statusled '{"state":"disabled"}'
 	ubus send statusled '{"state":"inactive"}'

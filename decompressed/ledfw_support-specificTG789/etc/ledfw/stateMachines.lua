@@ -43,6 +43,17 @@ local function internet_nextState()
     return ((xdsl_status() ~= 5) and "internet_disconnected" or nil)
 end
 
+local function is_stealth()
+   local c = uci.cursor()
+   local s = c:get("ledfw", "status_led", "stealth")
+   c:close()
+   return s == "1"
+end
+
+local function PowerStatusActiveLed()
+   return is_stealth() and 0 or 255
+end
+
 patterns = {
     status = {
         state = "status_inactive",
@@ -59,6 +70,10 @@ patterns = {
         },
         actions = {
             status_active = {
+                staticLed("power:red", false),
+                staticLed("power:blue", false),
+                staticLed("power:orange", false),
+                staticLed("power:green", PowerStatusActiveLed),
                 staticLed("broadband:red", false),
                 staticLed("broadband:green", false),
                 staticLed("internet:green", false),
@@ -130,8 +145,8 @@ stateMachines = {
             service_ok_eco = {
                 staticLed("power:orange", false),
                 staticLed("power:red", false),
-                staticLed("power:blue", true),
-                staticLed("power:green", false)
+                staticLed("power:blue", false),
+                staticLed("power:green", true)
             },
             service_ok_fullpower = {
                 staticLed("power:orange", false),
@@ -147,10 +162,10 @@ stateMachines = {
             }
         },
         patterns_depend_on = {
-            power_started = { "fw_upgrade" },
-            service_ok_fullpower = { "fw_upgrade" },
-            service_ok_eco = { "fw_upgrade" },
-            service_notok = { "fw_upgrade" }
+            power_started = { "fw_upgrade", "status" },
+            service_ok_fullpower = { "fw_upgrade", "status" },
+            service_ok_eco = { "fw_upgrade", "status" },
+            service_notok = { "fw_upgrade", "status" }
         }
     },
     broadband = {

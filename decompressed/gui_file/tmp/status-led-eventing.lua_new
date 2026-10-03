@@ -190,6 +190,7 @@ local function ambient_status_update()
     lcur:load('ledfw')
     local cur_ambient = lcur:get('ledfw', 'ambient', 'active')
     local cur_statusled = lcur:get('ledfw', 'status_led', 'enable')
+    local cur_stealth = lcur:get('ledfw', 'status_led', 'stealth')
     lcur:close()
     if cur_ambient == '0' then
         local packet = {}
@@ -203,6 +204,9 @@ local function ambient_status_update()
         conn:send("statusled", packet)
         packet["state"] = "active"
         conn:send("statusled", packet)
+        if cur_stealth == '1' then
+            os.execute("for l in /sys/class/leds/*blue* /sys/class/leds/power:*; do [ -f \"$l/brightness\" ] && echo 0 > \"$l/brightness\" 2>/dev/null; done")
+        end
     end
 end
 
