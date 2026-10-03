@@ -129,7 +129,7 @@ ngx.print('\
       html[#html + 1] = '</div>'
       html[#html + 1] = '</div>'
       html[#html + 1] = '<div class="header-sub-button">'
-      html[#html + 1] = '<div class="btn" id="wizard-btn" data-toggle="modal" data-remote="modals/wizard-modal.lp">' .. T"Setup Wizard" .. '</div>'
+      html[#html + 1] = '<div class="btn" id="wizard-btn" data-toggle="modal" data-remote="modals/wizard-modal.lp"><i class="icon-magic"></i> <span class="wizard-text">' .. T"Setup Wizard" .. '</span></div>'
       html[#html + 1] = '</div>'
       html[#html + 1] = '<div class="header-sub-button">'
       html[#html + 1] =   '<div class="btn" id="switchViewButton">'

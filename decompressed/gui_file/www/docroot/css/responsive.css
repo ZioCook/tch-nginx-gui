@@ -33,3 +33,200 @@
     margin-bottom: 0 !important;
 }
 
+/* ==========================================================================
+   Mobile Smartphone Enhancements (max-width: 767px and 480px)
+   ========================================================================== */
+
+@media (max-width: 767px) {
+    /* --- Header Toolbar --- */
+    #headertab.header {
+        padding: 10px 0 14px !important;
+        margin-bottom: 16px !important;
+        height: auto !important;
+    }
+    #headertab .row {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 8px !important;
+        margin-left: 0 !important;
+        margin-right: 0 !important;
+    }
+    #headertab .header-logo {
+        display: flex !important;
+        justify-content: flex-start !important;
+        align-items: center !important;
+        flex-basis: auto !important;
+        width: 100% !important;
+        margin: 0 !important;
+    }
+    #headertab .header-logo img {
+        max-height: 34px !important;
+        width: auto !important;
+    }
+    #headertab .header-button {
+        display: flex !important;
+        flex-direction: row !important;
+        flex-wrap: nowrap !important;
+        justify-content: space-between !important;
+        align-items: center !important;
+        width: 100% !important;
+        margin: 0 !important;
+        gap: 5px !important;
+    }
+    #headertab .header-sub-button {
+        display: inline-flex !important;
+        padding: 0 !important;
+        flex: 1 1 auto !important;
+        min-width: 0 !important;
+    }
+    #headertab .header-sub-button .btn,
+    #headertab .header-sub-button select {
+        width: 100% !important;
+        padding: 5px 8px !important;
+        font-size: 12px !important;
+        line-height: 18px !important;
+        min-height: 32px !important;
+        height: 32px !important;
+        border-radius: 4px !important;
+        box-sizing: border-box !important;
+        text-overflow: ellipsis !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-align: center !important;
+    }
+    #headertab .header-sub-button select {
+        padding: 3px 4px !important;
+        margin-bottom: 0 !important;
+    }
+    #headertab #logged.btn-group {
+        display: flex !important;
+        width: 100% !important;
+    }
+    #headertab #logged.btn-group > .btn:first-child {
+        flex: 1 1 auto !important;
+        padding: 5px 6px !important;
+        font-size: 12px !important;
+        text-overflow: ellipsis !important;
+        overflow: hidden !important;
+        white-space: nowrap !important;
+    }
+    #headertab #logged.btn-group > .btn.dropdown-toggle {
+        padding: 5px 6px !important;
+        font-size: 12px !important;
+        flex: 0 0 auto !important;
+    }
+
+    /* --- Stats View (divtable) Two-Column Key-Value --- */
+    .divtable > .form-horizontal .control-group {
+        display: flex !important;
+        flex-direction: row !important;
+        justify-content: space-between !important;
+        align-items: baseline !important;
+        padding: 6px 4px !important;
+        border-bottom: 1px solid rgba(0, 0, 0, 0.06) !important;
+        margin: 0 !important;
+    }
+    .divtable > .form-horizontal .control-group:last-child {
+        border-bottom: none !important;
+    }
+    .divtable > .form-horizontal .control-label {
+        float: none !important;
+        width: auto !important;
+        max-width: 52% !important;
+        padding-top: 0 !important;
+        text-align: left !important;
+        font-weight: 500 !important;
+        font-size: 13px !important;
+        color: #444 !important;
+        line-height: 1.3 !important;
+    }
+    .divtable > .form-horizontal .controls {
+        margin-left: 0 !important;
+        width: auto !important;
+        max-width: 48% !important;
+        text-align: right !important;
+        font-size: 13px !important;
+        word-break: break-word !important;
+        line-height: 1.3 !important;
+    }
+
+    /* --- Modals on Mobile --- */
+    .modal {
+        position: fixed !important;
+        top: 8px !important;
+        left: 8px !important;
+        right: 8px !important;
+        bottom: 8px !important;
+        width: auto !important;
+        max-width: calc(100vw - 16px) !important;
+        height: auto !important;
+        max-height: calc(100vh - 16px) !important;
+        margin: 0 !important;
+        border-radius: 6px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        box-sizing: border-box !important;
+    }
+    .modal.fade {
+        top: -100% !important;
+        transition: top 0.2s ease-out !important;
+    }
+    .modal.fade.in {
+        top: 8px !important;
+    }
+    .modal-header {
+        padding: 10px 14px !important;
+        flex-shrink: 0 !important;
+    }
+    .modal-header h2 {
+        font-size: 18px !important;
+        line-height: 1.2 !important;
+    }
+    .modal-body {
+        max-height: calc(100vh - 130px) !important;
+        overflow-y: auto !important;
+        -webkit-overflow-scrolling: touch !important;
+        padding: 12px 14px !important;
+        flex-grow: 1 !important;
+    }
+    .modal-footer {
+        padding: 8px 14px !important;
+        flex-shrink: 0 !important;
+    }
+    .modal .nav-list {
+        padding-left: 0 !important;
+        padding-right: 0 !important;
+        margin-bottom: 12px !important;
+    }
+    .modal .nav-list > li > a {
+        padding: 6px 10px !important;
+        font-size: 13px !important;
+        border-radius: 4px !important;
+    }
+
+    /* --- Cards Grid Spacing --- */
+    .smallcard {
+        margin: 0.5rem 0 0.8rem 0 !important;
+        border-radius: 6px !important;
+    }
+    .infocard {
+        margin-bottom: 10px !important;
+    }
+    .infocard > .smallcard {
+        margin: 0 0 10px 0 !important;
+        border-radius: 6px !important;
+    }
+}
+
+@media (max-width: 480px) {
+    #wizard-btn .wizard-text {
+        display: none !important;
+    }
+    #headertab .header-sub-button .btn#wizard-btn {
+        flex: 0 0 36px !important;
+        padding: 5px 0 !important;
+        text-align: center !important;
+    }
+}
+
