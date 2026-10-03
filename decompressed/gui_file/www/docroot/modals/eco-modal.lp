@@ -95,20 +95,35 @@ if prod_name:match("DGA4131") then
   mapValid.ledfw_ambient = vB
   mapParams.ledfw_ambient = "uci.ledfw.ambient.active"
 else
-  mapValid.eco_led = vB
-  mapValid.eco_led_stealth = vB
   mapValid.ledfw_wifinsc = vB
-  mapParams.eco_led = "uci.ledfw.status_led.enable"
-  mapParams.eco_led_stealth = "uci.ledfw.status_led.stealth"
   mapParams.ledfw_wifinsc = "uci.ledfw.wifi.nsc_on"
+end
+
+-- Handle unified eco_mode dropdown before handleQuery stages UCI changes
+if ngx.req.get_method() == "POST" and not prod_name:match("DGA4131") then
+  local post_args = ngx.req.get_post_args()
+  if post_args and post_args.eco_mode then
+    local m = post_args.eco_mode
+    if m == "stealth" then
+      proxy.set("uci.ledfw.status_led.enable", "1")
+      proxy.set("uci.ledfw.status_led.stealth", "1")
+    elseif m == "active" then
+      proxy.set("uci.ledfw.status_led.enable", "1")
+      proxy.set("uci.ledfw.status_led.stealth", "0")
+    elseif m == "off" then
+      proxy.set("uci.ledfw.status_led.enable", "0")
+      proxy.set("uci.ledfw.status_led.stealth", "0")
+    end
+  end
 end
 
 local content, helpmsg = post_helper.handleQuery(mapParams, mapValid)
 
--- Trigger power init script reload on successful POST
+-- Apply staged UCI changes and trigger power init script reload on successful POST
 if ngx.req.get_method() == "POST" and not helpmsg then
   local post_args = ngx.req.get_post_args()
   if not post_args or post_args.action ~= "drop_caches" then
+    proxy.apply()
     os.execute("/etc/init.d/power reload >/dev/null 2>&1 &")
   end
 end
@@ -239,18 +254,33 @@ html[#html + 1] = ui_helper.createButton(T"Cache Memory", T"Clear RAM Cache (Dro
 -- SEZIONE 5: Indicatori LED
 html[#html + 1] = '<legend>' .. T"LED Indicator Settings" .. '</legend>'
 
-if prod_name:match("4130") or prod_name:match("4132") or prod_name:match("TG789") then
-  html[#html + 1] = ui_helper.createSwitch(T"WiFi NSC (Dynamic LEDs)", "ledfw_wifinsc", content["ledfw_wifinsc"])
-end
-
 if prod_name:match("DGA4131") then
   html[#html + 1] = ui_helper.createSwitch(T"Ambient LED", "ledfw_ambient", content["ledfw_ambient"])
+  html[#html + 1] = ui_helper.createInputText(T"Timeout Spegnimento LED (ms)", "eco_led_timeout", content["eco_led_timeout"], span5, helpmsg["eco_led_timeout"])
 else
-  html[#html + 1] = ui_helper.createSwitch(T"Eco LED Mode", "eco_led", content["eco_led"])
-  html[#html + 1] = ui_helper.createSwitch(T"Modalità Stealth (Spegni anche Power)", "eco_led_stealth", content["eco_led_stealth"])
-end
+  local raw_enable = proxy.get("uci.ledfw.status_led.enable")
+  local raw_stealth = proxy.get("uci.ledfw.status_led.stealth")
+  local en = raw_enable and untaint(raw_enable[1].value) or "0"
+  local st = raw_stealth and untaint(raw_stealth[1].value) or "0"
+  local current_eco_mode = "off"
+  if en == "1" then
+    if st == "1" then
+      current_eco_mode = "stealth"
+    else
+      current_eco_mode = "active"
+    end
+  end
 
-html[#html + 1] = ui_helper.createInputText(T"Timeout Spegnimento LED (ms)", "eco_led_timeout", content["eco_led_timeout"], span5, helpmsg["eco_led_timeout"])
+  local eco_mode_options = {
+    { "off", T"Disabled (All LEDs permanently on)" },
+    { "active", T"Eco Mode (Service LEDs off, Power on)" },
+    { "stealth", T"Stealth Mode (All LEDs off including Power)" },
+  }
+
+  html[#html + 1] = ui_helper.createSwitch(T"WiFi NSC (Dynamic LEDs)", "ledfw_wifinsc", content["ledfw_wifinsc"])
+  html[#html + 1] = ui_helper.createInputSelect(T"Eco LED Mode", "eco_mode", eco_mode_options, current_eco_mode)
+  html[#html + 1] = ui_helper.createInputText(T"Timeout Spegnimento LED (ms)", "eco_led_timeout", content["eco_led_timeout"], span5, helpmsg["eco_led_timeout"])
+end
 
 html[#html + 1] = ui_helper.createSwitch(T"Check Telephony (VoIP)", "ledfw_voip", content["ledfw_voip"])
 html[#html + 1] = ui_helper.createSwitch(T"Check IPTV", "ledfw_iptv", content["ledfw_iptv"])

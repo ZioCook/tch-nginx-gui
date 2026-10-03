@@ -4995,3 +4995,12 @@ msgstr "LAN-Port-Geschwindigkeit"
 
 msgid "Back"
 msgstr "Zurück"
+
+msgid "Disabled (All LEDs permanently on)"
+msgstr "Deaktiviert (Alle LEDs dauerhaft an)"
+
+msgid "Eco Mode (Service LEDs off, Power on)"
+msgstr "Eco-Modus (Service-LEDs nach Timeout aus, Power an)"
+
+msgid "Stealth Mode (All LEDs off including Power)"
+msgstr "Stealth-Modus (Alle LEDs nach Timeout aus, inkl. Power)"

@@ -5016,3 +5016,12 @@ msgstr "Velocità porte LAN"
 
 msgid "Back"
 msgstr "Indietro"
+
+msgid "Disabled (All LEDs permanently on)"
+msgstr "Disattivato (Tutti i LED sempre accesi)"
+
+msgid "Eco Mode (Service LEDs off, Power on)"
+msgstr "Attivo (LED di servizio spenti dopo timeout, Power acceso)"
+
+msgid "Stealth Mode (All LEDs off including Power)"
+msgstr "Stealth (Tutti i LED spenti dopo timeout, compreso Power)"

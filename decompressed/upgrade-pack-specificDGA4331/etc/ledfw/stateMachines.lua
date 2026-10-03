@@ -189,6 +189,7 @@ patterns = {
             status_active = {
                 status_nok = "status_inactive",
                 status_inactive = "status_inactive",
+                status_active = "status_active",
             },
         },
         actions = {
