@@ -94,218 +94,203 @@ end
 -- Render the Standalone Recovery HTML Webpage
 local function render_html()
     local s = get_system_summary()
-    local nginx_badge = s.nginx_running and '<span class="badge badge-ok">Attivo (Porta 80)</span>' or '<span class="badge badge-fail">NON ATTIVO (In Crash/Down)</span>'
-    local trans_badge = s.trans_running and '<span class="badge badge-ok">Attivo</span>' or '<span class="badge badge-fail">NON ATTIVO</span>'
+    local nginx_badge = s.nginx_running and '<span class="badge badge-ok">Attivo</span>' or '<span class="badge badge-fail">Non attivo</span>'
+    local trans_badge = s.trans_running and '<span class="badge badge-ok">Attivo</span>' or '<span class="badge badge-fail">Non attivo</span>'
 
     return [[<!DOCTYPE html>
 <html lang="it">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Console di Emergenza & Recovery - ZioCook GUI</title>
+  <title>Rescue Console &#8212; Technicolor Gateway</title>
   <style>
     :root {
-      --bg: #0f172a;
-      --card-bg: #1e293b;
-      --border: #334155;
-      --text: #f8fafc;
-      --muted: #94a3b8;
-      --primary: #38bdf8;
-      --primary-hover: #0284c7;
-      --danger: #ef4444;
-      --danger-hover: #dc2626;
-      --success: #22c55e;
-      --warning: #f59e0b;
+      --navy:   #003087;
+      --blue:   #005DAA;
+      --blue-h: #004d92;
+      --red:    #CC0000;
+      --red-h:  #aa0000;
+      --green:  #007A3D;
+      --bg:     #F2F4F7;
+      --white:  #FFFFFF;
+      --border: #D8DCE6;
+      --text:   #1A1A2E;
+      --muted:  #6B7280;
+      --shadow: 0 1px 4px rgba(0,0,0,.10);
     }
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background-color: var(--bg); color: var(--text); padding: 20px; line-height: 1.5; }
-    .container { max-width: 960px; margin: 0 auto; }
-    .header { display: flex; align-items: center; justify-content: space-between; border-bottom: 2px solid var(--border); padding-bottom: 16px; margin-bottom: 24px; }
-    .header h1 { font-size: 1.6rem; color: var(--primary); display: flex; align-items: center; gap: 10px; }
-    .badge { font-size: 0.75rem; font-weight: 700; padding: 4px 10px; border-radius: 9999px; text-transform: uppercase; }
-    .badge-ok { background: rgba(34, 197, 94, 0.2); color: var(--success); border: 1px solid var(--success); }
-    .badge-fail { background: rgba(239, 68, 68, 0.2); color: var(--danger); border: 1px solid var(--danger); }
-    .badge-rescue { background: rgba(245, 158, 11, 0.2); color: var(--warning); border: 1px solid var(--warning); }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 24px; }
-    .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 20px; }
-    .card h2 { font-size: 1.15rem; margin-bottom: 12px; color: var(--primary); display: flex; align-items: center; gap: 8px; }
-    .card p { font-size: 0.9rem; color: var(--muted); margin-bottom: 16px; }
-    .info-list { list-style: none; font-size: 0.85rem; }
-    .info-list li { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid rgba(255,255,255,0.05); }
-    .info-list li span:first-child { color: var(--muted); }
-    .btn { display: inline-block; width: 100%; padding: 10px 16px; font-size: 0.9rem; font-weight: 600; text-align: center; border: none; border-radius: 8px; cursor: pointer; transition: 0.2s; }
-    .btn-primary { background: var(--primary); color: #000; }
-    .btn-primary:hover { background: var(--primary-hover); }
-    .btn-danger { background: var(--danger); color: #fff; }
-    .btn-danger:hover { background: var(--danger-hover); }
-    .btn-secondary { background: var(--border); color: var(--text); }
-    .btn-secondary:hover { background: #475569; }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .file-input-wrapper { margin-bottom: 12px; }
-    input[type="file"] { width: 100%; padding: 8px; background: #0f172a; border: 1px dashed var(--border); border-radius: 6px; color: var(--text); font-size: 0.85rem; }
-    .console-wrapper { background: #000; border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-top: 16px; }
-    .console-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 0.85rem; color: var(--muted); }
-    pre#logBox { background: transparent; color: #4ade80; font-family: monospace; font-size: 0.8rem; height: 260px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; padding: 4px; }
-    .actions-bar { display: flex; gap: 12px; margin-top: 12px; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; font-size: 14px; background: var(--bg); color: var(--text); }
+    .header { background: var(--navy); padding: 0 32px; height: 56px; display: flex; align-items: center; justify-content: space-between; }
+    .header-brand { display: flex; align-items: center; gap: 14px; }
+    .header-logo { font-size: 1.25rem; font-weight: 700; letter-spacing: -0.5px; color: #FFFFFF; }
+    .header-logo span { color: #78B9E7; }
+    .header-sep { width: 1px; height: 22px; background: rgba(255,255,255,.25); }
+    .header-subtitle { font-size: 0.75rem; color: rgba(255,255,255,.70); letter-spacing: 0.5px; text-transform: uppercase; }
+    .badge { display: inline-flex; align-items: center; gap: 5px; font-size: 0.68rem; font-weight: 700; letter-spacing: 0.5px; padding: 3px 10px; border-radius: 3px; text-transform: uppercase; }
+    .badge-rescue { background: var(--red); color: #fff; }
+    .badge-ok { background: #D1FAE5; color: var(--green); }
+    .badge-fail { background: #FEE2E2; color: var(--red); }
+    .page { max-width: 1020px; margin: 28px auto; padding: 0 20px 40px; }
+    .section-title { font-size: 0.7rem; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-bottom: 28px; }
+    .card { background: var(--white); border: 1px solid var(--border); border-radius: 8px; padding: 22px; box-shadow: var(--shadow); }
+    .card-title { display: flex; align-items: center; gap: 8px; font-size: 0.9rem; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+    .card-title svg { flex-shrink: 0; }
+    .card-desc { font-size: 0.82rem; color: var(--muted); margin-bottom: 16px; line-height: 1.5; }
+    .card-desc code { font-size: 0.78rem; background: var(--bg); border: 1px solid var(--border); border-radius: 3px; padding: 1px 5px; }
+    .info-list { list-style: none; margin-bottom: 16px; }
+    .info-list li { display: flex; justify-content: space-between; align-items: center; padding: 7px 0; border-bottom: 1px solid var(--border); font-size: 0.82rem; }
+    .info-list li:last-child { border-bottom: none; }
+    .info-list .label { color: var(--muted); }
+    .info-list .value { font-weight: 600; color: var(--text); }
+    .btn { display: inline-block; width: 100%; padding: 9px 16px; font-size: 0.82rem; font-weight: 700; text-align: center; border: none; border-radius: 5px; cursor: pointer; transition: background .15s, opacity .15s; }
+    .btn-blue { background: var(--blue); color: #fff; }
+    .btn-blue:hover { background: var(--blue-h); }
+    .btn-red { background: var(--red); color: #fff; }
+    .btn-red:hover { background: var(--red-h); }
+    .btn-outline { background: transparent; color: var(--blue); border: 1.5px solid var(--blue); }
+    .btn-outline:hover { background: #EBF2FB; }
+    .btn:disabled { opacity: .45; cursor: not-allowed; }
+    .btn-row { display: flex; gap: 10px; }
+    .btn-row .btn { width: auto; flex: 1; }
+    .file-wrap { margin-bottom: 12px; }
+    input[type="file"] { width: 100%; padding: 7px 10px; background: var(--bg); border: 1.5px dashed var(--border); border-radius: 5px; color: var(--text); font-size: 0.8rem; }
+    .terminal-wrap { background: #0D1117; border: 1px solid #30363D; border-radius: 8px; overflow: hidden; box-shadow: var(--shadow); }
+    .terminal-bar { display: flex; align-items: center; justify-content: space-between; padding: 8px 16px; background: #161B22; border-bottom: 1px solid #30363D; }
+    .terminal-bar-dots { display: flex; gap: 6px; }
+    .terminal-bar-dots span { width: 11px; height: 11px; border-radius: 50%; }
+    .dot-r { background: #FF5F57; } .dot-y { background: #FFBD2E; } .dot-g { background: #28C840; }
+    .terminal-label { font-size: 0.72rem; color: #8B949E; letter-spacing: 0.5px; }
+    .terminal-clear { background: none; border: none; color: #58A6FF; font-size: 0.75rem; cursor: pointer; }
+    .terminal-clear:hover { text-decoration: underline; }
+    pre#logBox { padding: 14px 18px; margin: 0; background: transparent; color: #3FB950; font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; font-size: 0.78rem; line-height: 1.6; height: 240px; overflow-y: auto; white-space: pre-wrap; word-break: break-all; }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <div>
-        <h1>Rescue Console (Out-of-Band)</h1>
-        <p style="font-size: 0.85rem; color: var(--muted); margin-top: 4px;">Server di Ripristino autonomo LuaSocket (Immune a crash di Nginx/Transformer)</p>
-      </div>
-      <div>
-        <span class="badge badge-rescue">Modalit&agrave; Emergenza</span>
-      </div>
+  <div class="header">
+    <div class="header-brand">
+      <div class="header-logo">Techni<span>color</span></div>
+      <div class="header-sep"></div>
+      <div class="header-subtitle">Gateway Recovery Console</div>
     </div>
-
+    <span class="badge badge-rescue">&#9888; Modalit&agrave; Emergenza</span>
+  </div>
+  <div class="page">
+    <p class="section-title">Strumenti di Ripristino</p>
     <div class="grid">
-      <!-- Card 1: Ripristino da USB -->
       <div class="card">
-        <h2>&#128190; Ripristino Zero-Touch USB</h2>
-        <p>Inserisci una chiavetta USB con il file <code>ziocook-gui-recovery.tar.bz2</code> o <code>GUI.tar.bz2</code> nella porta USB del modem.</p>
-        <button id="btnUsb" class="btn btn-primary" onclick="triggerUsbRecovery()">Avvia Scansione & Flash USB</button>
-      </div>
-
-      <!-- Card 2: Upload Manuale da PC -->
-      <div class="card">
-        <h2>&#128228; Caricamento Manuale da PC</h2>
-        <p>Seleziona un pacchetto <code>GUI.tar.bz2</code> salvato sul tuo computer da ripristinare.</p>
-        <div class="file-input-wrapper">
-          <input type="file" id="guiFile" accept=".tar.bz2,.bz2">
+        <div class="card-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#005DAA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2v8M8 6l4-4 4 4"/><rect x="7" y="10" width="10" height="8" rx="2"/><path d="M9 18v2M15 18v2M9 20h6"/></svg>
+          Ripristino Zero-Touch USB
         </div>
-        <button id="btnUpload" class="btn btn-primary" onclick="uploadPackage()">Carica & Esegui Ripristino</button>
+        <p class="card-desc">Inserisci una chiavetta USB con il file <code>ziocook-gui-recovery.tar.bz2</code> o <code>GUI.tar.bz2</code> nella porta USB del gateway e avvia la scansione automatica.</p>
+        <button id="btnUsb" class="btn btn-blue" onclick="triggerUsbRecovery()">Avvia Scansione &amp; Flash USB</button>
       </div>
-
-      <!-- Card 3: Stato Sistema -->
       <div class="card">
-        <h2>&#9881; Stato del Sistema</h2>
+        <div class="card-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#005DAA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          Caricamento Pacchetto da PC
+        </div>
+        <p class="card-desc">Seleziona un pacchetto <code>GUI.tar.bz2</code> salvato sul tuo computer per eseguire il ripristino manuale.</p>
+        <div class="file-wrap"><input type="file" id="guiFile" accept=".tar.bz2,.bz2"></div>
+        <button id="btnUpload" class="btn btn-blue" onclick="uploadPackage()">Carica &amp; Ripristina</button>
+      </div>
+      <div class="card">
+        <div class="card-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#005DAA" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+          Stato del Sistema
+        </div>
         <ul class="info-list">
-          <li><span>Hardware:</span> <strong>]] .. s.hardware .. [[</strong></li>
-          <li><span>Stato Nginx:</span> ]] .. nginx_badge .. [[</li>
-          <li><span>Stato Transformer:</span> ]] .. trans_badge .. [[</li>
-          <li><span>Memoria RAM:</span> <strong>]] .. s.mem .. [[</strong></li>
-          <li><span>Uptime:</span> <strong>]] .. s.uptime .. [[</strong></li>
+          <li><span class="label">Hardware</span><span class="value">]] .. s.hardware .. [[</span></li>
+          <li><span class="label">Nginx</span>]] .. nginx_badge .. [[</li>
+          <li><span class="label">Transformer</span>]] .. trans_badge .. [[</li>
+          <li><span class="label">Memoria RAM</span><span class="value">]] .. s.mem .. [[</span></li>
+          <li><span class="label">Uptime</span><span class="value">]] .. s.uptime .. [[</span></li>
         </ul>
-        <div class="actions-bar">
-          <button class="btn btn-secondary" onclick="restartServices()">Riavvia Servizi</button>
-          <button class="btn btn-danger" onclick="rebootRouter()">Riavvia Modem</button>
+        <div class="btn-row">
+          <button class="btn btn-outline" onclick="restartServices()">Riavvia Servizi</button>
+          <button class="btn btn-red" onclick="rebootRouter()">Riavvia Modem</button>
         </div>
       </div>
     </div>
-
-    <!-- Live Console Output Box -->
-    <div class="console-wrapper">
-      <div class="console-header">
-        <span>Log Operativo in Tempo Reale (/tmp/rescue.log)</span>
-        <button style="background: none; border: none; color: var(--primary); cursor: pointer;" onclick="clearLogBox()">Pulisci Schermo</button>
+    <p class="section-title">Log Operativo</p>
+    <div class="terminal-wrap">
+      <div class="terminal-bar">
+        <div class="terminal-bar-dots">
+          <span class="dot-r"></span><span class="dot-y"></span><span class="dot-g"></span>
+        </div>
+        <span class="terminal-label">rescue.log -- live</span>
+        <button class="terminal-clear" onclick="clearLogBox()">Pulisci</button>
       </div>
       <pre id="logBox">In attesa di istruzioni...</pre>
     </div>
   </div>
-
   <script>
-    let pollInterval = null;
-
+    var pollInterval = null;
     function appendLog(msg) {
-      const box = document.getElementById('logBox');
-      box.textContent += "\n" + msg;
+      var box = document.getElementById('logBox');
+      box.textContent += '\n' + msg;
       box.scrollTop = box.scrollHeight;
     }
-
-    function clearLogBox() {
-      document.getElementById('logBox').textContent = "";
-    }
-
-    async function pollLogs() {
-      try {
-        const res = await fetch('/log');
-        if (res.ok) {
-          const text = await res.text();
-          if (text) {
-            const box = document.getElementById('logBox');
-            box.textContent = text;
-            box.scrollTop = box.scrollHeight;
-          }
+    function clearLogBox() { document.getElementById('logBox').textContent = ''; }
+    function pollLogs() {
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', '/log', true);
+      xhr.onload = function() {
+        if (xhr.status === 200 && xhr.responseText) {
+          var box = document.getElementById('logBox');
+          box.textContent = xhr.responseText;
+          box.scrollTop = box.scrollHeight;
         }
-      } catch (e) {
-        // server might be restarting
-      }
+      };
+      xhr.send();
     }
-
     function startPolling() {
-      if (!pollInterval) {
-        pollLogs();
-        pollInterval = setInterval(pollLogs, 1500);
-      }
+      if (!pollInterval) { pollLogs(); pollInterval = setInterval(pollLogs, 1500); }
     }
-
-    async function triggerUsbRecovery() {
-      const btn = document.getElementById('btnUsb');
-      btn.disabled = true;
-      btn.textContent = "Scansione USB in corso...";
-      appendLog("--> Avviata richiesta ripristino Zero-Touch da USB...");
+    function triggerUsbRecovery() {
+      var btn = document.getElementById('btnUsb');
+      btn.disabled = true; btn.textContent = 'Scansione USB in corso...';
+      appendLog('--> Avviata richiesta ripristino Zero-Touch da USB...');
       startPolling();
-
-      try {
-        const res = await fetch('/usb_recovery', { method: 'POST' });
-        const json = await res.json();
-        appendLog("[SERVER] " + (json.message || "Richiesta accettata"));
-      } catch (e) {
-        appendLog("[ERRORE] Impossibile contattare il server: " + e.message);
-      } finally {
-        setTimeout(() => { btn.disabled = false; btn.textContent = "Avvia Scansione & Flash USB"; }, 5000);
-      }
+      var xhr = new XMLHttpRequest();
+      xhr.open('POST', '/usb_recovery', true);
+      xhr.onload = function() {
+        try { var j = JSON.parse(xhr.responseText); appendLog('[SERVER] ' + (j.message || 'Richiesta accettata')); } catch(e) {}
+        setTimeout(function() { btn.disabled = false; btn.textContent = 'Avvia Scansione & Flash USB'; }, 5000);
+      };
+      xhr.onerror = function() { appendLog('[ERRORE] Impossibile contattare il server.'); btn.disabled = false; btn.textContent = 'Avvia Scansione & Flash USB'; };
+      xhr.send();
     }
-
-    async function uploadPackage() {
-      const fileInput = document.getElementById('guiFile');
-      if (!fileInput.files || fileInput.files.length === 0) {
-        alert("Seleziona prima un file .tar.bz2 valido dal tuo computer.");
-        return;
-      }
-      const file = fileInput.files[0];
-      const btn = document.getElementById('btnUpload');
-      btn.disabled = true;
-      btn.textContent = "Caricamento (" + (file.size / 1024 / 1024).toFixed(1) + " MB)...";
-      appendLog("--> Caricamento del pacchetto: " + file.name + " (" + file.size + " bytes)...");
+    function uploadPackage() {
+      var fi = document.getElementById('guiFile');
+      if (!fi.files || fi.files.length === 0) { alert('Seleziona prima un file .tar.bz2.'); return; }
+      var file = fi.files[0];
+      var btn = document.getElementById('btnUpload');
+      btn.disabled = true; btn.textContent = 'Caricamento (' + (file.size/1024/1024).toFixed(1) + ' MB)...';
+      appendLog('--> Caricamento: ' + file.name + ' (' + file.size + ' bytes)...');
       startPolling();
-
-      try {
-        const res = await fetch('/upload', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/octet-stream', 'X-Filename': file.name },
-          body: file
-        });
-        const json = await res.json();
-        appendLog("[RISULTATO] " + (json.message || "Operazione completata"));
-      } catch (e) {
-        appendLog("[ERRORE UPLOAD] " + e.message);
-      } finally {
-        btn.disabled = false;
-        btn.textContent = "Carica & Esegui Ripristino";
-      }
+      var xhr = new XMLHttpRequest();
+      xhr.open('POST', '/upload', true);
+      xhr.setRequestHeader('Content-Type', 'application/octet-stream');
+      xhr.setRequestHeader('X-Filename', file.name);
+      xhr.onload = function() {
+        try { var j = JSON.parse(xhr.responseText); appendLog('[RISULTATO] ' + (j.message || 'Completato')); } catch(e) {}
+        btn.disabled = false; btn.textContent = 'Carica & Ripristina';
+      };
+      xhr.onerror = function() { appendLog('[ERRORE UPLOAD] Errore di rete.'); btn.disabled = false; btn.textContent = 'Carica & Ripristina'; };
+      xhr.send(file);
     }
-
-    async function restartServices() {
-      if (!confirm("Vuoi riavviare i demoni Transformer e Nginx?")) return;
-      appendLog("--> Richiesta riavvio dei servizi web...");
-      startPolling();
-      try {
-        await fetch('/restart_services', { method: 'POST' });
-      } catch(e) {}
+    function restartServices() {
+      if (!confirm('Vuoi riavviare i demoni Transformer e Nginx?')) return;
+      appendLog('--> Richiesta riavvio dei servizi web...'); startPolling();
+      var xhr = new XMLHttpRequest(); xhr.open('POST', '/restart_services', true); xhr.send();
     }
-
-    async function rebootRouter() {
-      if (!confirm("Confermi il riavvio completo del router?")) return;
-      appendLog("--> Richiesta riavvio modem inviata...");
-      try {
-        await fetch('/reboot', { method: 'POST' });
-      } catch(e) {}
+    function rebootRouter() {
+      if (!confirm('Confermi il riavvio completo del router?')) return;
+      appendLog('--> Richiesta riavvio modem inviata...');
+      var xhr = new XMLHttpRequest(); xhr.open('POST', '/reboot', true); xhr.send();
     }
-
     startPolling();
   </script>
 </body>
