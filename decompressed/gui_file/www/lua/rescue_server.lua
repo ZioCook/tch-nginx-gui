@@ -47,31 +47,35 @@ local function get_system_summary()
         summary.hardware = "Technicolor Gateway"
     end
 
-    -- Kernel Version
+    -- Short Kernel Version
     local f_ver = io.open("/proc/version", "r")
     if f_ver then
-        summary.kernel = f_ver:read("*l") or "Linux"
+        local line = f_ver:read("*l") or "Linux"
         f_ver:close()
+        summary.kernel = line:match("Linux%s+version%s+([%w%._%-]+)") or line:match("^(Linux%s+[%w%._%-]+)") or "Linux 4.1.52"
     else
         summary.kernel = "Linux"
     end
 
-    -- Installed GUI Version (robust detection even if corrupted/damaged)
+    -- Real Installed GUI Version (matches the real GUI from /etc/init.d/rootdevice)
     summary.gui_version = "Non rilevata / Corrotta"
-    local f_ver_uci = io.popen("uci get modgui.gui.version 2>/dev/null")
-    if f_ver_uci then
-        local uci_ver = f_ver_uci:read("*l")
-        f_ver_uci:close()
-        if uci_ver and uci_ver ~= "" then
-            summary.gui_version = uci_ver
+    local f_rootdev = io.open("/etc/init.d/rootdevice", "r")
+    if f_rootdev then
+        for l in f_rootdev:lines() do
+            local ver = l:match("version_gui=([^%s]+)")
+            if ver and ver ~= "" then
+                summary.gui_version = ver
+                break
+            end
         end
+        f_rootdev:close()
     end
     if summary.gui_version == "Non rilevata / Corrotta" then
         local f_modgui = io.open("/etc/config/modgui", "r")
         if f_modgui then
             local text = f_modgui:read("*a") or ""
             f_modgui:close()
-            local ver_match = text:match("option%s+version%s+['\"]([^%s'\"]+)") or text:match("option%s+version%s+([%w%._%-]+)")
+            local ver_match = text:match('option%s+version%s+[\'"]([^%s\'"]+)') or text:match('option%s+version%s+([%w%._%-]+)')
             if ver_match and ver_match ~= "" then
                 summary.gui_version = ver_match
             end
@@ -113,7 +117,7 @@ local function get_system_summary()
     return summary
 end
 
--- Render the Standalone Recovery HTML Webpage (Theme Green - Balanced 4x4 Grid)
+-- Render the Standalone Recovery HTML Webpage (Theme Green - Authentic Height & Interactive Root Shell)
 local function render_html()
     local s = get_system_summary()
     local nginx_status = s.nginx_running and '<span class="light green"></span><strong>Nginx:</strong> Attivo (Porta 80)' or '<span class="light red"></span><strong>Nginx:</strong> Non attivo'
@@ -149,13 +153,14 @@ local function render_html()
       -webkit-font-smoothing: antialiased;
     }
     
-    /* Font Awesome Classes & Entities */
+    /* Font Awesome Classes */
     .fa { font-family: "Font Awesome 5 Free", sans-serif; font-weight: 900; font-style: normal; display: inline-block; }
     .fb { font-family: "Font Awesome 5 Brands", sans-serif; font-weight: 400; font-style: normal; display: inline-block; }
     .fa-microchip:before { content: "\f2db"; }
     .fa-code-branch:before { content: "\f126"; }
     .fa-memory:before { content: "\f538"; }
     .fa-clock:before { content: "\f017"; }
+    .fa-shield-alt:before { content: "\f3ed"; }
     .fa-exclamation-triangle:before { content: "\f071"; }
     .fa-server:before { content: "\f233"; }
     .fa-wrench:before { content: "\f0ad"; }
@@ -166,6 +171,7 @@ local function render_html()
     .fa-terminal:before { content: "\f120"; }
     .fa-upload:before { content: "\f093"; }
     .fa-play:before { content: "\f04b"; }
+    .fa-eraser:before { content: "\f12d"; }
     .fa-spinner:before { content: "\f110"; }
     .fa-spin { animation: fa-spin 1s infinite linear; }
     @keyframes fa-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -183,12 +189,12 @@ local function render_html()
     .gateway_bg:after {
       font-family: "Font Awesome 5 Free";
       font-weight: 900;
-      color: rgba(151, 187, 151, 0.35);
+      color: rgba(151, 187, 151, 0.30);
       content: "\f0ac";
       display: block;
       position: fixed;
       left: -380px;
-      top: 100px;
+      top: 90px;
       font-size: 1000px;
       z-index: -1;
       line-height: 1;
@@ -205,7 +211,7 @@ local function render_html()
 
     /* Header */
     .header {
-      padding: 28px 0 18px;
+      padding: 26px 0 18px;
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -267,7 +273,7 @@ local function render_html()
       box-shadow: 0 1px 2px rgba(0,0,0,0.05);
     }
 
-    /* Balanced 4-Column Grid Layout (Theme Green) */
+    /* Balanced 4-Column Grid Layout */
     .cards-grid {
       display: grid;
       grid-template-columns: repeat(4, 1fr);
@@ -285,14 +291,15 @@ local function render_html()
       border-radius: 2px;
       border: 1px solid #c6bec9;
       box-shadow: 0 2px 20px 0px rgba(56, 132, 56, 0.65);
+      height: 100%;
     }
 
-    /* Card Header - Pure Technicolor Green Gradient */
+    /* Card Header - Thick, Bold Technicolor Green Gradient (Identical to Original GUI) */
     .sh {
-      padding: 10px 14px;
-      height: 22px;
-      font-size: 17px;
-      line-height: 22px;
+      min-height: 46px;
+      padding: 10px 16px;
+      font-size: 18px;
+      line-height: 24px;
       font-weight: bold;
       color: #fff;
       text-shadow: 0 1px 1px #000;
@@ -306,6 +313,7 @@ local function render_html()
       display: flex;
       align-items: center;
       justify-content: space-between;
+      box-sizing: border-box;
     }
 
     /* Card Body */
@@ -314,30 +322,30 @@ local function render_html()
       z-index: 1;
       flex: 1;
       box-sizing: border-box;
-      min-height: 165px;
-      padding: 14px;
+      min-height: 175px;
+      padding: 16px;
       font-weight: 500;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
     }
 
-    /* Subtle Green Watermarks */
+    /* Discreet Watermarks (Non-overlapping) */
     .bgi {
       position: absolute;
-      right: 8px;
-      top: 30px;
+      right: 6px;
+      bottom: 40px;
       z-index: 0;
-      font-size: 125px;
+      font-size: 110px;
       line-height: 1;
-      color: rgba(151, 187, 151, 0.28);
+      color: rgba(151, 187, 151, 0.16);
       pointer-events: none;
     }
 
     .li {
       position: relative;
       z-index: 1;
-      line-height: 21px;
+      line-height: 22px;
       margin-bottom: 5px;
       color: #333;
     }
@@ -378,13 +386,13 @@ local function render_html()
       box-shadow: inset 0 1px 3px rgba(255,255,255,.5), 0 0 4px rgba(0,220,0,1);
     }
 
-    /* Technicolor Green Theme Buttons */
+    /* Buttons */
     .btn-action {
       position: relative;
       z-index: 2;
       display: inline-block;
       width: 100%;
-      padding: 7px 14px;
+      padding: 8px 14px;
       font-size: 14px;
       line-height: 20px;
       font-weight: bold;
@@ -449,12 +457,12 @@ local function render_html()
       text-shadow: none !important;
     }
 
-    /* Card 6: Log Operativo (Spans 3 Columns on Row 2) */
+    /* Card 6: Log Operativo & Root Shell (Spans 3 Columns on Row 2) */
     .logt {
       grid-column: span 3;
     }
-    .btn-mini {
-      padding: 2px 8px;
+    .btn-clear {
+      padding: 3px 10px;
       font-size: 11px;
       line-height: 16px;
       border-radius: 3px;
@@ -464,19 +472,19 @@ local function render_html()
       font-weight: bold;
       cursor: pointer;
     }
-    .btn-mini:hover {
+    .btn-clear:hover {
       background: rgb(30, 116, 30);
       color: #fff;
     }
 
-    /* White Console Text */
+    /* Pure White Monospace Console */
     .fake_console {
       background-color: #0c0c0c;
       border: 1px solid #222;
       border-radius: 3px;
       padding: 10px 14px;
       box-sizing: border-box;
-      height: 195px;
+      height: 200px;
       position: relative;
       z-index: 1;
     }
@@ -488,10 +496,54 @@ local function render_html()
       font-family: Consolas, "SFMono-Regular", "Liberation Mono", Menlo, monospace;
       font-size: 13px;
       line-height: 20px;
-      height: 175px;
+      height: 180px;
       overflow-y: auto;
       white-space: pre-wrap;
       word-break: break-all;
+    }
+
+    /* Root Shell Interactive Command Bar */
+    .shell-bar {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+      align-items: center;
+      position: relative;
+      z-index: 2;
+    }
+    .shell-prompt {
+      color: #69c469;
+      font-family: Consolas, monospace;
+      font-size: 13px;
+      font-weight: bold;
+      white-space: nowrap;
+      user-select: none;
+    }
+    .shell-input {
+      flex: 1;
+      height: 34px;
+      padding: 4px 10px;
+      font-family: Consolas, monospace;
+      font-size: 13px;
+      background: #141414;
+      color: #fff;
+      border: 1px solid #333;
+      border-radius: 3px;
+      box-sizing: border-box;
+    }
+    .shell-input:focus {
+      outline: none;
+      border-color: rgb(30, 116, 30);
+      box-shadow: 0 0 5px rgba(92, 247, 65, 0.5);
+    }
+    .shell-btn {
+      width: auto !important;
+      height: 34px;
+      padding: 6px 16px !important;
+      margin: 0 !important;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
     }
 
     /* Clean Styled File Input */
@@ -500,7 +552,7 @@ local function render_html()
       width: 100%;
       box-sizing: border-box;
       margin-bottom: 12px;
-      padding: 5px 8px;
+      padding: 6px 8px;
       font-size: 12px;
       background: #fafafa;
       border: 1px solid #c6bec9;
@@ -573,12 +625,12 @@ local function render_html()
         <span class="bgi fa">&#xf129;</span>
         <div>
           <div class="li"><i class="fa fa-microchip"></i> <strong>Modello:</strong> ]] .. s.hardware .. [[</div>
-          <div class="li"><i class="fa fa-code-branch"></i> <strong>Versione GUI:</strong> ]] .. s.gui_version .. [[</div>
+          <div class="li"><i class="fa fa-code-branch"></i> <strong>Versione GUI:</strong> <span style="color:rgb(30,116,30);font-weight:bold;">]] .. s.gui_version .. [[</span></div>
           <div class="li"><i class="fa fa-memory"></i> <strong>RAM:</strong> ]] .. s.mem .. [[</div>
           <div class="li"><i class="fa fa-clock"></i> <strong>Uptime:</strong> ]] .. s.uptime .. [[</div>
         </div>
         <div class="sub" style="margin-top: 10px; margin-bottom: 0;">
-          <small style="color: #777;">Kernel: ]] .. s.kernel .. [[</small>
+          <i class="fa fa-shield-alt"></i> Kernel: ]] .. s.kernel .. [[
         </div>
       </div>
     </div>
@@ -591,7 +643,7 @@ local function render_html()
         <div>
           <div class="li">]] .. nginx_status .. [[</div>
           <div class="li">]] .. trans_status .. [[</div>
-          <div class="sub" style="margin-top: 8px;">Nginx e Transformer gestiscono l'accesso web primario (porta 80).</div>
+          <div class="sub" style="margin-top: 10px; margin-bottom: 14px;">Nginx e Transformer gestiscono l'accesso web primario (porta 80).</div>
         </div>
         <div>
           <button class="btn-action btn-default" type="button" onclick="restartServices()">
@@ -606,8 +658,8 @@ local function render_html()
       <div class="sh">Ripristino USB</div>
       <div class="ct">
         <span class="bgi fb">&#xf287;</span>
-        <div class="sub">
-          Inserisci una chiavetta USB con il file <strong>ziocook-gui-recovery.tar.bz2</strong> o <strong>GUI.tar.bz2</strong> per il ripristino automatico.
+        <div class="sub" style="margin-bottom: 16px;">
+          Inserisci una chiavetta USB con il pacchetto di ripristino della GUI per avviare il flashing automatico.
         </div>
         <div>
           <button id="btnUsb" class="btn-action btn-primary" type="button" onclick="triggerUsbRecovery()">
@@ -622,8 +674,8 @@ local function render_html()
       <div class="sh">Carica Pacchetto</div>
       <div class="ct">
         <span class="bgi fa">&#xf093;</span>
-        <div class="sub" style="margin-bottom: 6px;">
-          Seleziona un pacchetto <strong>GUI.tar.bz2</strong> salvato sul tuo computer:
+        <div class="sub" style="margin-bottom: 8px;">
+          Seleziona il pacchetto di ripristino dal computer:
         </div>
         <input id="guiFile" type="file" accept=".tar.bz2,.bz2">
         <div>
@@ -642,7 +694,7 @@ local function render_html()
         <div>
           <div class="li"><i class="fa fa-network-wired"></i> <strong>Porta rescue:</strong> 8088</div>
           <div class="li"><i class="fa fa-file-alt"></i> <strong>Log:</strong> /tmp/rescue.log</div>
-          <div class="sub" style="margin-top: 8px;">Riavvio hardware del gateway a basso livello.</div>
+          <div class="sub" style="margin-top: 10px; margin-bottom: 14px;">Riavvio hardware a basso livello del gateway.</div>
         </div>
         <div>
           <button class="btn-action btn-danger" type="button" onclick="rebootRouter()">
@@ -652,16 +704,24 @@ local function render_html()
       </div>
     </div>
 
-    <!-- Card 6: Log Operativo Live (Row 2, Columns 2, 3, 4 - Spans 3 Columns) -->
+    <!-- Card 6: Log Operativo & Shell Root Interattiva (Row 2, Columns 2, 3, 4 - Spans 3 Columns) -->
     <div class="sc logt">
       <div class="sh">
-        <span><i class="fa fa-terminal"></i> Log Operativo Live (/tmp/rescue.log)</span>
-        <button class="btn-mini" type="button" onclick="clearLogBox()">Pulisci Schermo</button>
+        <span><i class="fa fa-terminal"></i> Log Operativo Live &amp; Shell Root (/tmp/rescue.log)</span>
+        <button class="btn-clear" type="button" onclick="clearLogBox()"><i class="fa fa-eraser"></i> Pulisci Schermo</button>
       </div>
-      <div class="ct" style="min-height: auto; padding: 12px;">
+      <div class="ct" style="min-height: auto; padding: 14px;">
         <div class="fake_console">
           <pre id="logBox">In attesa di istruzioni...</pre>
         </div>
+        <!-- Interactive Root Shell Command Bar -->
+        <form class="shell-bar" onsubmit="execShellCommand(event)">
+          <span class="shell-prompt">root@rescue:~#</span>
+          <input type="text" id="shellInput" class="shell-input" placeholder="Esegui comando shell root (es. ls -la, df -h, free -m, /etc/init.d/nginx restart)..." autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+          <button type="submit" id="btnShell" class="btn-action btn-primary shell-btn">
+            <i class="fa fa-play"></i> Invia
+          </button>
+        </form>
       </div>
     </div>
 
@@ -685,14 +745,19 @@ local function render_html()
   }
 
   function clearLogBox() {
-    document.getElementById('logBox').textContent = '';
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', '/clear_log', true);
+    xhr.onload = function() {
+      document.getElementById('logBox').textContent = '[LOG RESETTATO]';
+    };
+    xhr.send();
   }
 
   function pollLogs() {
     var xhr = new XMLHttpRequest();
     xhr.open('GET', '/log', true);
     xhr.onload = function() {
-      if (xhr.status === 200 && xhr.responseText) {
+      if (xhr.status === 200 && xhr.responseText !== null) {
         var box = document.getElementById('logBox');
         box.textContent = xhr.responseText;
         box.scrollTop = box.scrollHeight;
@@ -708,11 +773,43 @@ local function render_html()
     }
   }
 
+  function execShellCommand(event) {
+    event.preventDefault();
+    var inp = document.getElementById('shellInput');
+    var btn = document.getElementById('btnShell');
+    var cmd = inp.value.trim();
+    if (!cmd) return;
+
+    btn.disabled = true;
+    appendLog('root@rescue:~# ' + cmd);
+    var xhr = new XMLHttpRequest();
+    xhr.open('POST', '/exec', true);
+    xhr.setRequestHeader('Content-Type', 'text/plain; charset=utf-8');
+    xhr.onload = function() {
+      btn.disabled = false;
+      inp.value = '';
+      inp.focus();
+      try {
+        var j = JSON.parse(xhr.responseText);
+        if (j.output) {
+          appendLog(j.output);
+        }
+      } catch(e) {
+        pollLogs();
+      }
+    };
+    xhr.onerror = function() {
+      btn.disabled = false;
+      appendLog('[ERRORE] Impossibile eseguire il comando.');
+    };
+    xhr.send(cmd);
+  }
+
   function triggerUsbRecovery() {
     var btn = document.getElementById('btnUsb');
     btn.disabled = true;
     btn.innerHTML = '<i class="fa fa-spinner fa-spin"></i> Scansione USB...';
-    appendLog('--> Avviata richiesta ripristino Zero-Touch da USB...');
+    appendLog('--> Avviata richiesta ripristino da USB...');
     startPolling();
     var xhr = new XMLHttpRequest();
     xhr.open('POST', '/usb_recovery', true);
@@ -903,6 +1000,37 @@ local function handle_client(client)
         end
         local log_data = read_file(LOG_FILE)
         send_response(client, 200, "text/plain; charset=utf-8", log_data)
+    elseif method == "POST" and uri == "/clear_log" then
+        local f = io.open(LOG_FILE, "w")
+        if f then f:close() end
+        log("Log della rescue console azzerato dall'operatore.")
+        send_response(client, 200, "application/json", '{"status":"ok","message":"Log azzerato"}')
+    elseif method == "POST" and uri == "/exec" then
+        local content_length = tonumber(headers["content-length"] or 0)
+        local cmd = ""
+        if content_length > 0 then
+            cmd = client:receive(content_length) or ""
+        end
+        cmd = cmd:match("^%s*(.-)%s*$")
+        if not cmd or cmd == "" then
+            send_response(client, 400, "application/json", '{"status":"error","message":"Comando vuoto"}')
+        else
+            log(string.format("[SHELL] # %s", cmd))
+            local pipe = io.popen(cmd .. " 2>&1")
+            local output = ""
+            if pipe then
+                output = pipe:read("*a") or ""
+                pipe:close()
+            end
+            if output ~= "" then
+                log(string.format("%s", output))
+            else
+                log("(Nessun output restituito)")
+            end
+            -- JSON escape
+            local escaped_out = output:gsub("\\", "\\\\"):gsub('"', '\\"'):gsub("\r", ""):gsub("\n", "\\n")
+            send_response(client, 200, "application/json", string.format('{"status":"ok","output":"%s"}', escaped_out))
+        end
     elseif method == "POST" and uri == "/usb_recovery" then
         log("Avvio del motore di ripristino Zero-Touch USB...")
         os.execute("/usr/bin/rescue-usb.sh &")
