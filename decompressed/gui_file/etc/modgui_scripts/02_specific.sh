@@ -364,6 +364,12 @@ if [ -f /proc/rip/0123 ]; then
 fi
 
 #Fix led issues
+if grep -q "os.exit(0)" /sbin/ledfw.lua 2>/dev/null || grep -q "exit 0" /etc/init.d/ledfw 2>/dev/null; then
+  [ -f /rom/sbin/ledfw.lua ] && cp -f /rom/sbin/ledfw.lua /sbin/ledfw.lua 2>/dev/null
+  [ -f /rom/etc/init.d/ledfw ] && cp -f /rom/etc/init.d/ledfw /etc/init.d/ledfw 2>/dev/null
+  [ -f /rom/etc/init.d/led ] && cp -f /rom/etc/init.d/led /etc/init.d/led 2>/dev/null
+fi
+
 if [ -z "${device_type##*DGA4131*}" ]; then
   if [ ! "$(uci get -q ledfw.ambient.active)" ]; then
     uci set ledfw.ambient=led
