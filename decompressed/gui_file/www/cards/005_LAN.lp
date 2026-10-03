@@ -92,6 +92,10 @@ local session = ngx.ctx.session
 if session:hasAccess("/modals/ethernet-modal.lp") then
     modalPath = "/modals/ethernet-modal.lp"
 end
+local ethspeed_link = ""
+if session:hasAccess("/modals/ethspeed-modal.lp") then
+    ethspeed_link = 'class="modal-link" data-toggle="modal" data-remote="/modals/ethspeed-modal.lp" data-id="ethspeed-modal"'
+end
   ngx.print('\
 <div class="span3">\
   <div class="smallcard" data-aos="zoom-in" data-aos-anchor-placement="center-bottom" data-aos-easing="ease-in-back">\
@@ -109,6 +113,14 @@ end
             '</p>',
 			ui_helper.createSimpleLight(ipv6_light_map[LANv6] or "4" --[[ red ]], ipv6_state_map[LANv6] or T "Unknown", nil, "fa fa-home")
         )
+        if ethspeed_link ~= "" then
+            ngx.print(
+                '<p class="subinfos">',
+                '<i style="margin-left:-20px;" class="fa fa-tachometer-alt" aria-hidden="true" href="#">&nbsp</i>',
+                format('<strong id="Eth_Linespeed" %s>%s</strong>', ethspeed_link, T"ETH Linespeed"),
+                '</p>'
+            )
+        end
         ngx.print('\
 \
 	  </div>\

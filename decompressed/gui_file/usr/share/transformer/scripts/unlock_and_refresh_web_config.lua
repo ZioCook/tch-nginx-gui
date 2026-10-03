@@ -150,6 +150,8 @@ local check_rule = {
 	{ name = 'ltenetworkscan', target = '/ajax/networkscan.lua' },
 	{ name = 'lteajaxsim', target = '/ajax/sim.lua' },
 	{ name = 'ltedoctorajax', target = '/ajax/lte-doctor.lua' },
+	{ name = 'ethspeedmodal', target = '/modals/ethspeed-modal.lp' },
+	{ name = 'diagnosticsigmpproxymodal', target = '/modals/diagnostics-igmpproxy-modal.lp' },
 	{ name = 'mmpbxajaxvoicetab', target = '/ajax/voicetab.lua' },
 }
 
