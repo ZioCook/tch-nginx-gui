@@ -56,6 +56,28 @@ local function get_system_summary()
         summary.kernel = "Linux"
     end
 
+    -- Installed GUI Version (robust detection even if corrupted/damaged)
+    summary.gui_version = "Non rilevata / Corrotta"
+    local f_ver_uci = io.popen("uci get modgui.gui.version 2>/dev/null")
+    if f_ver_uci then
+        local uci_ver = f_ver_uci:read("*l")
+        f_ver_uci:close()
+        if uci_ver and uci_ver ~= "" then
+            summary.gui_version = uci_ver
+        end
+    end
+    if summary.gui_version == "Non rilevata / Corrotta" then
+        local f_modgui = io.open("/etc/config/modgui", "r")
+        if f_modgui then
+            local text = f_modgui:read("*a") or ""
+            f_modgui:close()
+            local ver_match = text:match("option%s+version%s+['\"]([^%s'\"]+)") or text:match("option%s+version%s+([%w%._%-]+)")
+            if ver_match and ver_match ~= "" then
+                summary.gui_version = ver_match
+            end
+        end
+    end
+
     -- Memory Info
     local f_mem = io.open("/proc/meminfo", "r")
     if f_mem then
@@ -91,11 +113,11 @@ local function get_system_summary()
     return summary
 end
 
--- Render the Standalone Recovery HTML Webpage (Genuine Technicolor GUI Theme)
+-- Render the Standalone Recovery HTML Webpage (Theme Green - Balanced 4x4 Grid)
 local function render_html()
     local s = get_system_summary()
-    local nginx_status = s.nginx_running and '<span class="light green"></span> <strong>Nginx:</strong> Attivo (Porta 80)' or '<span class="light red"></span> <strong>Nginx:</strong> Non attivo'
-    local trans_status = s.trans_running and '<span class="light green"></span> <strong>Transformer:</strong> Attivo' or '<span class="light red"></span> <strong>Transformer:</strong> Non attivo'
+    local nginx_status = s.nginx_running and '<span class="light green"></span><strong>Nginx:</strong> Attivo (Porta 80)' or '<span class="light red"></span><strong>Nginx:</strong> Non attivo'
+    local trans_status = s.trans_running and '<span class="light green"></span><strong>Transformer:</strong> Attivo' or '<span class="light red"></span><strong>Transformer:</strong> Non attivo'
 
     return [[<!DOCTYPE HTML>
 <html lang="it">
@@ -118,40 +140,63 @@ local function render_html()
       src: url("/fonts/fa-brands-400.woff2") format("woff2"),
            url("/fonts/fa-brands-400.woff") format("woff");
     }
-    *, *::before, *::after { box-sizing: border-box; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      margin: 0;
-      padding: 0;
       color: #333;
       background-color: #eee;
       font: 14px/20px Helvetica,Arial,sans-serif;
       min-height: 100vh;
       -webkit-font-smoothing: antialiased;
     }
-    .fa { font-family: "Font Awesome 5 Free", sans-serif; font-weight: 900; font-style: normal; }
-    .fb { font-family: "Font Awesome 5 Brands", sans-serif; font-weight: 400; font-style: normal; }
+    
+    /* Font Awesome Classes & Entities */
+    .fa { font-family: "Font Awesome 5 Free", sans-serif; font-weight: 900; font-style: normal; display: inline-block; }
+    .fb { font-family: "Font Awesome 5 Brands", sans-serif; font-weight: 400; font-style: normal; display: inline-block; }
+    .fa-microchip:before { content: "\f2db"; }
+    .fa-code-branch:before { content: "\f126"; }
+    .fa-memory:before { content: "\f538"; }
+    .fa-clock:before { content: "\f017"; }
+    .fa-exclamation-triangle:before { content: "\f071"; }
+    .fa-server:before { content: "\f233"; }
+    .fa-wrench:before { content: "\f0ad"; }
+    .fa-sync-alt:before { content: "\f021"; }
+    .fa-power-off:before { content: "\f011"; }
+    .fa-network-wired:before { content: "\f6ff"; }
+    .fa-file-alt:before { content: "\f15c"; }
+    .fa-terminal:before { content: "\f120"; }
+    .fa-upload:before { content: "\f093"; }
+    .fa-play:before { content: "\f04b"; }
+    .fa-spinner:before { content: "\f110"; }
+    .fa-spin { animation: fa-spin 1s infinite linear; }
+    @keyframes fa-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-    /* Technicolor Gateway Background Globe Watermark */
+    /* Technicolor Green Theme Gateway Background Globe Watermark */
     .gateway_bg {
+      position: fixed;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
       z-index: 1;
     }
     .gateway_bg:after {
       font-family: "Font Awesome 5 Free";
       font-weight: 900;
-      color: #dbccdc;
-      content: attr(data-bg-text);
+      color: rgba(151, 187, 151, 0.35);
+      content: "\f0ac";
       display: block;
       position: fixed;
-      left: -400px;
+      left: -380px;
+      top: 100px;
       font-size: 1000px;
       z-index: -1;
       line-height: 1;
-      pointer-events: none;
     }
 
     /* Main Container */
     .container {
-      max-width: 1200px;
+      max-width: 1240px;
       margin: 0 auto;
       padding: 0 20px 40px;
       position: relative;
@@ -160,20 +205,10 @@ local function render_html()
 
     /* Header */
     .header {
-      padding: 30px 0 20px;
-      height: 50px;
-      margin-bottom: 25px;
+      padding: 28px 0 18px;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      border-bottom: none;
-    }
-    .header-logo {
-      display: inline-block;
-    }
-    .header-logo a {
-      display: inline-block;
-      text-decoration: none;
     }
     .header-logo img {
       width: 131px;
@@ -199,10 +234,9 @@ local function render_html()
       text-shadow: none;
       display: inline-flex;
       align-items: center;
-      gap: 7px;
+      gap: 8px;
       height: 36px;
       box-sizing: border-box;
-      text-decoration: none;
       font-size: 14px;
       cursor: default;
     }
@@ -210,7 +244,6 @@ local function render_html()
       background: #f5f5f5;
       border: 1px solid #c6bec9;
       color: #333;
-      text-shadow: none;
     }
     .header-btn-badge {
       background: #fcf0d0 !important;
@@ -219,10 +252,10 @@ local function render_html()
       font-weight: 700 !important;
     }
 
-    /* Technicolor Alert Banner */
+    /* Warning Alert Banner */
     .alert {
-      padding: 10px 35px 10px 18px;
-      margin-bottom: 25px;
+      padding: 10px 20px;
+      margin-bottom: 24px;
       text-shadow: 0 1px 0 rgba(255,255,255,0.5);
       background-color: #fcf8e3;
       border: 1px solid #fbeed5;
@@ -233,146 +266,99 @@ local function render_html()
       text-align: center;
       box-shadow: 0 1px 2px rgba(0,0,0,0.05);
     }
-    .alert strong { font-weight: 700; }
 
-    /* Cards Grid */
-    #cardrow {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: stretch;
-      justify-content: center;
+    /* Balanced 4-Column Grid Layout (Theme Green) */
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
       gap: 20px;
-      margin: 0;
-      padding: 0;
-    }
-    .span3 {
-      display: flex;
-      width: 100%;
-      max-width: 275px;
-      box-sizing: border-box;
-    }
-    .span12 {
-      display: flex;
-      width: 100%;
-      max-width: 1160px;
-      box-sizing: border-box;
     }
 
-    /* Technicolor Smallcard */
-    .smallcard {
-      font-family: Helvetica,Arial,sans-serif;
-      background-color: #fff;
-      margin: 0;
-      box-shadow: 0 2px 20px 0 rgba(203,43,190,0.50);
-      overflow: hidden;
-      z-index: 2;
+    /* Card Styling */
+    .sc {
       position: relative;
-      font-size: 15px;
-      border-radius: 2px;
       display: flex;
       flex-direction: column;
-      width: 100%;
-      border: 1px solid #c6bec9;
-    }
-    .smallcard .header {
+      background: #fff;
       overflow: hidden;
-      font-size: 18px;
-      margin: 0;
-      padding: 10px;
-      font-weight: bold;
-      color: #fff;
-      text-shadow: 0 1px 1px #000;
-      background-color: #5c1660;
-      background-image: linear-gradient(to bottom, #6c246c, #45004e);
-      line-height: 20px;
-      height: 40px;
-      border-bottom: 1px solid #2e0035;
-      box-shadow: inset 0 1px 1px rgba(255,255,255,0.2);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      box-sizing: border-box;
+      font-size: 14px;
+      border-radius: 2px;
+      border: 1px solid #c6bec9;
+      box-shadow: 0 2px 20px 0px rgba(56, 132, 56, 0.65);
     }
-    .smallcard .header .header-title p {
-      margin: 0;
+
+    /* Card Header - Pure Technicolor Green Gradient */
+    .sh {
+      padding: 10px 14px;
+      height: 22px;
       font-size: 17px;
-      line-height: 20px;
+      line-height: 22px;
       font-weight: bold;
       color: #fff;
       text-shadow: 0 1px 1px #000;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      background-color: rgb(30, 116, 30);
+      background-image: linear-gradient(to bottom, rgb(30, 116, 30) 20%, rgb(29, 36, 29) 100%);
+      border-bottom: 1px solid rgb(25, 95, 25);
+      box-shadow: inset 0 1px 1px rgba(255,255,255,.2);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
     }
-    .smallcard .content {
-      overflow: hidden;
-      font-weight: 500;
-      height: auto;
-      min-height: 145px;
-      padding: 14px 14px 18px;
+
+    /* Card Body */
+    .ct {
       position: relative;
+      z-index: 1;
       flex: 1;
+      box-sizing: border-box;
+      min-height: 165px;
+      padding: 14px;
+      font-weight: 500;
       display: flex;
       flex-direction: column;
       justify-content: space-between;
     }
-    .divtable {
-      width: 100%;
-      position: relative;
-      z-index: 2;
+
+    /* Subtle Green Watermarks */
+    .bgi {
+      position: absolute;
+      right: 8px;
+      top: 30px;
+      z-index: 0;
+      font-size: 125px;
+      line-height: 1;
+      color: rgba(151, 187, 151, 0.28);
+      pointer-events: none;
     }
-    .divtable p {
-      margin: 0 0 7px;
-      font-size: 14px;
-      line-height: 20px;
+
+    .li {
+      position: relative;
+      z-index: 1;
+      line-height: 21px;
+      margin-bottom: 5px;
       color: #333;
     }
-    .divtable p i {
-      width: 18px;
-      color: #666;
+    .li i {
+      display: inline-block;
+      width: 20px;
+      color: #555;
+      font-size: 13px;
       text-align: center;
-      margin-right: 4px;
     }
-    .subinfos {
+    .sub {
+      position: relative;
+      z-index: 1;
+      margin-bottom: 12px;
       font-size: 13px;
       line-height: 18px;
       font-weight: 300;
       color: #666;
-      margin: 0 0 12px;
     }
 
-    /* Card Watermarks */
-    .card_bg { position: relative; z-index: 1; }
-    .card_bg:after {
-      font-family: "Font Awesome 5 Free";
-      font-weight: 900;
-      color: #dbccdc;
-      content: attr(data-bg-text);
-      display: block;
-      position: absolute;
-      right: 8px;
-      top: 40px;
-      font-size: 130px;
-      line-height: 1;
-      pointer-events: none;
-      z-index: 0;
-    }
-    .card_bg_brand:after {
-      font-family: "Font Awesome 5 Brands";
-      font-weight: 400;
-      color: #dbccdc;
-      content: attr(data-bg-text);
-      display: block;
-      position: absolute;
-      right: 8px;
-      top: 40px;
-      font-size: 130px;
-      line-height: 1;
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    /* LED Lights from gw.css */
+    /* Status LEDs */
     .light {
       width: 8px;
       height: 8px;
@@ -392,71 +378,58 @@ local function render_html()
       box-shadow: inset 0 1px 3px rgba(255,255,255,.5), 0 0 4px rgba(0,220,0,1);
     }
 
-    /* Genuine Technicolor Buttons from gw.css */
-    .btn {
+    /* Technicolor Green Theme Buttons */
+    .btn-action {
+      position: relative;
+      z-index: 2;
       display: inline-block;
-      padding: 5px 12px;
-      margin-bottom: 0;
+      width: 100%;
+      padding: 7px 14px;
       font-size: 14px;
       line-height: 20px;
       font-weight: bold;
       text-align: center;
       vertical-align: middle;
       border-radius: 4px;
-      color: #5d215d;
+      cursor: pointer;
+      box-sizing: border-box;
+      transition: all .15s ease-in-out;
+    }
+    .btn-default {
+      color: rgb(30, 116, 30);
       background-color: #f5f5f5;
       background-image: linear-gradient(to bottom, #fff, #e6e6e6);
       border: 1px solid #c6bec9;
       border-bottom-color: #aea2b2;
       box-shadow: inset 0 -1px 0 rgba(255,255,255,1), 0 1px 2px rgba(0,0,0,.1);
-      cursor: pointer;
-      text-decoration: none;
-      position: relative;
-      z-index: 2;
-      transition: all .15s ease-in-out;
     }
-    .btn:hover {
-      text-shadow: 0 -1px 0 rgba(0,0,0,0.25);
-      color: #fff !important;
-      background-color: #1cbae5;
-      background-image: linear-gradient(to bottom, #0cd0f6, #39c);
-      border: 1px solid #39c;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 0 5px rgba(12,208,246,1);
-      outline: none;
-    }
-    .btn:disabled {
-      opacity: .55;
-      cursor: not-allowed;
-      background: #e6e6e6 !important;
-      color: #999 !important;
-      border-color: #ccc !important;
-      box-shadow: none !important;
-      text-shadow: none !important;
+    .btn-default:hover {
+      color: #ffffff;
+      background-color: rgb(30, 116, 30);
+      background-image: linear-gradient(to bottom, rgb(30, 116, 30) 20%, rgb(29, 36, 29) 100%);
+      border-color: rgb(30, 116, 30);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 0 6px rgb(92, 247, 65);
+      text-shadow: 0 1px 0 #000;
     }
     .btn-primary {
-      color: #fff !important;
+      color: #ffffff;
       text-shadow: 0 1px 0 #000;
-      background-color: #5c1660;
-      background-image: linear-gradient(to bottom, #6c246c, #45004e);
-      border-color: #45004e #45004e #010002;
+      background-color: rgb(30, 116, 30);
+      background-image: linear-gradient(to bottom, rgb(30, 116, 30) 20%, rgb(29, 36, 29) 100%);
+      border: 1px solid rgb(30, 116, 30);
       border-radius: 3px;
-      border: 1px solid #4d234d;
       box-shadow: inset 0 1px 0 rgba(255,255,255,.3), 0 2px 4px rgba(0,0,0,.5);
     }
     .btn-primary:hover {
-      background-color: #702870;
-      background-image: linear-gradient(to bottom, #7c347c, #55005e);
-      border: 1px solid #4d234d;
-      color: #fff !important;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.3), 0 2px 4px rgba(0,0,0,.5);
-      text-shadow: 0 1px 0 #000;
+      background-image: linear-gradient(to bottom, rgb(45, 145, 45) 20%, rgb(25, 40, 25) 100%);
+      border-color: rgb(45, 145, 45);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.4), 0 0 8px rgba(92, 247, 65, 0.75);
     }
     .btn-danger {
-      color: #fff !important;
+      color: #fff;
       text-shadow: 0 -1px 0 rgba(0,0,0,0.25);
       background-color: #da4f49;
       background-image: linear-gradient(to bottom, #ee5f5b, #bd362f);
-      border-color: #bd362f #bd362f #802420;
       border: 1px solid #bd362f;
       border-radius: 4px;
       box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 1px 2px rgba(0,0,0,.05);
@@ -465,23 +438,45 @@ local function render_html()
       background-color: #bd362f;
       background-image: linear-gradient(to bottom, #bd362f, #a9302a);
       border-color: #802420;
-      color: #fff !important;
+    }
+    .btn-action:disabled {
+      opacity: .55;
+      cursor: not-allowed;
+      background: #e6e6e6 !important;
+      color: #888 !important;
+      border-color: #ccc !important;
+      box-shadow: none !important;
+      text-shadow: none !important;
+    }
+
+    /* Card 6: Log Operativo (Spans 3 Columns on Row 2) */
+    .logt {
+      grid-column: span 3;
     }
     .btn-mini {
       padding: 2px 8px;
       font-size: 11px;
       line-height: 16px;
-      border-radius: 2px;
+      border-radius: 3px;
+      background: #fff;
+      border: 1px solid #c6bec9;
+      color: rgb(30, 116, 30);
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .btn-mini:hover {
+      background: rgb(30, 116, 30);
+      color: #fff;
     }
 
-    /* Terminal Console from gw.css */
+    /* White Console Text */
     .fake_console {
       background-color: #0c0c0c;
-      color: #cccccc;
-      font-family: monospace;
-      padding: 12px 16px;
-      border-radius: 4px;
+      border: 1px solid #222;
+      border-radius: 3px;
+      padding: 10px 14px;
       box-sizing: border-box;
+      height: 195px;
       position: relative;
       z-index: 1;
     }
@@ -489,54 +484,64 @@ local function render_html()
       margin: 0;
       padding: 0;
       background: transparent;
-      color: #3FB950;
-      font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+      color: #ffffff;
+      font-family: Consolas, "SFMono-Regular", "Liberation Mono", Menlo, monospace;
       font-size: 13px;
       line-height: 20px;
-      height: 180px;
+      height: 175px;
       overflow-y: auto;
       white-space: pre-wrap;
       word-break: break-all;
     }
 
-    /* Copyright from footer.lp / gw.css */
+    /* Clean Styled File Input */
+    input[type="file"] {
+      display: block;
+      width: 100%;
+      box-sizing: border-box;
+      margin-bottom: 12px;
+      padding: 5px 8px;
+      font-size: 12px;
+      background: #fafafa;
+      border: 1px solid #c6bec9;
+      border-radius: 4px;
+      color: #333;
+    }
+
+    /* Clean Footer showing GUI Version */
     .copyright {
-      color: #999;
-      text-shadow: 0 1px 0 #fff;
-      display: table;
       margin-top: 35px;
       margin-bottom: 20px;
       text-align: center;
-      font: 300 12px/18px Helvetica,Arial,sans-serif;
-      width: 100%;
+      font: 300 13px/20px Helvetica,Arial,sans-serif;
+      color: #666;
       position: relative;
       z-index: 2;
     }
     .copyright p { margin: 4px 0 0; }
-    .copyright a { color: #0088cc; text-decoration: none; }
-    .copyright a:hover { text-decoration: underline; }
+    .copyright strong { color: rgb(30, 116, 30); font-weight: 700; }
 
-    /* Responsive */
-    @media (max-width: 900px) {
-      .span3 { max-width: 48%; }
-      .header { flex-direction: column; align-items: flex-start; height: auto; gap: 15px; }
+    /* Responsive Breakpoints */
+    @media (max-width: 1050px) {
+      .cards-grid { grid-template-columns: repeat(2, 1fr); }
+      .logt { grid-column: 1 / -1; }
     }
-    @media (max-width: 600px) {
-      .span3 { max-width: 100%; }
-      .container { padding: 0 10px 30px; }
-      .header-button { justify-content: flex-start; }
+    @media (max-width: 620px) {
+      .cards-grid { grid-template-columns: 1fr; }
+      .header { flex-direction: column; align-items: flex-start; gap: 14px; }
+      .container { padding: 0 12px 30px; }
     }
   </style>
 </head>
 <body>
 
-<!-- Original Technicolor Globe Watermark Background -->
-<div class="gateway_bg" data-bg-text="&#xf0ac;"></div>
+<!-- Technicolor Green Globe Watermark -->
+<div class="gateway_bg"></div>
 
 <div class="container">
 
-  <!-- Header with Original Technicolor Logo Inline and Buttons -->
-  <div class="header" id="headertab">
+  <!-- Header with Technicolor Logo and Status Badge -->
+  <div class="header">
     <div class="header-logo">
       <a href="https://www.technicolor.com" target="_blank" title="Technicolor Gateway">
         <img width="131px" height="50px" alt="Technicolor" src="data:image/png;base64,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">
@@ -544,145 +549,128 @@ local function render_html()
     </div>
     <div class="header-button">
       <div class="btn header-btn-badge">
-        <i class="fa fa-exclamation-triangle"></i> <span>Modalità Emergenza</span>
+        <i class="fa fa-exclamation-triangle"></i> Modalit&agrave; Emergenza
       </div>
       <div class="btn">
-        <i class="fa fa-wrench"></i> <span>Gateway Recovery Console</span>
+        <i class="fa fa-wrench"></i> Gateway Recovery Console
       </div>
     </div>
   </div>
 
-  <!-- Technicolor Warning Alert Banner -->
-  <div class="alert" id="upgrade-alert">
+  <!-- Warning Alert Banner -->
+  <div class="alert">
     <i class="fa fa-exclamation-triangle" style="margin-right: 6px;"></i>
     <strong>Modalit&agrave; di Emergenza Attiva:</strong> Console di gestione Out-of-Band attiva sulla porta <strong>8088</strong> &bull; Operativa indipendentemente dallo stato di Nginx e Transformer.
   </div>
 
-  <!-- Cards Grid -->
-  <div id="cardrow">
+  <!-- Perfectly Balanced 4-Column Grid: 4 cards on row 1, 1 card + 3-col terminal on row 2 -->
+  <div class="cards-grid">
 
     <!-- Card 1: Stato del Sistema -->
-    <div class="span3">
-      <div class="smallcard">
-        <div class="header">
-          <div class="header-title pull-left"><p>Stato del Sistema</p></div>
+    <div class="sc">
+      <div class="sh">Stato del Sistema</div>
+      <div class="ct">
+        <span class="bgi fa">&#xf129;</span>
+        <div>
+          <div class="li"><i class="fa fa-microchip"></i> <strong>Modello:</strong> ]] .. s.hardware .. [[</div>
+          <div class="li"><i class="fa fa-code-branch"></i> <strong>Versione GUI:</strong> ]] .. s.gui_version .. [[</div>
+          <div class="li"><i class="fa fa-memory"></i> <strong>RAM:</strong> ]] .. s.mem .. [[</div>
+          <div class="li"><i class="fa fa-clock"></i> <strong>Uptime:</strong> ]] .. s.uptime .. [[</div>
         </div>
-        <div class="content card_bg" data-bg-text="&#xf129;">
-          <div class="divtable">
-            <p><i class="fa fa-microchip"></i> <strong>Modello:</strong> ]] .. s.hardware .. [[</p>
-            <p><i class="fa fa-memory"></i> <strong>RAM:</strong> ]] .. s.mem .. [[</p>
-            <p><i class="fa fa-clock"></i> <strong>Uptime:</strong> ]] .. s.uptime .. [[</p>
-            <p><i class="fa fa-shield-alt"></i> <strong>Kernel:</strong> Linux Chaos Calmer</p>
-          </div>
+        <div class="sub" style="margin-top: 10px; margin-bottom: 0;">
+          <small style="color: #777;">Kernel: ]] .. s.kernel .. [[</small>
         </div>
       </div>
     </div>
 
     <!-- Card 2: Servizi Web -->
-    <div class="span3">
-      <div class="smallcard">
-        <div class="header">
-          <div class="header-title pull-left"><p>Servizi Web</p></div>
+    <div class="sc">
+      <div class="sh">Servizi Web</div>
+      <div class="ct">
+        <span class="bgi fa">&#xf233;</span>
+        <div>
+          <div class="li">]] .. nginx_status .. [[</div>
+          <div class="li">]] .. trans_status .. [[</div>
+          <div class="sub" style="margin-top: 8px;">Nginx e Transformer gestiscono l'accesso web primario (porta 80).</div>
         </div>
-        <div class="content card_bg" data-bg-text="&#xf233;">
-          <div class="divtable">
-            <p>]] .. nginx_status .. [[</p>
-            <p>]] .. trans_status .. [[</p>
-            <p class="subinfos" style="margin-top: 8px;">Nginx e Transformer gestiscono l'interfaccia standard sulla porta 80.</p>
-          </div>
-          <div style="margin-top: 14px;">
-            <button class="btn" type="button" onclick="restartServices()" style="width: 100%;">
-              <i class="fa fa-sync-alt"></i> Riavvia Servizi
-            </button>
-          </div>
+        <div>
+          <button class="btn-action btn-default" type="button" onclick="restartServices()">
+            <i class="fa fa-sync-alt"></i> Riavvia Servizi
+          </button>
         </div>
       </div>
     </div>
 
     <!-- Card 3: Ripristino Zero-Touch USB -->
-    <div class="span3">
-      <div class="smallcard">
-        <div class="header">
-          <div class="header-title pull-left"><p>Ripristino USB</p></div>
+    <div class="sc">
+      <div class="sh">Ripristino USB</div>
+      <div class="ct">
+        <span class="bgi fb">&#xf287;</span>
+        <div class="sub">
+          Inserisci una chiavetta USB con il file <strong>ziocook-gui-recovery.tar.bz2</strong> o <strong>GUI.tar.bz2</strong> per il ripristino automatico.
         </div>
-        <div class="content card_bg_brand" data-bg-text="&#xf287;">
-          <div class="divtable">
-            <p class="subinfos">Inserisci una chiavetta USB con il file <strong>ziocook-gui-recovery.tar.bz2</strong> o <strong>GUI.tar.bz2</strong> per il ripristino automatico.</p>
-          </div>
-          <div style="margin-top: 14px;">
-            <button id="btnUsb" class="btn btn-primary" type="button" onclick="triggerUsbRecovery()" style="width: 100%;">
-              <i class="fa fa-play"></i> Flash da USB
-            </button>
-          </div>
+        <div>
+          <button id="btnUsb" class="btn-action btn-primary" type="button" onclick="triggerUsbRecovery()">
+            <i class="fa fa-play"></i> Flash da USB
+          </button>
         </div>
       </div>
     </div>
 
     <!-- Card 4: Caricamento Pacchetto da PC -->
-    <div class="span3">
-      <div class="smallcard">
-        <div class="header">
-          <div class="header-title pull-left"><p>Carica Pacchetto</p></div>
+    <div class="sc">
+      <div class="sh">Carica Pacchetto</div>
+      <div class="ct">
+        <span class="bgi fa">&#xf093;</span>
+        <div class="sub" style="margin-bottom: 6px;">
+          Seleziona un pacchetto <strong>GUI.tar.bz2</strong> salvato sul tuo computer:
         </div>
-        <div class="content card_bg" data-bg-text="&#xf093;">
-          <div class="divtable">
-            <p class="subinfos">Seleziona un archivio <strong>GUI.tar.bz2</strong> salvato sul computer:</p>
-            <input id="guiFile" type="file" accept=".tar.bz2,.bz2" style="display:block; width:100%; box-sizing:border-box; margin-bottom:10px; padding:3px; font-size:12px; background:#fff; border:1px solid #c6bec9; border-radius:3px;">
-          </div>
-          <div style="margin-top: 10px;">
-            <button id="btnUpload" class="btn btn-primary" type="button" onclick="uploadPackage()" style="width: 100%;">
-              <i class="fa fa-upload"></i> Carica &amp; Flash
-            </button>
-          </div>
+        <input id="guiFile" type="file" accept=".tar.bz2,.bz2">
+        <div>
+          <button id="btnUpload" class="btn-action btn-primary" type="button" onclick="uploadPackage()">
+            <i class="fa fa-upload"></i> Carica &amp; Flash
+          </button>
         </div>
       </div>
     </div>
 
-    <!-- Card 5: Gestione Modem -->
-    <div class="span3">
-      <div class="smallcard">
-        <div class="header">
-          <div class="header-title pull-left"><p>Gestione Modem</p></div>
+    <!-- Card 5: Gestione Modem (Row 2, Column 1) -->
+    <div class="sc">
+      <div class="sh">Gestione Modem</div>
+      <div class="ct">
+        <span class="bgi fa">&#xf011;</span>
+        <div>
+          <div class="li"><i class="fa fa-network-wired"></i> <strong>Porta rescue:</strong> 8088</div>
+          <div class="li"><i class="fa fa-file-alt"></i> <strong>Log:</strong> /tmp/rescue.log</div>
+          <div class="sub" style="margin-top: 8px;">Riavvio hardware del gateway a basso livello.</div>
         </div>
-        <div class="content card_bg" data-bg-text="&#xf011;">
-          <div class="divtable">
-            <p><i class="fa fa-network-wired"></i> <strong>Porta rescue:</strong> 8088</p>
-            <p><i class="fa fa-file-alt"></i> <strong>Log:</strong> /tmp/rescue.log</p>
-            <p class="subinfos" style="margin-top: 6px;">Riavvio sicuro hardware del gateway tramite comando kernel.</p>
-          </div>
-          <div style="margin-top: 14px;">
-            <button class="btn btn-danger" type="button" onclick="rebootRouter()" style="width: 100%;">
-              <i class="fa fa-power-off"></i> Riavvia Modem
-            </button>
-          </div>
+        <div>
+          <button class="btn-action btn-danger" type="button" onclick="rebootRouter()">
+            <i class="fa fa-power-off"></i> Riavvia Modem
+          </button>
         </div>
       </div>
     </div>
 
-    <!-- Card 6: Log Operativo Live (Span 12 / Full Width) -->
-    <div class="span12">
-      <div class="smallcard">
-        <div class="header">
-          <div class="header-title pull-left"><p>Log Operativo Live (/tmp/rescue.log)</p></div>
-          <div>
-            <button class="btn btn-mini" type="button" onclick="clearLogBox()">Pulisci Schermo</button>
-          </div>
-        </div>
-        <div class="content" style="min-height: auto; padding: 12px;">
-          <div class="fake_console">
-            <pre id="logBox">In attesa di istruzioni...</pre>
-          </div>
+    <!-- Card 6: Log Operativo Live (Row 2, Columns 2, 3, 4 - Spans 3 Columns) -->
+    <div class="sc logt">
+      <div class="sh">
+        <span><i class="fa fa-terminal"></i> Log Operativo Live (/tmp/rescue.log)</span>
+        <button class="btn-mini" type="button" onclick="clearLogBox()">Pulisci Schermo</button>
+      </div>
+      <div class="ct" style="min-height: auto; padding: 12px;">
+        <div class="fake_console">
+          <pre id="logBox">In attesa di istruzioni...</pre>
         </div>
       </div>
     </div>
 
-  </div><!-- /cardrow -->
+  </div><!-- /cards-grid -->
 
-  <!-- Original Technicolor Copyright Footer -->
+  <!-- Footer showing current GUI version -->
   <div class="copyright">
-    <p>&copy; Technicolor 2026</p>
-    <p>Rescue Server MediaAccess DGA4331 &bull; Porta 8088</p>
-    <p>Fork &amp; modifiche di <a href="https://github.com/ZioCook/tch-nginx-gui" target="_blank">ZioCook</a> &bull; Codice originale di <a href="https://github.com/Ansuel/tch-nginx-gui" target="_blank">Ansuel</a> e della community.<br/>Utility di sblocco di <strong>ADeltaX</strong></p>
+    <p>&copy; Technicolor &bull; MediaAccess DGA4331 Rescue Console (Porta 8088)</p>
+    <p>Versione GUI rilevata sul router: <strong>]] .. s.gui_version .. [[</strong></p>
   </div>
 
 </div><!-- /container -->
