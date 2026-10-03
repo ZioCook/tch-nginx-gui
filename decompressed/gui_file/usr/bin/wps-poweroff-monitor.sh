@@ -82,15 +82,17 @@ restore_normal_leds() {
         killall -CONT ledfw.lua status-led-eventing.lua 2>/dev/null
     fi
 
-    # Refresh all LEDs back to their correct active states
-    if [ -x /usr/share/transformer/scripts/restart_leds.sh ]; then
-        /usr/share/transformer/scripts/restart_leds.sh >/dev/null 2>&1 &
-    elif [ -x /etc/init.d/ledfw ]; then
-        /etc/init.d/ledfw restart >/dev/null 2>&1 &
-    fi
-    if [ -x /usr/share/transformer/scripts/check_ecoled.sh ]; then
-        /usr/share/transformer/scripts/check_ecoled.sh >/dev/null 2>&1 &
-    fi
+    # Refresh all LEDs back to their correct active states sequentially
+    (
+        if [ -x /usr/share/transformer/scripts/restart_leds.sh ]; then
+            /usr/share/transformer/scripts/restart_leds.sh
+        elif [ -x /etc/init.d/ledfw ]; then
+            /etc/init.d/ledfw restart
+        fi
+        if [ -x /usr/share/transformer/scripts/check_ecoled.sh ]; then
+            /usr/share/transformer/scripts/check_ecoled.sh
+        fi
+    ) >/dev/null 2>&1 &
 }
 
 case "$1" in
