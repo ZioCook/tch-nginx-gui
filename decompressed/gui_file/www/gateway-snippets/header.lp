@@ -115,7 +115,7 @@ ngx.print('\
       if cui.outdated_ver == "0" then
         hideUpdateButton = "hide"
       end
-      html[#html + 1] = '<div class="header-sub-button ' .. hideUpdateButton .. '">'
+      html[#html + 1] = '<div class="header-sub-button sub-upgrade ' .. hideUpdateButton .. '">'
       html[#html + 1] = '<div id="upgradebtn" class="btn someInfos '.. hideUpdateButton  ..'"'
       if not ( cui.gui_skin == "Fritz" ) then
         html[#html + 1] = ' rel="tooltip" data-placement="bottom" data-original-title="'
@@ -128,30 +128,32 @@ ngx.print('\
       html[#html + 1] = '</span>'
       html[#html + 1] = '</div>'
       html[#html + 1] = '</div>'
-      html[#html + 1] = '<div class="header-sub-button">'
+      html[#html + 1] = '<div class="header-sub-button sub-wizard">'
       html[#html + 1] = '<div class="btn" id="wizard-btn" data-toggle="modal" data-remote="modals/wizard-modal.lp"><i class="icon-magic"></i> <span class="wizard-text">' .. T"Setup Wizard" .. '</span></div>'
       html[#html + 1] = '</div>'
-      html[#html + 1] = '<div class="header-sub-button">'
+      html[#html + 1] = '<div class="header-sub-button sub-switch">'
       html[#html + 1] =   '<div class="btn" id="switchViewButton">'
       html[#html + 1] =     '<span id="refresh-cards"></span>'
       html[#html + 1] =     '<span id="cards-text">' .. pageselector.text .. '</span>'
       html[#html + 1] =   '</div>'
       html[#html + 1] = '</div>'
         end
-      html[#html + 1] = '<div class="header-sub-button">'
+      html[#html + 1] = '<div class="header-sub-button sub-lang">'
       html[#html + 1] = ui_helper.createLanguageSelect('webui-core', gettext.language())
       html[#html + 1] = '</div>'
-    html[#html + 1] = '<div class="header-sub-button">'
+    html[#html + 1] = '<div class="header-sub-button sub-user">'
     if session:isdefaultuser() then
             html[#html + 1] = '<a href="login.lp" class="btn" id="signin">'
             html[#html + 1] = T"Sign in"
             html[#html + 1] = '</a>'
         else
             html[#html + 1] = [[          <div class="btn-group" id="logged">
-                    <button class="btn"> ]]
+                    <button class="btn dropdown-toggle" data-toggle="dropdown" id="logged-user-btn">
+                      <i class="icon-user"></i> <span class="logged-username">]]
             html[#html + 1] = session:getusername()
-            html[#html + 1] = [[ </button>
-                    <button class="btn dropdown-toggle" data-toggle="dropdown"><span class="caret"></span> ]]
+            html[#html + 1] = [[</span> <span class="caret mobile-caret"></span>
+                    </button>
+                    <button class="btn dropdown-toggle desktop-advanced-btn" data-toggle="dropdown"><span class="caret"></span> ]]
       html[#html + 1] = T"Advanced "
             html[#html + 1] = [[
                     </button>
