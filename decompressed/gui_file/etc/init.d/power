@@ -101,6 +101,12 @@ move_irq_interrupts_cpu1() {
 	fi
 }
 
+setup_leds() {
+    if [ -x /usr/share/transformer/scripts/check_ecoled.sh ]; then
+        /usr/share/transformer/scripts/check_ecoled.sh >/dev/null 2>&1 &
+    fi
+}
+
 setup() {
     config_load power
     setup_autogreeen
@@ -114,6 +120,7 @@ setup() {
     setup_cores
     setup_vm
 	move_irq_interrupts_cpu1
+    setup_leds
 }
 
 start() {

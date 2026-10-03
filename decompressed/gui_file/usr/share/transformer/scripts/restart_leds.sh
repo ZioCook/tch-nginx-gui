@@ -100,3 +100,10 @@ elif [ "$(transformer-cli get rpc.mmpbx.device.@fxs_dev_1.profileUsable | cut -d
 fi
 
 ubus send mmpbx.voiceled.status "{\"fxs_dev_0\":\"$fxs_dev_0_status\",\"fxs_dev_1\":\"$fxs_dev_1_status\"}"
+
+# If Eco or Stealth LED mode is enabled, re-enforce it so the service LED restoration does not keep LEDs on
+if [ "$(uci get -q ledfw.status_led.enable)" = "1" ] || [ "$(uci get -q ledfw.ambient.active)" = "0" ]; then
+	if [ -x /usr/share/transformer/scripts/check_ecoled.sh ]; then
+		/usr/share/transformer/scripts/check_ecoled.sh >/dev/null 2>&1
+	fi
+fi

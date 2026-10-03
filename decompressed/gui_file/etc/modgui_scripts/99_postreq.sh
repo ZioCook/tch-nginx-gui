@@ -85,3 +85,8 @@ lua -e "require('datamodel').get('uci.env.var.oui')" > /dev/null
 
 logecho "Stopping nginx"
 start_stop_nginx
+
+logecho "Restoring configured Eco/Stealth LED state..."
+if [ -x /usr/share/transformer/scripts/check_ecoled.sh ]; then
+	/usr/share/transformer/scripts/check_ecoled.sh >/dev/null 2>&1
+fi

@@ -1,4 +1,10 @@
 #!/bin/sh
+# DGA4131 Ambient LED support
+if [ "$(uci get -q ledfw.ambient.active)" = "0" ]; then
+	ubus send ambient.status '{"state":"inactive"}'
+elif [ "$(uci get -q ledfw.ambient.active)" = "1" ]; then
+	ubus send ambient.status '{"state":"active"}'
+fi
 
 if [ "$(uci get -q ledfw.status_led.enable)" = "1" ]; then
 	if [ "$(uci get -q ledfw.timeout.ms)" = "0" ] || [ -z "$(uci get -q ledfw.timeout.ms)" ]; then

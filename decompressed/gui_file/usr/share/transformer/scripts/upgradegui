@@ -350,6 +350,11 @@ set_transformer "rpc.system.modgui.executeCommand.state" "In Progress"
 /etc/init.d/rootdevice "$rootdevice_call"
 /etc/init.d/do_migrate_overlay preserve_files 2>/dev/null || true
 
+# Re-apply Eco/Stealth LED mode after upgrade
+if [ -x /usr/share/transformer/scripts/check_ecoled.sh ]; then
+  /usr/share/transformer/scripts/check_ecoled.sh >/dev/null 2>&1
+fi
+
 # Explicitly reset outdated state in UCI config via atomic batch
 uci -q batch <<EOF
 set modgui.gui.outdated_ver='0'

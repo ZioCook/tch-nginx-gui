@@ -215,6 +215,10 @@ if [ -f /etc/config/ledfw ]; then
   uci commit ledfw
   /etc/init.d/ledfw enable 2>/dev/null
   /etc/init.d/ledfw restart 2>/dev/null
+  sleep 1
+  if [ -x /usr/share/transformer/scripts/check_ecoled.sh ]; then
+    /usr/share/transformer/scripts/check_ecoled.sh >/dev/null 2>&1
+  fi
 fi
 
 # Ensure specific_app status is committed

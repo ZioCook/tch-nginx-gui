@@ -189,11 +189,20 @@ local function ambient_status_update()
     local lcur = uci.cursor()
     lcur:load('ledfw')
     local cur_ambient = lcur:get('ledfw', 'ambient', 'active')
+    local cur_statusled = lcur:get('ledfw', 'status_led', 'enable')
     lcur:close()
     if cur_ambient == '0' then
         local packet = {}
         packet["state"] = "inactive"
         conn:send(ubus_led_name, packet)
+    elseif cur_statusled == '1' then
+        local packet = {}
+        packet["state"] = "enabled"
+        conn:send("statusled", packet)
+        packet["state"] = "inactive"
+        conn:send("statusled", packet)
+        packet["state"] = "active"
+        conn:send("statusled", packet)
     end
 end
 
