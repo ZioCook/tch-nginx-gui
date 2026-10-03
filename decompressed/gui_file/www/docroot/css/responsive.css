@@ -37,6 +37,33 @@
     display: none;
 }
 
+/* --- Modal Sticky Subtitles (legend) --- */
+.modal-body {
+    padding-top: 0px !important;
+}
+.modal-body > :first-child:not(form):not(fieldset):not(legend),
+.modal-body > form > :first-child:not(fieldset):not(legend),
+.modal-body > form > fieldset > :first-child:not(legend) {
+    margin-top: 10px !important;
+}
+.modal-body legend {
+    position: -webkit-sticky !important;
+    position: sticky !important;
+    top: 0px !important;
+    z-index: 20 !important;
+    margin-top: 0 !important;
+    margin-bottom: 0 !important;
+    margin-left: -15px !important;
+    margin-right: -15px !important;
+    padding-left: 15px !important;
+    padding-right: 15px !important;
+    padding-top: 6px !important;
+    padding-bottom: 6px !important;
+    background-color: var(--second-color-accent, var(--menu-bg-color, #fff));
+    box-sizing: border-box !important;
+    width: calc(100% + 30px) !important;
+}
+
 /* ==========================================================================
    Mobile Smartphone Enhancements (max-width: 767px and 480px)
    ========================================================================== */
@@ -267,8 +294,15 @@
         max-height: calc(100vh - 130px) !important;
         overflow-y: auto !important;
         -webkit-overflow-scrolling: touch !important;
-        padding: 12px 14px !important;
+        padding: 0 14px 12px 14px !important;
         flex-grow: 1 !important;
+    }
+    .modal-body legend {
+        margin-left: -14px !important;
+        margin-right: -14px !important;
+        padding-left: 14px !important;
+        padding-right: 14px !important;
+        width: calc(100% + 28px) !important;
     }
     .modal-footer {
         padding: 8px 14px !important;
