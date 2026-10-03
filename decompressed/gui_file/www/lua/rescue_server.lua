@@ -4,54 +4,215 @@
 -- Operates completely independently from Nginx, LuaJIT, and Transformer.
 -- Provides Out-of-Band Web Management, PC archive upload, and Zero-Touch USB Recovery.
 --
+-- Target: Lua 5.1 + LuaSocket (OpenWrt / BusyBox ash). No other dependencies.
+--
+-- Backend hardening overview:
+--   * select()-based accept loop; request headers are collected NON-blocking with a
+--     hard deadline, a size cap and a per-IP cap  -> slowloris / header-flood safe
+--   * strict HTTP request-line / header parser with length and count limits
+--   * /upload streams straight to disk (no accumulation in Lua memory), has a total
+--     deadline, an idle timeout, a size cap, and ALWAYS removes the temp file on failure
+--   * /exec runs through a temp script + timeout, output goes to a FILE (not a pipe),
+--     so grandchildren holding a pipe open can never block the server
+--   * every spawned child closes inherited descriptors (listening socket included), and
+--     the client socket is closed BEFORE any detached job is started
+--   * every open file / socket is closed through pcall-protected helpers
+--
 
 local socket = require("socket")
 
-local DEFAULT_PORT = 8088
-local LOG_FILE = "/tmp/rescue.log"
-local UPLOAD_TEMP = "/tmp/rescue_upload.tmp"
-local RECOVERY_TARGET = "/tmp/GUI_upload.tar.bz2"
+------------------------------------------------------------------------------
+-- Configuration
+------------------------------------------------------------------------------
+local DEFAULT_PORT      = 8088
+local LOG_FILE          = "/tmp/rescue.log"
+local UPLOAD_TEMP       = "/tmp/rescue_upload.tmp"
+local RECOVERY_TARGET   = "/tmp/GUI_upload.tar.bz2"
+local DOCROOT           = "/www/docroot"
 
--- Append message to rescue log
-local function log(msg)
-    local timestamp = os.date("%Y-%m-%d %H:%M:%S")
-    local line = string.format("[%s] [RESCUE-SERVER] %s\n", timestamp, msg)
-    io.stderr:write(line)
-    local f = io.open(LOG_FILE, "a")
-    if f then
-        f:write(line)
-        f:close()
+local LISTEN_BACKLOG    = 16            -- kernel accept queue
+local MAX_PENDING       = 16            -- connections still sending their headers
+local MAX_PENDING_PER_IP = 6            -- ... of which at most this many per client IP
+local HEADER_DEADLINE   = 10            -- s: whole request head must arrive within this time
+local SELECT_TICK       = 1             -- s: select() timeout (also deadline sweep period)
+
+local MAX_REQ_LINE      = 8192          -- bytes per request/header line
+local MAX_URI           = 2048          -- bytes
+local MAX_HEADER_BYTES  = 16384         -- bytes for the whole request head
+local MAX_HEADER_LINES  = 64
+
+local IO_TIMEOUT        = 15            -- s: per socket operation once a request is dispatched
+local SEND_MAX_SECS     = 120           -- s: total time allowed to send one response
+
+local UPLOAD_MAX_BYTES  = 128 * 1024 * 1024
+local UPLOAD_MAX_SECS   = 1800          -- s: absolute cap for one upload
+local UPLOAD_CHUNK      = 32768         -- bytes per receive()
+local UPLOAD_BUFFER     = 65536         -- stdio buffer of the temp file
+local VERIFY_TIMEOUT    = 600           -- s: max time for the bzcat integrity test
+
+local EXEC_BODY_MAX     = 4096          -- bytes: max size of a /exec command
+local EXEC_TIMEOUT      = 8             -- s
+local EXEC_OUT_MAX      = 65536         -- bytes of command output returned to the browser
+local EXEC_ULIMIT_BLOCKS = 16384        -- ulimit -f (512B blocks) for /exec = 8 MB
+
+local FILE_MAX          = 2 * 1024 * 1024  -- max size served by read_file() (fonts, favicon)
+local LOG_MAX_BYTES     = 262144        -- rotate log above this size ...
+local LOG_KEEP_BYTES    = 65536         -- ... keeping this many bytes of tail
+local LOG_SERVE_MAX     = 262144        -- max bytes returned by GET /log
+
+-- Reject cross-site POSTs (CSRF): a web page on another site could otherwise POST to
+-- /exec on the router. Requests without an Origin header (curl, scripts) are allowed.
+local ENFORCE_SAME_ORIGIN = true
+
+-- Descriptors 3..9 are closed in every child process (same convention as before).
+local FD_CLOSE = "3>&- 4>&- 5>&- 6>&- 7>&- 8>&- 9>&-"
+
+------------------------------------------------------------------------------
+-- Small generic helpers
+------------------------------------------------------------------------------
+
+-- Run fn(f) on an open file; the file is ALWAYS closed, errors are returned, not thrown.
+local function with_file(path, mode, fn)
+    local f, err = io.open(path, mode)
+    if not f then return nil, err end
+    local ok, a, b = pcall(fn, f)
+    pcall(f.close, f)
+    if not ok then return nil, a end
+    return a, b
+end
+
+-- os.execute() returns a number on Lua 5.1 and true/nil on 5.2+: accept both.
+local function sh_ok(res)
+    return res == 0 or res == true
+end
+
+-- Quote a string for safe use as a single shell word.
+local function shq(s)
+    return "'" .. (tostring(s):gsub("'", "'\\''")) .. "'"
+end
+
+local function html_escape(s)
+    return (tostring(s):gsub("[&<>\"']", {
+        ["&"] = "&amp;", ["<"] = "&lt;", [">"] = "&gt;", ['"'] = "&quot;", ["'"] = "&#39;",
+    }))
+end
+
+local JSON_ESC = { ['"'] = '\\"', ["\\"] = "\\\\", ["\n"] = "\\n", ["\r"] = "", ["\t"] = "\\t",
+                   ["\b"] = "\\b", ["\f"] = "\\f" }
+
+-- Full JSON string escaping (control characters included, so binary command output
+-- can never break JSON.parse() in the browser).
+local function json_escape(s)
+    return (tostring(s):gsub('[%c"\\]', function(c)
+        return JSON_ESC[c] or string.format("\\u%04x", c:byte())
+    end))
+end
+
+------------------------------------------------------------------------------
+-- Logging (size-capped: /tmp is RAM on these routers)
+------------------------------------------------------------------------------
+local log_writes = 0
+
+-- Read at most `max` bytes from the END of a file ("" if missing).
+local function read_tail(path, max)
+    local data = with_file(path, "rb", function(f)
+        local size = f:seek("end")
+        if not size then return nil end
+        if size > max then f:seek("set", size - max) else f:seek("set", 0) end
+        return f:read(max)
+    end)
+    return data or ""
+end
+
+local function rotate_log_if_needed()
+    local size = with_file(LOG_FILE, "rb", function(f) return f:seek("end") end)
+    if size and size > LOG_MAX_BYTES then
+        local tail = read_tail(LOG_FILE, LOG_KEEP_BYTES)
+        local nl = tail:find("\n", 1, true)
+        if nl then tail = tail:sub(nl + 1) end        -- drop the cut first line
+        with_file(LOG_FILE, "wb", function(f) f:write(tail) return true end)
     end
 end
 
--- Read entire file contents safely
-local function read_file(path)
-    local f = io.open(path, "rb")
-    if not f then return "" end
-    local content = f:read("*a")
-    f:close()
-    return content or ""
+-- Append message to rescue log (never throws)
+local function log(msg)
+    pcall(function()
+        local timestamp = os.date("%Y-%m-%d %H:%M:%S")
+        local line = string.format("[%s] [RESCUE-SERVER] %s\n", timestamp, tostring(msg))
+        io.stderr:write(line)
+        log_writes = log_writes + 1
+        if log_writes % 32 == 0 then rotate_log_if_needed() end
+        with_file(LOG_FILE, "a", function(f) f:write(line) return true end)
+    end)
 end
 
+-- Read an entire (small) file in ONE allocation: size is probed with seek() and files
+-- bigger than `max` are refused. Returns "" when missing / unreadable / too big.
+local function read_file(path, max)
+    max = max or FILE_MAX
+    local data = with_file(path, "rb", function(f)
+        local size = f:seek("end")
+        if not size or size > max then return nil end
+        if size == 0 then return "" end
+        f:seek("set", 0)
+        return f:read(size)
+    end)
+    return data or ""
+end
+
+-- Read a small text/proc file completely ("" on error)
+local function slurp(path)
+    return with_file(path, "r", function(f) return f:read("*a") end) or ""
+end
+
+------------------------------------------------------------------------------
+-- Process helpers
+------------------------------------------------------------------------------
+
+-- Locate a `timeout` applet once at startup (no fork on every request)
+local TIMEOUT_BIN
+for _, p in ipairs({ "/usr/bin/timeout", "/bin/timeout", "/usr/sbin/timeout", "/sbin/timeout" }) do
+    local f = io.open(p, "rb")
+    if f then f:close(); TIMEOUT_BIN = p; break end
+end
+
+-- Build a shell line that closes inherited fds, then runs `inner` with a hard time limit.
+-- Without a timeout applet a tiny shell watchdog is used instead.
+local function wrap_timeout(secs, inner)
+    if TIMEOUT_BIN then
+        return string.format("exec %s; %s -s KILL %d %s", FD_CLOSE, TIMEOUT_BIN, secs, inner)
+    end
+    return string.format(
+        "exec %s; ( %s ) & P=$!; ( sleep %d; kill -9 $P ) >/dev/null 2>&1 & W=$!; " ..
+        "wait $P; R=$?; kill $W >/dev/null 2>&1; exit $R",
+        FD_CLOSE, inner, secs)
+end
+
+-- Start a fully detached background job. Descriptors 3..9 (listening socket included) are
+-- closed in the child, stdio goes to /dev/null, so a long-lived child can never keep the
+-- 8088 port (or an HTTP connection) alive.
+local function spawn_detached(body)
+    os.execute(string.format("( exec %s; %s ) </dev/null >/dev/null 2>&1 &", FD_CLOSE, body))
+end
+
+------------------------------------------------------------------------------
+-- System summary for the dashboard (output format unchanged)
+------------------------------------------------------------------------------
 -- Collect hardware / system status for rescue dashboard
 local function get_system_summary()
     local summary = {}
 
     -- Board / Model
-    local f_board = io.open("/proc/cpuinfo", "r")
-    if f_board then
-        local text = f_board:read("*a") or ""
-        f_board:close()
+    local text = slurp("/proc/cpuinfo")
+    if text ~= "" then
         summary.hardware = text:match("Hardware%s*:%s*([^\r\n]+)") or text:match("model name%s*:%s*([^\r\n]+)") or "Broadcom BCM63xx/BCM4908"
     else
         summary.hardware = "Technicolor Gateway"
     end
 
     -- Short Kernel Version
-    local f_ver = io.open("/proc/version", "r")
-    if f_ver then
-        local line = f_ver:read("*l") or "Linux"
-        f_ver:close()
+    local line = with_file("/proc/version", "r", function(f) return f:read("*l") end)
+    if line then
         summary.kernel = line:match("Linux%s+version%s+([%w%._%-]+)") or line:match("^(Linux%s+[%w%._%-]+)") or "Linux 4.1.52"
     else
         summary.kernel = "Linux"
@@ -59,46 +220,37 @@ local function get_system_summary()
 
     -- Real Installed GUI Version (matches the real GUI from /etc/init.d/rootdevice)
     summary.gui_version = "Non rilevata / Corrotta"
-    local f_rootdev = io.open("/etc/init.d/rootdevice", "r")
-    if f_rootdev then
-        for l in f_rootdev:lines() do
+    with_file("/etc/init.d/rootdevice", "r", function(f)
+        for l in f:lines() do
             local ver = l:match("version_gui=([^%s]+)")
             if ver and ver ~= "" then
                 summary.gui_version = ver
                 break
             end
         end
-        f_rootdev:close()
-    end
+        return true
+    end)
     if summary.gui_version == "Non rilevata / Corrotta" then
-        local f_modgui = io.open("/etc/config/modgui", "r")
-        if f_modgui then
-            local text = f_modgui:read("*a") or ""
-            f_modgui:close()
-            local ver_match = text:match('option%s+version%s+[\'"]([^%s\'"]+)') or text:match('option%s+version%s+([%w%._%-]+)')
-            if ver_match and ver_match ~= "" then
-                summary.gui_version = ver_match
-            end
+        local mg = slurp("/etc/config/modgui")
+        local ver_match = mg:match('option%s+version%s+[\'"]([^%s\'"]+)') or mg:match('option%s+version%s+([%w%._%-]+)')
+        if ver_match and ver_match ~= "" then
+            summary.gui_version = ver_match
         end
     end
 
     -- Memory Info
-    local f_mem = io.open("/proc/meminfo", "r")
-    if f_mem then
-        local text = f_mem:read("*a") or ""
-        f_mem:close()
-        local total = tonumber(text:match("MemTotal:%s*(%d+)")) or 0
-        local free = tonumber(text:match("MemFree:%s*(%d+)")) or 0
+    local mem = slurp("/proc/meminfo")
+    if mem ~= "" then
+        local total = tonumber(mem:match("MemTotal:%s*(%d+)")) or 0
+        local free = tonumber(mem:match("MemFree:%s*(%d+)")) or 0
         summary.mem = string.format("%d MB / %d MB", math.floor((total - free) / 1024), math.floor(total / 1024))
     else
         summary.mem = "N/A"
     end
 
     -- Uptime
-    local f_up = io.open("/proc/uptime", "r")
-    if f_up then
-        local up_sec = tonumber(f_up:read("*n")) or 0
-        f_up:close()
+    local up_sec = with_file("/proc/uptime", "r", function(f) return tonumber(f:read("*n")) end)
+    if up_sec then
         local hours = math.floor(up_sec / 3600)
         local mins = math.floor((up_sec % 3600) / 60)
         summary.uptime = string.format("%dh %02dm", hours, mins)
@@ -106,16 +258,22 @@ local function get_system_summary()
         summary.uptime = "N/A"
     end
 
+    -- Values are interpolated into the HTML page: neutralise markup characters
+    summary.hardware    = html_escape(summary.hardware)
+    summary.kernel      = html_escape(summary.kernel)
+    summary.gui_version = html_escape(summary.gui_version)
+
+    -- NOTE: the two pgrep calls are intentionally separate, plain os.execute() calls:
+    -- with `pgrep -f` a wrapping `sh -c "...transformer..."` would match itself.
     -- Check if Nginx is running
-    local check_nginx = os.execute("pgrep nginx >/dev/null 2>&1")
-    summary.nginx_running = (check_nginx == 0)
+    summary.nginx_running = sh_ok(os.execute("pgrep nginx >/dev/null 2>&1"))
 
     -- Check if Transformer is running (check process command line and PID file)
-    local check_trans = os.execute("pgrep -f transformer >/dev/null 2>&1")
-    if check_trans ~= 0 then
-        check_trans = os.execute("test -f /var/run/transformer.pid")
+    local check_trans = sh_ok(os.execute("pgrep -f transformer >/dev/null 2>&1"))
+    if not check_trans then
+        check_trans = sh_ok(os.execute("test -f /var/run/transformer.pid"))
     end
-    summary.trans_running = (check_trans == 0)
+    summary.trans_running = check_trans
 
     return summary
 end
@@ -1149,205 +1307,576 @@ Digita qualsiasi comando root (es. ls -la, ifconfig, ping 8.8.8.8, ps, df -h, fr
 ]]
 end
 
--- Read request headers
-local function parse_headers(client)
-    local headers = {}
-    while true do
-        local line, err = client:receive("*l")
-        if not line or line == "" or line == "\r" then break end
-        local k, v = line:match("^([^:]+):%s*(.*)")
-        if k and v then
-            headers[k:lower()] = v:gsub("[\r\n]", "")
+------------------------------------------------------------------------------
+-- HTTP layer
+------------------------------------------------------------------------------
+local STATUS_TEXT = {
+    [100] = "Continue", [200] = "OK", [400] = "Bad Request", [403] = "Forbidden",
+    [404] = "Not Found", [405] = "Method Not Allowed", [408] = "Request Timeout",
+    [411] = "Length Required", [413] = "Payload Too Large", [414] = "URI Too Long",
+    [431] = "Request Header Fields Too Large", [500] = "Internal Server Error",
+    [503] = "Service Unavailable",
+}
+
+local ALLOWED_METHODS = { GET = true, HEAD = true, POST = true }
+local TOKEN_PAT = "^[%w!#%$%%&'%*%+%-%.%^_`|~]+$"
+
+-- Send a whole buffer, coping with partial writes and enforcing a total deadline.
+local function send_all(client, data, deadline)
+    local i, n = 1, #data
+    while i <= n do
+        if deadline and socket.gettime() > deadline then return nil, "timeout" end
+        local sent, err, last = client:send(data, i, n)
+        if sent then return true end
+        if err == "timeout" and last and last >= i then
+            i = last + 1                      -- some progress: keep going
+        else
+            return nil, err
         end
     end
-    return headers
+    return true
 end
 
--- Send HTTP response
-local function send_response(client, status_code, content_type, body)
-    local status_text = "OK"
-    if status_code == 404 then status_text = "Not Found"
-    elseif status_code == 400 then status_text = "Bad Request"
-    elseif status_code == 500 then status_text = "Internal Server Error"
+-- Send an HTTP response. HEAD (opts.head_only) gets the headers incl. Content-Length, no body.
+-- The body is sent separately from the headers: no big concatenated copy of the page.
+local function send_response(client, status_code, content_type, body, opts)
+    opts = opts or {}
+    body = body or ""
+    local head = table.concat({
+        string.format("HTTP/1.1 %d %s\r\n", status_code, STATUS_TEXT[status_code] or "Unknown"),
+        "Content-Type: ", content_type, "\r\n",
+        "Content-Length: ", tostring(#body), "\r\n",
+        "Connection: close\r\n",
+        "X-Content-Type-Options: nosniff\r\n",
+        opts.cache or "Cache-Control: no-store\r\n",
+        opts.extra or "",
+        "\r\n",
+    })
+    local deadline = socket.gettime() + SEND_MAX_SECS
+    local ok, err = send_all(client, head, deadline)
+    if ok and not opts.head_only and #body > 0 then
+        ok, err = send_all(client, body, deadline)
+    end
+    return ok, err
+end
+
+local function send_json(client, status_code, status, key, msg, opts)
+    return send_response(client, status_code, "application/json",
+        string.format('{"status":"%s","%s":"%s"}', status, key, json_escape(msg)), opts)
+end
+
+-- Parse the request head (request line + headers, WITHOUT the final blank line).
+-- Returns method, uri, headers   or   nil, http_status, message
+local function parse_request(head)
+    local headers, count = {}, 0
+    local method, uri
+    local first = true
+
+    for line in (head .. "\n"):gmatch("([^\n]*)\n") do
+        if line:sub(-1) == "\r" then line = line:sub(1, -2) end
+        if #line > MAX_REQ_LINE then
+            return nil, first and 414 or 431, "Line too long"
+        end
+
+        if first then
+            first = false
+            local m, u, major = line:match("^(%u+) (%S+) HTTP/(%d)%.%d$")
+            if not m or major ~= "1" then return nil, 400, "Bad Request" end
+            if #u > MAX_URI then return nil, 414, "URI Too Long" end
+            if u:sub(1, 1) ~= "/" or u:find("[%z\1-\31\127]") then return nil, 400, "Bad Request" end
+            if not ALLOWED_METHODS[m] then
+                return nil, 405, "Method Not Allowed"
+            end
+            method, uri = m, u
+        else
+            local c1 = line:sub(1, 1)
+            if c1 == " " or c1 == "\t" then return nil, 400, "Bad Request" end   -- no obs-fold
+            count = count + 1
+            if count > MAX_HEADER_LINES then return nil, 431, "Too many headers" end
+
+            local k, v = line:match("^([^:]+):[ \t]*(.-)[ \t]*$")
+            if not k or not k:match(TOKEN_PAT) then return nil, 400, "Bad Request" end
+            if v:find("[%z\1-\8\11-\31\127]") then return nil, 400, "Bad Request" end
+            k = k:lower()
+            if k == "content-length" and headers[k] and headers[k] ~= v then
+                return nil, 400, "Bad Request"            -- conflicting lengths
+            end
+            headers[k] = v
+        end
     end
 
-    local resp = string.format("HTTP/1.1 %d %s\r\nContent-Type: %s\r\nContent-Length: %d\r\nConnection: close\r\n\r\n%s",
-        status_code, status_text, content_type, #body, body)
-    client:send(resp)
+    if not method then return nil, 400, "Bad Request" end
+    return method, uri, headers
 end
 
--- Stream and extract uploaded recovery package
-local function handle_upload(client, headers)
-    local content_length = tonumber(headers["content-length"] or 0)
-    if content_length <= 0 then
-        return send_response(client, 400, "application/json", '{"status":"error","message":"Dimensione file non valida"}')
+-- Read a SMALL request body (the part already received after the head is `rest`).
+-- Returns body   or   nil, http_status
+local function read_small_body(client, headers, rest, max)
+    local cl = headers["content-length"]
+    if not cl then return "" end
+    if not cl:match("^%d+$") then return nil, 400 end
+    local n = tonumber(cl)
+    if n > max then return nil, 413 end
+    if n == 0 then return "" end
+
+    local body = rest:sub(1, n)
+    local need = n - #body
+    if need > 0 then
+        client:settimeout(IO_TIMEOUT, "t")
+        local chunk = client:receive(need)
+        client:settimeout(IO_TIMEOUT, "b")
+        if not chunk then return nil, 408 end
+        body = body .. chunk
+    end
+    return body
+end
+
+-- CSRF guard for state-changing requests
+local function same_origin(headers)
+    if not ENFORCE_SAME_ORIGIN then return true end
+    local origin = headers["origin"]
+    if not origin then return true end
+    local o_host = origin:match("^%a[%w+.-]*://([^/]+)$")
+    local host = headers["host"]
+    return (o_host ~= nil and host ~= nil and o_host:lower() == host:lower())
+end
+
+local function close_client(client)
+    pcall(client.shutdown, client, "send")   -- FIN now, even if a child still holds the fd
+    pcall(client.close, client)
+end
+
+------------------------------------------------------------------------------
+-- /exec : run a shell command with a hard timeout
+------------------------------------------------------------------------------
+-- The command goes into a temp script, stdout+stderr go into a temp FILE (not a pipe):
+-- if the command leaves background grandchildren behind they cannot keep a pipe open and
+-- stall the server. `timeout -s KILL` ends the script itself after EXEC_TIMEOUT seconds.
+local function run_shell(cmd)
+    local script = os.tmpname()
+    if not script or script == "" then script = "/tmp/rescue_exec." .. tostring(os.time()) end
+    local outf = script .. ".out"
+    local output, timed_out = "", false
+
+    local ok, perr = pcall(function()
+        local written = with_file(script, "wb", function(f)
+            f:write("#!/bin/sh\n",
+                    "exec ", FD_CLOSE, "\n",
+                    "ulimit -f ", tostring(EXEC_ULIMIT_BLOCKS), " 2>/dev/null\n",
+                    cmd, "\n")
+            return true
+        end)
+        if not written then error("impossibile scrivere lo script temporaneo") end
+
+        local inner = string.format("/bin/sh %s >%s 2>&1 </dev/null", shq(script), shq(outf))
+        local t0 = socket.gettime()
+        local status = os.execute(wrap_timeout(EXEC_TIMEOUT, inner))
+        timed_out = (not sh_ok(status)) and (socket.gettime() - t0) >= (EXEC_TIMEOUT - 0.5)
+
+        output = with_file(outf, "rb", function(f) return f:read(EXEC_OUT_MAX + 1) end) or ""
+    end)
+
+    pcall(os.remove, script)      -- always cleaned up, whatever happened above
+    pcall(os.remove, outf)
+
+    if not ok then output = "[ERRORE] " .. tostring(perr) .. "\n" end
+    if #output > EXEC_OUT_MAX then
+        output = output:sub(1, EXEC_OUT_MAX) .. "\n[... output troncato ...]\n"
+    end
+    if timed_out then
+        output = output .. string.format("\n[TIMEOUT] Comando terminato dopo %d s\n", EXEC_TIMEOUT)
+    end
+    if output == "" then
+        output = "(Comando completato senza output)\n"
+    end
+    return output
+end
+
+------------------------------------------------------------------------------
+-- /upload : stream a .tar.bz2 straight to disk
+------------------------------------------------------------------------------
+-- Copies `total` body bytes (first `rest`, already buffered, then the socket) into out_f.
+-- Returns true   or   nil, reason
+local function stream_to_file(client, out_f, total, rest)
+    local remaining = total
+    local deadline = socket.gettime() + UPLOAD_MAX_SECS
+
+    if rest and #rest > 0 then
+        if #rest > remaining then rest = rest:sub(1, remaining) end
+        local ok, werr = out_f:write(rest)
+        if not ok then return nil, "scrittura su disco fallita: " .. tostring(werr) end
+        remaining = remaining - #rest
+    end
+
+    -- "t" = total time per receive() call: a stalled client is cut after IO_TIMEOUT seconds
+    -- without ANY byte, while a slow-but-alive one keeps making progress.
+    client:settimeout(IO_TIMEOUT, "t")
+    while remaining > 0 do
+        if socket.gettime() > deadline then return nil, "tempo massimo di upload superato" end
+        local want = remaining < UPLOAD_CHUNK and remaining or UPLOAD_CHUNK
+        local chunk, err, partial = client:receive(want)
+        local data
+        if chunk then
+            data = chunk
+        elseif err == "timeout" and partial and #partial > 0 then
+            data = partial                    -- progress was made, keep going
+        else
+            return nil, (err == "timeout") and "client inattivo (timeout)" or "connessione interrotta dal client"
+        end
+        local ok, werr = out_f:write(data)
+        if not ok then return nil, "scrittura su disco fallita: " .. tostring(werr) end
+        remaining = remaining - #data
+    end
+    return true
+end
+
+local function handle_upload(client, headers, rest)
+    if headers["transfer-encoding"] then
+        return send_json(client, 411, "error", "message", "Transfer-Encoding non supportato: serve Content-Length")
+    end
+    local cl = headers["content-length"]
+    if not cl or not cl:match("^%d+$") or tonumber(cl) <= 0 then
+        return send_json(client, 400, "error", "message", "Dimensione file non valida")
+    end
+    local content_length = tonumber(cl)
+    if content_length > UPLOAD_MAX_BYTES then
+        log(string.format("Upload rifiutato: %d bytes oltre il limite di %d", content_length, UPLOAD_MAX_BYTES))
+        return send_json(client, 413, "error", "message", "File troppo grande")
+    end
+
+    if (headers["expect"] or ""):lower() == "100-continue" then
+        send_all(client, "HTTP/1.1 100 Continue\r\n\r\n", socket.gettime() + IO_TIMEOUT)
     end
 
     log(string.format("Ricezione upload pacchetto di emergenza: %d bytes...", content_length))
 
+    pcall(os.remove, UPLOAD_TEMP)             -- stale leftovers from a previous crash
+    collectgarbage("collect")                 -- start streaming with a clean heap
     local out_f, err = io.open(UPLOAD_TEMP, "wb")
     if not out_f then
         log("Errore apertura file temporaneo: " .. tostring(err))
-        return send_response(client, 500, "application/json", '{"status":"error","message":"Errore apertura storage temporaneo"}')
+        return send_json(client, 500, "error", "message", "Errore apertura storage temporaneo")
     end
+    pcall(out_f.setvbuf, out_f, "full", UPLOAD_BUFFER)
 
-    local remaining = content_length
-    local chunk_size = 65536
-    while remaining > 0 do
-        local to_read = math.min(chunk_size, remaining)
-        local chunk, rerr = client:receive(to_read)
-        if not chunk then
-            out_f:close()
-            os.remove(UPLOAD_TEMP)
-            log("Errore lettura chunk upload: " .. tostring(rerr))
-            return send_response(client, 400, "application/json", '{"status":"error","message":"Trasferimento interrotto"}')
-        end
-        out_f:write(chunk)
-        remaining = remaining - #chunk
+    -- Receive; pcall guarantees we get control back for cleanup even on an internal error.
+    local pok, rok, rerr = pcall(stream_to_file, client, out_f, content_length, rest)
+    local cok, cres = pcall(out_f.close, out_f)          -- close ALWAYS, check flush errors
+    client:settimeout(IO_TIMEOUT, "b")
+    collectgarbage("collect")
+
+    if not pok then
+        pcall(os.remove, UPLOAD_TEMP)
+        log("Errore interno durante l'upload: " .. tostring(rok))
+        return send_json(client, 500, "error", "message", "Errore interno durante l'upload")
     end
-    out_f:close()
+    if not rok then
+        pcall(os.remove, UPLOAD_TEMP)
+        log("Errore lettura upload: " .. tostring(rerr))
+        return send_json(client, 400, "error", "message", "Trasferimento interrotto")
+    end
+    if not (cok and cres) then
+        pcall(os.remove, UPLOAD_TEMP)
+        log("Errore chiusura/flush file temporaneo (spazio esaurito?)")
+        return send_json(client, 500, "error", "message", "Scrittura su storage temporaneo fallita (spazio insufficiente?)")
+    end
 
     log("Upload completato con successo. Validazione integrità bzcat...")
-    local test_res = os.execute("bzcat " .. UPLOAD_TEMP .. " >/dev/null 2>&1")
-    if test_res ~= 0 then
-        os.remove(UPLOAD_TEMP)
+    local test_res = os.execute(wrap_timeout(VERIFY_TIMEOUT,
+        "bzcat " .. shq(UPLOAD_TEMP) .. " >/dev/null 2>&1"))
+    if not sh_ok(test_res) then
+        pcall(os.remove, UPLOAD_TEMP)
         log("ERRORE: Il file caricato non è un archivio .tar.bz2 integro!")
-        return send_response(client, 400, "application/json", '{"status":"error","message":"Archivio corrotto o non valido"}')
+        return send_json(client, 400, "error", "message", "Archivio corrotto o non valido")
     end
 
     -- Rename to permanent target
-    os.remove(RECOVERY_TARGET)
-    os.rename(UPLOAD_TEMP, RECOVERY_TARGET)
+    pcall(os.remove, RECOVERY_TARGET)
+    local mv_ok, mv_err = os.rename(UPLOAD_TEMP, RECOVERY_TARGET)
+    if not mv_ok then
+        pcall(os.remove, UPLOAD_TEMP)
+        log("Errore rename archivio: " .. tostring(mv_err))
+        return send_json(client, 500, "error", "message", "Impossibile salvare l'archivio")
+    end
     log("Archivio convalidato. Inizio estrazione su filesystem principale (/).")
 
-    -- Run extraction and postreq asynchronously
-    local cmd = string.format("( exec 3>&- 4>&- 5>&- ; bzcat %s | tar -C / -xf - >> %s 2>&1 && /etc/init.d/rootdevice force >> %s 2>&1 ) &",
-        RECOVERY_TARGET, LOG_FILE, LOG_FILE)
-    os.execute(cmd)
+    send_json(client, 200, "ok", "message", "Estrazione avviata con successo! Segui il log per i dettagli.")
 
-    return send_response(client, 200, "application/json", '{"status":"ok","message":"Estrazione avviata con successo! Segui il log per i dettagli."}')
+    -- Extraction + postreq run detached, started only AFTER the client connection is closed.
+    return function()
+        spawn_detached(string.format("bzcat %s | tar -C / -xf - >> %s 2>&1 && /etc/init.d/rootdevice force >> %s 2>&1",
+            shq(RECOVERY_TARGET), shq(LOG_FILE), shq(LOG_FILE)))
+    end
 end
 
--- Process incoming connection
-local function handle_client(client)
-    client:settimeout(20) -- 20s timeout for socket operations
-    local req_line, err = client:receive("*l")
-    if not req_line then
-        client:close()
-        return
+------------------------------------------------------------------------------
+-- Routing
+------------------------------------------------------------------------------
+local FONT_MIME = { woff2 = "font/woff2", woff = "font/woff", ttf = "font/ttf", otf = "font/otf" }
+local STATIC_CACHE = "Cache-Control: public, max-age=86400\r\n"
+
+-- Each POST handler returns nil or a function to run after the client has been closed.
+local POST_ROUTES = {}
+
+POST_ROUTES["/clear_log"] = function(client)
+    with_file(LOG_FILE, "w", function(f) return true end)
+    log("Log della rescue console azzerato dall'operatore.")
+    send_json(client, 200, "ok", "message", "Log azzerato")
+end
+
+POST_ROUTES["/exec"] = function(client, headers, rest)
+    local body, bad = read_small_body(client, headers, rest, EXEC_BODY_MAX)
+    if not body then
+        return send_json(client, bad, "error", "output", "Comando non valido (mancante o troppo lungo)")
+    end
+    local cmd = body:gsub("%z", ""):gsub("\r", "")
+    cmd = cmd:match("^%s*(.-)%s*$")
+    if not cmd or cmd == "" then
+        return send_json(client, 400, "error", "output", "Comando vuoto")
     end
 
-    local method, uri = req_line:match("^(%a+)%s+(%S+)")
-    if not method or not uri then
-        client:close()
-        return
+    log(string.format("[SHELL] # %s", cmd))
+
+    -- Auto-add count limit to ping if not specified, preventing endless blocking
+    if cmd:match("^ping%s+") and not cmd:match("%-c%s*%d+") then
+        cmd = (cmd:gsub("^ping%s+", "ping -c 4 ", 1))
     end
 
-    local headers = parse_headers(client)
+    send_json(client, 200, "ok", "output", run_shell(cmd))
+end
 
-    if (method == "GET" or method == "HEAD") and (uri == "/" or uri == "/index.html" or uri:match("^/%?") or uri:match("^/index%.html%?")) then
-        send_response(client, 200, "text/html; charset=utf-8", render_html())
-    elseif (method == "GET" or method == "HEAD") and uri == "/log" then
-        local log_data = read_file(LOG_FILE)
-        send_response(client, 200, "text/plain; charset=utf-8", log_data)
-    elseif (method == "GET" or method == "HEAD") and uri:match("^/fonts/") then
-        local font_name = uri:match("^/fonts/([%w%._%-]+)$")
-        local font_path = font_name and ("/www/docroot/fonts/" .. font_name)
-        local font_data = font_path and read_file(font_path)
-        if font_data and #font_data > 0 then
-            local mime = uri:match("%.woff2$") and "font/woff2" or "font/woff"
-            send_response(client, 200, mime, font_data)
+POST_ROUTES["/usb_recovery"] = function(client)
+    local probe = io.open("/usr/bin/rescue-usb.sh", "rb")
+    if not probe then
+        log("ERRORE: /usr/bin/rescue-usb.sh non trovato.")
+        return send_json(client, 500, "error", "message", "Script di ripristino USB non trovato")
+    end
+    probe:close()
+    log("Avvio del motore di ripristino Zero-Touch USB...")
+    send_json(client, 200, "started", "message", "Scansione periferiche USB avviata.")
+    return function() spawn_detached("/usr/bin/rescue-usb.sh") end
+end
+
+POST_ROUTES["/upload"] = handle_upload
+
+POST_ROUTES["/restart_services"] = function(client)
+    log("Richiesta riavvio servizi web ricevuta.")
+    send_json(client, 200, "ok", "message", "Servizi web riavviati.")
+    return function()
+        spawn_detached("/etc/init.d/transformer restart >/dev/null 2>&1; /etc/init.d/nginx restart >/dev/null 2>&1")
+    end
+end
+
+POST_ROUTES["/reboot"] = function(client)
+    log("Richiesta riavvio router ricevuta. Riavvio tra 1 secondo.")
+    send_json(client, 200, "ok", "message", "Riavvio del router in corso...")
+    return function() spawn_detached("sleep 1 && /sbin/reboot") end
+end
+
+-- Handle one complete request. Returns an optional "after close" function.
+local function handle_request(client, head, rest)
+    local method, uri, headers = parse_request(head)
+    if not method then
+        local code, msg = uri, headers            -- parse_request(nil, status, message)
+        return send_response(client, code, "text/plain; charset=utf-8", msg,
+            { extra = (code == 405) and "Allow: GET, HEAD, POST\r\n" or nil })
+    end
+
+    local path = uri:match("^([^?#]*)")
+    local head_only = (method == "HEAD")
+
+    if method == "GET" or method == "HEAD" then
+        local ropts = { head_only = head_only }
+        local sopts = { head_only = head_only, cache = STATIC_CACHE }
+
+        if path == "/" or path == "/index.html" then
+            send_response(client, 200, "text/html; charset=utf-8", render_html(), ropts)
+
+        elseif path == "/log" then
+            send_response(client, 200, "text/plain; charset=utf-8", read_tail(LOG_FILE, LOG_SERVE_MAX), ropts)
+
+        elseif path:match("^/fonts/") then
+            local name = path:match("^/fonts/([%w%._%-]+)$")
+            local data = (name and not name:find("..", 1, true)) and read_file(DOCROOT .. "/fonts/" .. name) or ""
+            if #data > 0 then
+                local ext = name:match("%.(%w+)$")
+                send_response(client, 200, FONT_MIME[ext and ext:lower()] or "font/woff", data, sopts)
+            else
+                send_response(client, 404, "text/plain", "Font Not Found", ropts)
+            end
+
+        elseif path == "/favicon.ico" or path == "/img/favicon.ico" then
+            local data = read_file(DOCROOT .. "/img/favicon.ico")
+            if #data > 0 then
+                send_response(client, 200, "image/x-icon", data, sopts)
+            else
+                send_response(client, 404, "text/plain", "Favicon Not Found", ropts)
+            end
+
         else
-            send_response(client, 404, "text/plain", "Font Not Found")
+            send_response(client, 404, "text/plain", "Not Found", ropts)
         end
-    elseif (method == "GET" or method == "HEAD") and (uri == "/favicon.ico" or uri == "/img/favicon.ico") then
-        local fav_data = read_file("/www/docroot/img/favicon.ico")
-        if fav_data and #fav_data > 0 then
-            send_response(client, 200, "image/x-icon", fav_data)
-        else
-            send_response(client, 404, "text/plain", "Favicon Not Found")
-        end
-    elseif method == "POST" and uri == "/clear_log" then
-        local f = io.open(LOG_FILE, "w")
-        if f then f:close() end
-        log("Log della rescue console azzerato dall'operatore.")
-        send_response(client, 200, "application/json", '{"status":"ok","message":"Log azzerato"}')
-    elseif method == "POST" and uri == "/exec" then
-        local content_length = tonumber(headers["content-length"] or 0)
-        local cmd = ""
-        if content_length > 0 then
-            cmd = client:receive(content_length) or ""
-        end
-        cmd = cmd:match("^%s*(.-)%s*$")
-        if not cmd or cmd == "" then
-            send_response(client, 400, "application/json", '{"status":"error","output":"Comando vuoto"}')
-        else
-            log(string.format("[SHELL] # %s", cmd))
+        return nil
+    end
 
-            -- Auto-add count limit to ping if not specified, preventing endless blocking
-            if cmd:match("^ping%s+") and not cmd:match("%-c%s*%d+") then
-                cmd = cmd:gsub("^ping%s+", "ping -c 4 ", 1)
-            end
-
-            -- Write command to temporary executable script to avoid shell escaping issues
-            local EXEC_SCRIPT = "/tmp/rescue_exec.sh"
-            local f_sh = io.open(EXEC_SCRIPT, "w")
-            if f_sh then
-                f_sh:write("#!/bin/sh\n")
-                f_sh:write("exec 3>&- 4>&- 5>&- 6>&- 7>&- 8>&- 9>&-\n")
-                f_sh:write(cmd .. "\n")
-                f_sh:close()
-                os.execute("chmod +x " .. EXEC_SCRIPT)
-            end
-
-            -- Execute with busybox timeout (8 seconds) to ensure server NEVER hangs on infinite processes
-            local timeout_secs = 8
-            local pipe = io.popen("/usr/bin/timeout -s KILL " .. timeout_secs .. " " .. EXEC_SCRIPT .. " 2>&1")
-            local output = ""
-            if pipe then
-                output = pipe:read("*a") or ""
-                pipe:close()
-            end
-            os.remove(EXEC_SCRIPT)
-
-            if output == "" then
-                output = "(Comando completato senza output)\n"
-            end
-
-            -- JSON escape
-            local escaped_out = output:gsub("\\", "\\\\"):gsub('"', '\\"'):gsub("\r", ""):gsub("\n", "\\n")
-            send_response(client, 200, "application/json", string.format('{"status":"ok","output":"%s"}', escaped_out))
-        end
-    elseif method == "POST" and uri == "/usb_recovery" then
-        log("Avvio del motore di ripristino Zero-Touch USB...")
-        os.execute("( exec 3>&- 4>&- 5>&- ; /usr/bin/rescue-usb.sh ) </dev/null >/dev/null 2>&1 &")
-        send_response(client, 200, "application/json", '{"status":"started","message":"Scansione periferiche USB avviata."}')
-    elseif method == "POST" and uri == "/upload" then
-        handle_upload(client, headers)
-    elseif method == "POST" and uri == "/restart_services" then
-        log("Richiesta riavvio servizi web ricevuta.")
-        os.execute("( exec 3>&- 4>&- 5>&- ; /etc/init.d/transformer restart >/dev/null 2>&1; /etc/init.d/nginx restart >/dev/null 2>&1 ) </dev/null >/dev/null 2>&1 &")
-        send_response(client, 200, "application/json", '{"status":"ok","message":"Servizi web riavviati."}')
-    elseif method == "POST" and uri == "/reboot" then
-        log("Richiesta riavvio router ricevuta. Riavvio tra 1 secondo.")
-        os.execute("( exec 3>&- 4>&- 5>&- ; sleep 1 && /sbin/reboot ) </dev/null >/dev/null 2>&1 &")
-        send_response(client, 200, "application/json", '{"status":"ok","message":"Riavvio del router in corso..."}')
-    else
+    -- POST
+    if not same_origin(headers) then
+        log("POST rifiutato (Origin non coincidente con Host): " .. tostring(headers["origin"]))
+        send_response(client, 403, "text/plain", "Forbidden")
+        return nil
+    end
+    local route = POST_ROUTES[path]
+    if not route then
         send_response(client, 404, "text/plain", "Not Found")
+        return nil
+    end
+    return route(client, headers, rest)
+end
+
+------------------------------------------------------------------------------
+-- Connection management / main loop
+------------------------------------------------------------------------------
+local pending = {}        -- connections still sending their request head (non-blocking)
+
+local function remove_pending(conn)
+    for i = #pending, 1, -1 do
+        if pending[i] == conn then table.remove(pending, i) return end
+    end
+end
+
+-- Best-effort short reply (2 s cap) then close
+local function reject(sock, code, msg)
+    pcall(function()
+        sock:settimeout(2)
+        send_response(sock, code, "text/plain; charset=utf-8", msg)
+    end)
+    close_client(sock)
+end
+
+-- Run a complete request: blocking I/O with timeouts, always closes the socket.
+local function dispatch(client, head, rest)
+    client:settimeout(IO_TIMEOUT, "b")
+    local ok, after = pcall(handle_request, client, head, rest)
+    if not ok then
+        log("Errore gestione client: " .. tostring(after))
+        pcall(send_response, client, 500, "text/plain; charset=utf-8", "Internal Server Error")
+        after = nil
+    end
+    close_client(client)                      -- connection is finished BEFORE any detached job starts
+    if type(after) == "function" then
+        local aok, aerr = pcall(after)
+        if not aok then log("Errore avvio job in background: " .. tostring(aerr)) end
+    end
+end
+
+local function accept_clients(server)
+    for _ = 1, 8 do
+        local c = server:accept()             -- listener is non-blocking
+        if not c then return end
+        c:settimeout(0)
+        pcall(c.setoption, c, "tcp-nodelay", true)
+
+        local ip = c:getpeername() or "?"
+        local same = 0
+        for _, p in ipairs(pending) do if p.ip == ip then same = same + 1 end end
+
+        if same >= MAX_PENDING_PER_IP then
+            close_client(c)                   -- one host may not hog the slots
+        else
+            if #pending >= MAX_PENDING then   -- full: evict the oldest (most likely stalled)
+                local old = table.remove(pending, 1)
+                close_client(old.sock)
+            end
+            pending[#pending + 1] = { sock = c, buf = "", ip = ip, deadline = socket.gettime() + HEADER_DEADLINE }
+        end
+    end
+end
+
+-- Non-blocking read of the request head for one connection.
+local function pump(conn)
+    local chunk, err, partial = conn.sock:receive(2048)
+    local data = chunk or partial
+    if data and #data > 0 then conn.buf = conn.buf .. data end
+
+    local buf = conn.buf
+    local s, e = buf:find("\r\n\r\n", 1, true)
+    local s2, e2 = buf:find("\n\n", 1, true)
+    if s2 and (not s or s2 < s) then s, e = s2, e2 end
+    if s then return "complete", buf:sub(1, s - 1), buf:sub(e + 1) end
+
+    if #buf > MAX_HEADER_BYTES then return "toolarge" end
+    if err and err ~= "timeout" then return "closed" end
+    return "more"
+end
+
+local function open_listener(port)
+    local srv, err = socket.tcp()
+    if not srv then return nil, err end
+    -- Restart immediately even with sockets in TIME_WAIT
+    pcall(srv.setoption, srv, "reuseaddr", true)
+    local ok, berr = srv:bind("0.0.0.0", port)
+    if not ok then srv:close() return nil, berr end
+    local lok, lerr = srv:listen(LISTEN_BACKLOG)
+    if not lok then srv:close() return nil, lerr end
+    srv:settimeout(0)
+    return srv
+end
+
+local function loop_once(server)
+    local readset = { server }
+    for i = 1, #pending do readset[#readset + 1] = pending[i].sock end
+
+    local ready, _, serr = socket.select(readset, nil, SELECT_TICK)
+    if not ready then
+        log("select() fallita: " .. tostring(serr))
+        socket.sleep(0.2)
+        ready = {}
     end
 
-    client:close()
+    for _, s in ipairs(ready) do
+        if s == server then
+            accept_clients(server)
+        else
+            local conn
+            for i = 1, #pending do if pending[i].sock == s then conn = pending[i] break end end
+            if conn then
+                local state, head, rest = pump(conn)
+                if state == "complete" then
+                    remove_pending(conn)
+                    dispatch(conn.sock, head, rest)
+                elseif state == "toolarge" then
+                    remove_pending(conn)
+                    reject(conn.sock, 431, "Request Header Fields Too Large")
+                elseif state == "closed" then
+                    remove_pending(conn)
+                    close_client(conn.sock)
+                end
+            end
+        end
+    end
+
+    -- Deadline sweep: drop clients that did not finish their headers in time (slowloris)
+    local now = socket.gettime()
+    for i = #pending, 1, -1 do
+        local conn = pending[i]
+        if now > conn.deadline then
+            table.remove(pending, i)
+            reject(conn.sock, 408, "Request Timeout")
+        end
+    end
 end
 
 -- Server entry point
 local function main()
-    local port = tonumber(arg[1]) or DEFAULT_PORT
+    local port = tonumber(arg and arg[1]) or DEFAULT_PORT
 
     log("Inizializzazione Standalone Rescue Server...")
-    local server, err = socket.bind("0.0.0.0", port)
+    pcall(os.remove, UPLOAD_TEMP)             -- leftovers of a previous crashed run
+
+    local server, err = open_listener(port)
     if not server then
         log(string.format("Impossibile associare alla porta %d: %s. Tentativo su porta alternativa %d...", port, tostring(err), DEFAULT_PORT))
-        server, err = socket.bind("0.0.0.0", DEFAULT_PORT)
+        server, err = open_listener(DEFAULT_PORT)
         if not server then
             log("FATALE: Impossibile avviare il rescue server: " .. tostring(err))
             os.exit(1)
@@ -1355,17 +1884,21 @@ local function main()
         port = DEFAULT_PORT
     end
 
-    server:settimeout(1)
+    local lfd = tonumber(server:getfd())
+    if lfd and lfd > 9 then
+        log(string.format("ATTENZIONE: listening socket su fd %d (>9): i processi figli non possono chiuderlo via shell.", lfd))
+    end
+    if not TIMEOUT_BIN then
+        log("Nota: 'timeout' non trovato, uso il watchdog di shell integrato.")
+    end
+
     log(string.format("Rescue Server attivo e in ascolto su http://0.0.0.0:%d", port))
 
     while true do
-        local client, accept_err = server:accept()
-        if client then
-            local ok, client_err = pcall(handle_client, client)
-            if not ok then
-                log("Errore gestione client: " .. tostring(client_err))
-                pcall(function() client:close() end)
-            end
+        local ok, lerr = pcall(loop_once, server)
+        if not ok then
+            log("Errore nel ciclo principale: " .. tostring(lerr))
+            socket.sleep(0.2)                 -- never spin on a persistent error
         end
     end
 end
