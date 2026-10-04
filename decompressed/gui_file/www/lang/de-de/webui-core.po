@@ -5004,3 +5004,51 @@ msgstr "Eco-Modus (Service-LEDs nach Timeout aus, Power an)"
 
 msgid "Stealth Mode (All LEDs off including Power)"
 msgstr "Stealth-Modus (Alle LEDs nach Timeout aus, inkl. Power)"
+
+msgid "Kernel & Network"
+msgstr "Kernel & Netzwerk"
+
+msgid "TCP Stack & Socket Buffers"
+msgstr "TCP-Stack & Socket-Puffer"
+
+msgid "Routing & Network Offload"
+msgstr "Routing & Netzwerk-Offload"
+
+msgid "TCP Congestion Algorithm"
+msgstr "TCP-Überlastungsalgorithmus"
+
+msgid "TCP Max Socket Buffers"
+msgstr "Max. TCP-Socket-Puffer"
+
+msgid "TCP Fast Open"
+msgstr "TCP Fast Open"
+
+msgid "NAT Conntrack Connections"
+msgstr "NAT-Conntrack-Verbindungen"
+
+msgid "Queue Discipline (Bufferbloat)"
+msgstr "Warteschlangendisziplin (Bufferbloat)"
+
+msgid "Wi-Fi IRQ Core Affinity"
+msgstr "WLAN IRQ-Kernaffinität"
+
+msgid "Enabled (Client & Server)"
+msgstr "Aktiviert (Client & Server)"
+
+msgid "Enabled (Client only)"
+msgstr "Aktiviert (nur Client)"
+
+msgid "Enabled (Server only)"
+msgstr "Aktiviert (nur Server)"
+
+msgid "Not supported on this kernel"
+msgstr "Wird von diesem Kernel nicht unterstützt"
+
+msgid "Core 0 (Default)"
+msgstr "Kern 0 (Standard)"
+
+msgid "Core 1 (Offloaded)"
+msgstr "Kern 1 (Ausgelagert)"
+
+msgid "Core 0 & Core 1 (Shared)"
+msgstr "Kern 0 & Kern 1 (Geteilt)"

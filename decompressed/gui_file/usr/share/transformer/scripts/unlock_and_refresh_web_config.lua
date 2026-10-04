@@ -94,6 +94,7 @@ local check_rule = {
 	{ name = 'firewallmodal', target = '/modals/firewall-modal.lp' },
 	{ name = 'diagnosticsconnectionmodal', target = '/modals/diagnostics-connection-modal.lp' },
 	{ name = 'diagnosticsnetworkmodal', target = '/modals/diagnostics-network-modal.lp' },
+	{ name = 'diagnosticskernelmodal', target = '/modals/diagnostics-kernel-modal.lp' },
 	{ name = 'diagnosticspingmodal', target = '/modals/diagnostics-ping-modal.lp' },
 	{ name = 'diagnosticsxdslmodal', target = '/modals/diagnostics-xdsl-modal.lp' },
 	{ name = 'diagnosticstcpdumpmodal', target = '/modals/diagnostics-tcpdump-modal.lp' },

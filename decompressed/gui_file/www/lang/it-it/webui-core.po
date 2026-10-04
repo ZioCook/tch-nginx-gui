@@ -5025,3 +5025,51 @@ msgstr "Attivo (LED di servizio spenti dopo timeout, Power acceso)"
 
 msgid "Stealth Mode (All LEDs off including Power)"
 msgstr "Stealth (Tutti i LED spenti dopo timeout, compreso Power)"
+
+msgid "Kernel & Network"
+msgstr "Kernel & Rete"
+
+msgid "TCP Stack & Socket Buffers"
+msgstr "Stack TCP & Buffer Socket"
+
+msgid "Routing & Network Offload"
+msgstr "Routing & Offload di Rete"
+
+msgid "TCP Congestion Algorithm"
+msgstr "Algoritmo Congestione TCP"
+
+msgid "TCP Max Socket Buffers"
+msgstr "Buffer Socket TCP Max"
+
+msgid "TCP Fast Open"
+msgstr "TCP Fast Open"
+
+msgid "NAT Conntrack Connections"
+msgstr "Connessioni NAT Conntrack"
+
+msgid "Queue Discipline (Bufferbloat)"
+msgstr "Disciplina di Coda (Bufferbloat)"
+
+msgid "Wi-Fi IRQ Core Affinity"
+msgstr "Affinità Core IRQ Wi-Fi"
+
+msgid "Enabled (Client & Server)"
+msgstr "Abilitato (Client & Server)"
+
+msgid "Enabled (Client only)"
+msgstr "Abilitato (solo Client)"
+
+msgid "Enabled (Server only)"
+msgstr "Abilitato (solo Server)"
+
+msgid "Not supported on this kernel"
+msgstr "Non supportato da questo kernel"
+
+msgid "Core 0 (Default)"
+msgstr "Core 0 (Default)"
+
+msgid "Core 1 (Offloaded)"
+msgstr "Core 1 (Offload)"
+
+msgid "Core 0 & Core 1 (Shared)"
+msgstr "Core 0 & Core 1 (Condiviso)"
