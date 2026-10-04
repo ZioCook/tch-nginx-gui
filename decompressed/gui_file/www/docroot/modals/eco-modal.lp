@@ -189,14 +189,19 @@ local html = {}
 html[#html + 1] = '<legend>' .. T"System & Sensors Status" .. '</legend>'
 
 -- CPU info
-local cpu_display = format("<strong>%s</strong> &mdash; Governor: %s (%d core attivi)", cpu_status.cur_freq, cpu_status.governor:upper(), cpu_status.cores_online)
+local cpu_display
+if cpu_status.has_cpufreq and cpu_status.governor ~= "N/A" then
+  cpu_display = format("%s (%s, %d core)", cpu_status.cur_freq, cpu_status.governor:lower(), cpu_status.cores_online)
+else
+  cpu_display = format("%s (%d core)", cpu_status.cur_freq, cpu_status.cores_online)
+end
 html[#html + 1] = ui_helper.createLabel(T"Processor (CPU)", cpu_display, span5)
 
 -- Temperature info
 if #temperatures > 0 then
   local temp_parts = {}
   for _, t in ipairs(temperatures) do
-    temp_parts[#temp_parts + 1] = format("%s: <strong>%d %s</strong>", t.sensor, t.temp, t.unit)
+    temp_parts[#temp_parts + 1] = format("%s: %d %s", t.sensor, t.temp, t.unit)
   end
   local temp_display = table.concat(temp_parts, " &nbsp;|&nbsp; ")
   html[#html + 1] = ui_helper.createLabel(T"Temperature Radio / SoC", temp_display, span5)
@@ -206,7 +211,7 @@ end
 local ram_total_mb = math.floor(mem_info.mem_total / 1024)
 local ram_free_mb = math.floor(mem_info.mem_available / 1024)
 local ram_cache_mb = math.floor(mem_info.buff_cache / 1024)
-local ram_display = format("<strong>%d MB liberi</strong> su %d MB (%d MB cache)", ram_free_mb, ram_total_mb, ram_cache_mb)
+local ram_display = format("%d MB liberi su %d MB (%d MB cache)", ram_free_mb, ram_total_mb, ram_cache_mb)
 html[#html + 1] = ui_helper.createLabel(T"RAM Memory", ram_display, span5)
 
 if mem_info.swap_total > 0 then

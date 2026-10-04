@@ -51,7 +51,12 @@ else
 end
 
 local cpu_status = eco_helper.getCpuStatus()
-local cpu_label = format("CPU: %s (%s, %d core)", cpu_status.governor:upper(), cpu_status.cur_freq, cpu_status.cores_online)
+local cpu_label
+if cpu_status.has_cpufreq and cpu_status.governor ~= "N/A" then
+	cpu_label = format("CPU: %s (%s, %d core)", cpu_status.cur_freq, cpu_status.governor:lower(), cpu_status.cores_online)
+else
+	cpu_label = format("CPU: %s (%d core)", cpu_status.cur_freq, cpu_status.cores_online)
+end
 
 local temps = eco_helper.getTemperatures()
 local temp_text = nil

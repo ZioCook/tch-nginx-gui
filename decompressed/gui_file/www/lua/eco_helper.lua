@@ -74,14 +74,41 @@ function M.getCpuStatus()
     end
   end
 
+  local has_cpufreq = (cur_gov ~= nil or cur_freq ~= nil)
+  local cores = (cpu1_online == "0") and 1 or 2
+
+  if not has_cpufreq then
+    local cpuinfo = read_file("/proc/cpuinfo")
+    if cpuinfo then
+      local bogomips = cpuinfo:match("BogoMIPS%s*:%s*([%d%.]+)")
+      if bogomips then
+        local bm = tonumber(bogomips)
+        if bm and bm > 300 and bm < 500 then
+          cur_freq_str = "400 MHz"
+        elseif bm and bm > 1500 then
+          cur_freq_str = "1.0 GHz"
+        elseif bm then
+          cur_freq_str = string.format("%d MHz", math.floor(bm))
+        end
+      end
+      local count = 0
+      for _ in cpuinfo:gmatch("processor%s*:") do
+        count = count + 1
+      end
+      if count > 0 then
+        cores = count
+      end
+    end
+  end
+
   return {
     governor = cur_gov or "N/A",
     cur_freq = cur_freq_str,
     cur_freq_raw = cur_freq or "N/A",
     min_freq = min_freq or "N/A",
     max_freq = max_freq or "N/A",
-    cores_online = (cpu1_online == "0") and 1 or 2,
-    has_cpufreq = (cur_gov ~= nil or cur_freq ~= nil),
+    cores_online = cores,
+    has_cpufreq = has_cpufreq,
   }
 end
 
@@ -203,6 +230,11 @@ function M.getMemoryInfo()
     res.cached = tonumber(meminfo:match("Cached:%s*(%d+)")) or 0
     res.swap_total = tonumber(meminfo:match("SwapTotal:%s*(%d+)")) or 0
     res.swap_free = tonumber(meminfo:match("SwapFree:%s*(%d+)")) or 0
+
+    -- Fallback for Linux kernels < 3.14 (e.g. 3.4 on TG789vac v2) without MemAvailable
+    if res.mem_available == 0 then
+      res.mem_available = res.mem_free + res.buffers + res.cached
+    end
   end
 
   res.swap_used = res.swap_total - res.swap_free
