@@ -67,6 +67,7 @@ def verify_build(root):
     build_type = (root / 'data/type').read_text().strip()
     suffix = {'STABLE': '', 'DEV': '_dev', 'PREVIEW': '_preview'}[build_type]
     version = (root / 'data/version').read_text().strip()
+    rootdevice = sources / 'base/etc/init.d/rootdevice'
     expected_stamp = f'version_gui={version}' if build_type == 'STABLE' else f'version_gui={version}-'
     if expected_stamp not in rootdevice.read_text():
         raise ValueError('rootdevice does not contain the build version')
