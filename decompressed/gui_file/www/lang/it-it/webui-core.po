@@ -876,7 +876,7 @@ msgid "Enable Syslog"
 msgstr "Syslog abilitato"
 
 msgid "Enabled"
-msgstr "Attivato"
+msgstr "Abilitato"
 
 msgid "Encapsulation"
 msgstr "Incapsulamento"
@@ -4448,9 +4448,6 @@ msgstr "Connesso (Allineato)"
 msgid "DSLAM & Connection Details"
 msgstr "Dettagli DSLAM & Connessione"
 
-msgid "Disabled"
-msgstr "Disattivato"
-
 msgid "Disabled (DSL circuit off)"
 msgstr "Disattivato (Circuito DSL spento)"
 
@@ -4554,7 +4551,7 @@ msgid "Eco LED Mode"
 msgstr "Modalità Eco LED"
 
 msgid "Standard Mode"
-msgstr "Modalità Standard"
+msgstr "Modalità standard"
 
 msgid "Supported Modes"
 msgstr "Modalità Supportate"
@@ -4641,7 +4638,7 @@ msgid "Restore original driver"
 msgstr "Ripristina driver originale"
 
 msgid "Active Energy Saving"
-msgstr "Risparmio Energetico Attivo"
+msgstr "Risparmio energetico attivo"
 
 msgid "Ethernet Energy Saving"
 msgstr "Risparmio Energetico Ethernet"
@@ -5073,3 +5070,17 @@ msgstr "Core 1 (Offload)"
 
 msgid "Core 0 & Core 1 (Shared)"
 msgstr "Core 0 & Core 1 (Condiviso)"
+
+msgid "EasyMesh enabled"
+msgstr "EasyMesh abilitato"
+
+msgid "EasyMesh disabled"
+msgstr "EasyMesh disabilitato"
+
+msgid "%d extension active"
+msgid_plural "%d extensions active"
+msgstr[0] "%d estensione attiva"
+msgstr[1] "%d estensioni attive"
+
+msgid "No extensions active"
+msgstr "Nessuna estensione attiva"

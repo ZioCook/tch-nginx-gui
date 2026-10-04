@@ -28,10 +28,10 @@ msgid "<strong>%d</strong> connected device"
 msgstr "<strong>%d</strong> dispositivo connesso"
 
 msgid "DLNA disabled"
-msgstr "DLNA disattivato"
+msgstr "DLNA disabilitato"
 
 msgid "DLNA enabled"
-msgstr "DLNA attivato"
+msgstr "DLNA abilitato"
 
 msgid "DLNA name: "
 msgstr "Nome DLNA: "

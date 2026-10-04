@@ -4445,9 +4445,6 @@ msgstr "Verbunden (Synchronisiert)"
 msgid "DSLAM & Connection Details"
 msgstr "DSLAM- & Verbindungsdetails"
 
-msgid "Disabled"
-msgstr "Deaktiviert"
-
 msgid "Disabled (DSL circuit off)"
 msgstr "Deaktiviert (DSL-Schaltung aus)"
 
@@ -5052,3 +5049,17 @@ msgstr "Kern 1 (Ausgelagert)"
 
 msgid "Core 0 & Core 1 (Shared)"
 msgstr "Kern 0 & Kern 1 (Geteilt)"
+
+msgid "EasyMesh enabled"
+msgstr "EasyMesh aktiviert"
+
+msgid "EasyMesh disabled"
+msgstr "EasyMesh deaktiviert"
+
+msgid "%d extension active"
+msgid_plural "%d extensions active"
+msgstr[0] "%d Erweiterung aktiv"
+msgstr[1] "%d Erweiterungen aktiv"
+
+msgid "No extensions active"
+msgstr "Keine Erweiterungen aktiv"

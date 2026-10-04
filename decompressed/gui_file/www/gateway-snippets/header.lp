@@ -225,7 +225,8 @@ ngx.print('\
     end
     alert_style_upper.alert.id = "upgrade-alert"
     local new_ver_str = cui.new_ver or ""
-    local new_ver_link = format('<a target="_blank" href="https://github.com/ZioCook/tch-nginx-gui/releases/tag/%s">%s</a>', new_ver_str, new_ver_str)
+    local new_ver_tag = string.match(new_ver_str, "^(%S+)") or new_ver_str
+    local new_ver_link = format('<a target="_blank" href="https://github.com/ZioCook/tch-nginx-gui/releases/tag/%s">%s</a>', new_ver_tag, new_ver_str)
     html[#html + 1] = ui_helper.createAlertBlock(format(T'Update available! Version: <strong id="new-version-text">%s</strong>', new_ver_link), alert_style_upper)
 
     local autoupgrade_view = cui.autoupgrade_view

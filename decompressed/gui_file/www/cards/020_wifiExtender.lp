@@ -39,7 +39,7 @@ if has_variant and postHelper.getVariantValue(variantHelper, "extenderInfo") the
   getState = content.agentState == "1" and content.controllerState == "1" and true or false
 end
 
-local easyMeshState = getState and T"Enabled" or T"Disabled"
+local easyMeshText = getState and T"EasyMesh enabled" or T"EasyMesh disabled"
 local statusLed = getState and "light green" or "light off"
 local nExt = tonumber(content["count"]) or 0
 local modalPath = nil
@@ -61,7 +61,7 @@ end
       <div class="divtable" style="position: relative; z-index: 20;">\
         <div id="easy_mesh">\
           ');
-          ngx.print(ui_helper.createSimpleLight(getState and "1" or "0", format("EasyMesh %s", easyMeshState)))
+          ngx.print(ui_helper.createSimpleLight(getState and "1" or "0", easyMeshText))
           if getState then
             ngx.print(
               '<p class="subinfos">',
