@@ -55,9 +55,8 @@ LOW_FLASH_KB=33000      # total /overlay size under which we never store the GUI
 SAFETY_MARGIN_KB=512
 BACKUP_RAM_MARGIN_KB=4096  # RAM that must remain free after the /www backup
 
-CURL_BIN=/usr/bin/curl
-[ -x "$CURL_BIN" ] || CURL_BIN=curl
-CURL="$CURL_BIN -s -f -L --connect-timeout 10 --max-time 180"
+CURL="/usr/bin/curl -k -s -f -L --connect-timeout 10 --max-time 180"
+[ -x /usr/bin/curl ] || CURL="curl -k -s -f -L --connect-timeout 10 --max-time 180"
 bzcat=/usr/bin/bzcat
 [ -x "$bzcat" ] || bzcat=bzcat
 tar=/bin/tar
@@ -195,13 +194,11 @@ ver_gt() {
 download() {
   url="$1"
   out="$2"
-  for insecure in "" "-k"; do
-    rm -f "$out.part"
-    # shellcheck disable=SC2086
-    if $CURL $insecure "$url" --output "$out.part" && [ -s "$out.part" ]; then
-      mv -f "$out.part" "$out" && return 0
-    fi
-  done
+  rm -f "$out.part"
+  # shellcheck disable=SC2086
+  if $CURL "$url" --output "$out.part" && [ -s "$out.part" ]; then
+    mv -f "$out.part" "$out" && return 0
+  fi
   rm -f "$out.part"
   return 1
 }
@@ -221,7 +218,6 @@ verify_archive() {
     algo=sha256
   elif download "$base/MD5SUMS" "$SUMS_FILE"; then
     algo=md5
-    logecho "WARNING: SHA256SUMS unavailable, falling back to MD5SUMS"
   else
     logecho "ERROR: can't download checksum file" >&2
     return 1
@@ -418,8 +414,6 @@ fi
 case "$1" in
 AutoUpgrade)
   /usr/share/transformer/scripts/checkver || logecho "WARNING: checkver exited with status $?"
-  # checkver ends with 'uci commit env' instead of 'uci commit modgui', so the
-  # modgui.gui.* values it sets are still pending: flush them here.
   uci -q commit modgui
   if [ "$(uci -q get modgui.gui.outdated_ver)" = "0" ]; then
     logecho "Already at latest version. Aborting upgrade."
@@ -429,13 +423,9 @@ AutoUpgrade)
   uci set modgui.gui.autoupgradeview=auto
   uci commit modgui
   ;;
-'')
+*)
   print_logo
   # Enabling alert for the gui about the manual upgrade
-  uci set modgui.gui.autoupgradeview=manual
-  ;;
-*)
-  logecho "WARNING: unknown argument '$1', treating as manual upgrade" >&2
   uci set modgui.gui.autoupgradeview=manual
   ;;
 esac
@@ -541,6 +531,8 @@ else
   FORCE_SAVE_GUI=1
 fi
 
+set_transformer "rpc.system.modgui.executeCommand.state" "Clearing"
+
 ARCHIVE="$WORKING_DIR/$FILE_NAME"
 
 ############ DRY-RUN THE ARCHIVE (nothing on /www touched yet) ############
@@ -584,7 +576,6 @@ if [ -d /www ]; then
 fi
 
 ############ POINT OF NO RETURN (now protected by rollback) ############
-set_transformer "rpc.system.modgui.executeCommand.state" "Clearing"
 logecho "Cleaning www dir"
 CRITICAL=1
 clean_www

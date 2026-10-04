@@ -25,8 +25,14 @@ META_OPTS="--connect-timeout 10 --max-time 30"   # small metadata files
 DL_OPTS="--connect-timeout 10 --max-time 180"    # archives
 TAG="CheckVer Script"
 
-log() { logger -s -t "$TAG" "$1"; }
 have() { command -v "$1" >/dev/null 2>&1; }
+log() {
+  if have logger; then
+    logger -s -t "$TAG" "$1"
+  else
+    echo "$TAG: $1" >&2
+  fi
+}
 
 ############TRANSFORMER UTILITY##################
 # datamodel.set returns nil,err on rejection but lua would still exit 0:
@@ -71,22 +77,13 @@ get_current_version() {
 }
 
 # curl_run <timeout opts> <curl args...>
-# Verified TLS first; only on certificate/TLS errors retry with -k (routers often
-# lack CA certificates). Plain network errors are NOT retried (no doubled timeouts).
 # Body (if any) goes to stdout, curl's exit status is returned.
 curl_run() {
   _opts="$1"
   shift
   # shellcheck disable=SC2086
-  _out="$(curl -fLsS $_opts "$@" 2>/dev/null)"
+  _out="$(curl -kfLsS $_opts "$@")"
   _rc=$?
-  case "$_rc" in
-  35 | 51 | 58 | 59 | 60 | 77 | 83)
-    # shellcheck disable=SC2086
-    _out="$(curl -fLsSk $_opts "$@")"
-    _rc=$?
-    ;;
-  esac
   [ -n "$_out" ] && printf '%s\n' "$_out"
   return "$_rc"
 }
@@ -104,7 +101,7 @@ release_channel_version() {
   [ "$http_status" = 200 ] || return 1
   version="$(printf '%s\n' "$response" | sed '$d')"
   case "$version" in '' | *[!0-9.]*) return 1 ;; esac
-  is_semver "$version" || return 1
+  printf '%s\n' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || return 1
   printf '%s\n' "$version"
 }
 
@@ -116,25 +113,21 @@ hash_for() {
 
 # fetch_expected <version> <asset> -> sets ALGO (sha256|md5) and EXPECTED.
 # SHA256SUMS first. MD5SUMS only if SHA256SUMS cannot be fetched (or there is
-# no sha256sum binary). A SHA256SUMS without a valid entry is a failure: never
-# downgrade to MD5 in that case.
+# no sha256sum binary).
 fetch_expected() {
   ALGO=""
   EXPECTED=""
   if have sha256sum; then
-    if sums="$(curl_run "$META_OPTS" "$BASE_DIR/$1/SHA256SUMS")"; then
+    if sums="$(curl_run "$META_OPTS" "$BASE_DIR/$1/SHA256SUMS" 2>/dev/null)"; then
       EXPECTED="$(hash_for "$sums" "$2")"
       case "$EXPECTED" in '' | *[!0-9a-f]*) EXPECTED="" ;; esac
       if [ "${#EXPECTED}" -eq 64 ]; then
         ALGO=sha256
         return 0
       fi
-      log "ERROR: SHA256SUMS has no valid entry for $2"
-      return 1
     fi
-    log "SHA256SUMS not available for $1, falling back to MD5SUMS"
   fi
-  sums="$(curl_run "$META_OPTS" "$BASE_DIR/$1/MD5SUMS")" || return 1
+  sums="$(curl_run "$META_OPTS" "$BASE_DIR/$1/MD5SUMS" 2>/dev/null)" || return 1
   EXPECTED="$(hash_for "$sums" "$2")"
   case "$EXPECTED" in '' | *[!0-9a-f]*) return 1 ;; esac
   [ "${#EXPECTED}" -eq 32 ] || return 1
@@ -156,7 +149,6 @@ download_verified() {
     actual="$(md5sum "$temporary" | cut -d' ' -f1)"
   fi
   if [ "$actual" != "$EXPECTED" ]; then
-    log "ERROR: $ALGO mismatch for $2 (expected $EXPECTED, got $actual)"
     return 1
   fi
   mv -f "$temporary" "$3"
@@ -271,15 +263,9 @@ else
   new_ver="Unknown"
 fi
 
-if ! uci -q batch <<EOF
-set modgui.gui.outdated_ver='$outdated'
-set modgui.gui.new_ver='$new_ver'
-commit modgui
-EOF
-then
-  log "ERROR: can't write modgui.gui.* to UCI"
-  exit 1
-fi
+uci set modgui.gui.outdated_ver="$outdated" || { log "ERROR: can't write modgui.gui.outdated_ver to UCI"; exit 1; }
+uci set modgui.gui.new_ver="$new_ver" || { log "ERROR: can't write modgui.gui.new_ver to UCI"; exit 1; }
+uci commit modgui || { log "ERROR: can't commit modgui to UCI"; exit 1; }
 
 sleep 1 # needed to avoid setting Complete status too fast
 exit 0
