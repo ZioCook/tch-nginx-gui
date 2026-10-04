@@ -26,11 +26,8 @@
 #        restored from the backup (when present), state is set to "Failed",
 #        ubus gets "done". Extraction progress is logged every 100 files.
 
-LIGHT_RED='\033[1;31m'
-NC='\033[0m'
-
 print_logo() {
-  printf '%b' "$LIGHT_RED"
+  [ -t 1 ] && printf '\033[1;31m'
   cat <<'EOF'
 
  █████╗ ███╗   ██╗███████╗██╗   ██╗███████╗██╗
@@ -41,7 +38,8 @@ print_logo() {
 ╚═╝  ╚═╝╚═╝  ╚═══╝╚══════╝ ╚═════╝ ╚══════╝╚══════╝
 (Modified Gui UpgradeScript)               (Christo)
 EOF
-  printf '%b\n' "$NC"
+  [ -t 1 ] && printf '\033[0m'
+  printf '\n'
 }
 
 #################### CONFIG ####################
