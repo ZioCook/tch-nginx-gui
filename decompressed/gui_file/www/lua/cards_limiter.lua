@@ -1,5 +1,20 @@
 local content_helper = require("web.content_helper")
+local proxy = require("datamodel")
 local M = {}
+
+local function has_datamodel(path)
+	local ok, result = pcall(proxy.get, path)
+	return ok and type(result) == "table" and result[1] ~= nil
+end
+
+local function has_datausage_backend()
+	for _, path in ipairs({ "/etc/config/datausage", "/usr/bin/datausaged" }) do
+		local file = io.open(path, "r")
+		if not file then return false end
+		file:close()
+	end
+	return has_datamodel("uci.datausage.interfaceNumberOfEntries")
+end
 
 local lte_exclude_list = {
 	["broadband.lp"] = true,
@@ -28,7 +43,9 @@ function M.get_limit_info()
 
 	return {
 		isLTEBoard = isLTEBoard,
-		hasEasyMesh = hasEasyMesh
+		hasEasyMesh = hasEasyMesh,
+		hasDataUsage = has_datausage_backend(),
+		hasPairing = has_datamodel("sys.generic_app.PairingNumberOfEntries")
 	}
 end
 
@@ -37,6 +54,12 @@ function M.card_limited(info, cardname)
 		return true
 	end
 	if info and not info.hasEasyMesh and (cardname == "wifiExtender.lp" or cardname == "020_wifiExtender.lp") then
+		return true
+	end
+	if info and not info.hasDataUsage and (cardname == "datausage.lp" or cardname == "011_datausage.lp") then
+		return true
+	end
+	if info and not info.hasPairing and (cardname == "certificates.lp" or cardname == "021_certificates.lp") then
 		return true
 	end
 	return false

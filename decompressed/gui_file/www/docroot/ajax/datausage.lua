@@ -22,11 +22,16 @@ elseif post_data.action == "reset" and post_data.interface then
   proxy.set(string.format("rpc.datausage.interface.@%s.reset", post_data.interface), "1")
 elseif post_data.action == "overview" then
   local data = {}
-  local selected_interface = proxy.get("rpc.datausage_notifier.web_selected_interface")[1].value
-  data.rx_value =proxy.get(string.format("rpc.datausage.interface.@%s.rx_bytes_per_second", selected_interface))[1].value
-  data.tx_value =proxy.get(string.format("rpc.datausage.interface.@%s.tx_bytes_per_second", selected_interface))[1].value
-  ngx.print(data.rx_value..","..data.tx_value)
-  ngx.exit(ngx.HTTP_OK)
+  local selected_info = proxy.get("rpc.datausage_notifier.web_selected_interface")
+  local selected_interface = selected_info and selected_info[1] and selected_info[1].value
+  if selected_interface and selected_interface ~= "" then
+    local rx = proxy.get(string.format("rpc.datausage.interface.@%s.rx_bytes_per_second", selected_interface))
+    local tx = proxy.get(string.format("rpc.datausage.interface.@%s.tx_bytes_per_second", selected_interface))
+    data.rx_value = rx and rx[1] and rx[1].value or "0"
+    data.tx_value = tx and tx[1] and tx[1].value or "0"
+    ngx.print(data.rx_value..","..data.tx_value)
+    ngx.exit(ngx.HTTP_OK)
+  end
 end
 
 ngx.say("{}")

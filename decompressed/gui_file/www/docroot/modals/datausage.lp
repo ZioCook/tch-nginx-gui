@@ -38,7 +38,7 @@ local function add_datausage_interface(interface)
 local setTable = {}
   local path = string.format("uci.datausage.interface.@%s.", interface)
   local ifname = proxy.get(path .. "interface")
-  if not ifname or ifname[1].value ~= interface then
+  if not ifname or not ifname[1] or ifname[1].value ~= interface then
     if not ifname then
       proxy.add("uci.datausage.interface.", interface)
       setTable[path .. "enabled"] = 0
@@ -51,8 +51,9 @@ local setTable = {}
 end
 
 local function sms_sending_supported()
-  local content = proxy.get("rpc.mobiled.device.")
-  local mobile_devices = content_helper.convertResultToObject("rpc.mobiled.device.", content)
+  local ok, content = pcall(proxy.get, "rpc.mobiled.device.")
+  if not ok or type(content) ~= "table" then return false end
+  local mobile_devices = content_helper.convertResultToObject("rpc.mobiled.device.", content) or {}
   for _, device in ipairs(mobile_devices) do
     if string.untaint(device["capabilities.sms_sending"]) == "true" then
       return true
@@ -114,14 +115,18 @@ elseif ngx.req.get_method() == "POST" then
   args = ngx.req.get_post_args()
 end
 
-local interfaces = untaint(args["selected_interface"])
+local interfaces = args and args["selected_interface"] and untaint(args["selected_interface"])
 
 local validate_interface = post_helper.getValidateInEnumSelect(page.wan_interfaces)
 
 if interfaces and validate_interface(interfaces) then
   proxy.set("rpc.datausage_notifier.web_selected_interface", interfaces)
 else
-  interfaces = untaint(proxy.get("rpc.datausage_notifier.web_selected_interface")[1].value)
+  local selected = proxy.get("rpc.datausage_notifier.web_selected_interface")
+  interfaces = selected and selected[1] and untaint(selected[1].value)
+  if not interfaces or not validate_interface(interfaces) then
+    interfaces = page.wan_interfaces[1] and page.wan_interfaces[1][1]
+  end
 end
 page.datausage_interface = interfaces
 
@@ -385,7 +390,11 @@ end
   <form class="form-horizontal" method="post" action="modals/datausage.lp">\
     ');  
     ngx.print(ui_helper.createMessages(message_helper.popMessages()))
+  if page.datausage_interface then
     get_datausage_section(page.datausage_interface)
+  else
+    ngx.print(ui_helper.createAlert({ class = "alert-warning" }, T"No WAN interface is available for data usage monitoring."))
+  end
       ngx.print('\
   </form>\
 </div>\

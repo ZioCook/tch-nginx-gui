@@ -7,22 +7,24 @@ gettext.textdomain('webui-core')
 local proxy = require("datamodel")
 local ui_helper = require("web.ui_helper")
 local ngx, string = ngx, string
-local pairingNumberOfEntries = proxy.get("sys.generic_app.PairingNumberOfEntries")
-pairingNumberOfEntries = pairingNumberOfEntries and pairingNumberOfEntries[1].value or ""
-local pairing = proxy.get("sys.generic_app.Pairing.")
-pairing = pairing and pairing or ""
+local ok_count, pairingNumberOfEntries = pcall(proxy.get, "sys.generic_app.PairingNumberOfEntries")
+pairingNumberOfEntries = ok_count and pairingNumberOfEntries and pairingNumberOfEntries[1] and pairingNumberOfEntries[1].value or "0"
+local ok_pairing, pairing = pcall(proxy.get, "sys.generic_app.Pairing.")
+pairing = ok_pairing and pairing or {}
 local name, certificates, indexes = {}, {}, {}
 local untaint = string.untaint
 local json = require("dkjson")
+local crypto = require("tch.crypto")
+local html_escape = require("web.web").html_escape
 
-if pairing ~= "" then
+if type(pairing) == "table" then
   for _, list in ipairs (pairing) do
     if list.param == "Name" then
       indexes[#indexes + 1] = string.match(list.path,"%d+")
       name[#name + 1] = list.value
     end
     if list.param == "Certificate" then
-      certificates[#certificates + 1] = list.value
+      certificates[#certificates + 1] = crypto.sha256(untaint(list.value))
     end
   end
 end
@@ -95,4 +97,4 @@ function deleterow(index) {\
 }\
 </script>\
 ');  ngx.print(ui_helper.createFooter())   ngx.print('\
-'); 
+');

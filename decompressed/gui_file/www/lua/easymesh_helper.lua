@@ -11,17 +11,17 @@ function M.is_supported()
     return _is_supported
   end
 
-  local f = io.open("/etc/config/multiap", "r")
-  if not f then
-    _is_supported = false
-    return false
-  end
-
-  local content = f:read("*a")
-  f:close()
-  if not content or #content < 50 then
-    _is_supported = false
-    return false
+  for _, path in ipairs({
+    "/etc/config/multiap",
+    "/usr/bin/multiap_agent",
+    "/usr/bin/multiap_controller"
+  }) do
+    local f = io.open(path, "r")
+    if not f then
+      _is_supported = false
+      return false
+    end
+    f:close()
   end
 
   local ok, res = pcall(function()
@@ -29,7 +29,7 @@ function M.is_supported()
     local controller = cursor:get("multiap", "controller")
     local agent = cursor:get("multiap", "agent")
     cursor:unload("multiap")
-    return (controller ~= nil or agent ~= nil)
+    return (controller ~= nil and agent ~= nil)
   end)
 
   if ok and res then

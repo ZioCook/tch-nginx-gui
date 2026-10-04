@@ -2,11 +2,24 @@
  
 -- Localization
 gettext.textdomain('webui-core')
+local ok_em, em = pcall(require, "easymesh_helper")
+local ui_helper = require("web.ui_helper")
+if not (ok_em and em and em.is_supported and em.is_supported()) then
+  ngx.print(ui_helper.createHeader(T"EasyMesh", false, true))
+  ngx.print(ui_helper.createAlert({ class = "alert-warning" }, T"EasyMesh is not available on this device."))
+  ngx.print(ui_helper.createFooter())
+  return
+end
 local untaint, match, upper, gsub = string.untaint, string.match, string.upper, string.gsub
 local proxy = require("datamodel")
 local content_helper = require("web.content_helper")
+local function get_objects(path)
+    local ok, result = pcall(proxy.get, path)
+    if not ok or type(result) ~= "table" then return {} end
+    local converted_ok, objects = pcall(content_helper.convertResultToObject, path, result)
+    return converted_ok and type(objects) == "table" and objects or {}
+end
 local format = string.format
-local ui_helper = require("web.ui_helper")
 local message_helper = require("web.uimessage_helper")
 local post_helper = require("web.post_helper")
 local lp = require("web.lp")
@@ -83,7 +96,7 @@ end
 
 for _, ap in pairs({"ap0", "ap1", "ap2", "ap3"}) do
     local staPath = "rpc.wireless.ap.@" .. ap .. ".station."
-    local stations = content_helper.convertResultToObject(staPath, proxy.get(staPath))
+    local stations = get_objects(staPath)
     for _, s in ipairs(stations) do
         if s.state ~= "Disconnected" and s.state ~= "Authenticated" and s.paramindex then
             local mac = gsub(s.paramindex, "@", "")
@@ -106,10 +119,17 @@ for _, ap in pairs({"ap0", "ap1", "ap2", "ap3"}) do
 end
 
 local agents = {}
-local agent_count = proxy.get("rpc.multiap.ExtenderNumberOfEntries")[1].value
+local ok_count, count = pcall(proxy.get, "rpc.multiap.ExtenderNumberOfEntries")
+if not ok_count or type(count) ~= "table" or not count[1] then
+  ngx.print(ui_helper.createHeader(T"EasyMesh", false, true))
+  ngx.print(ui_helper.createAlert({ class = "alert-warning" }, T"EasyMesh service is not available."))
+  ngx.print(ui_helper.createFooter())
+  return
+end
+local agent_count = count[1].value
 local path = "rpc.multiap.device."
-local data = content_helper.convertResultToObject(path, proxy.get(path))
-local staList = content_helper.convertResultToObject("rpc.multiap.sta.",proxy.get("rpc.multiap.sta."))
+local data = get_objects(path)
+local staList = get_objects("rpc.multiap.sta.")
 for k, v in ipairs(data) do
   if v.MACAddress ~= "" then
     local agent = {

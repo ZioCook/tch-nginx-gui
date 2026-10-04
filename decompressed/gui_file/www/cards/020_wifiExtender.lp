@@ -4,7 +4,7 @@
 gettext.textdomain('webui-core')
 
 local ok_em, easymesh_helper = pcall(require, "easymesh_helper")
-if ok_em and easymesh_helper and easymesh_helper.is_supported and not easymesh_helper.is_supported() then
+if not (ok_em and easymesh_helper and easymesh_helper.is_supported and easymesh_helper.is_supported()) then
     return
 end
 

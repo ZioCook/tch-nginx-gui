@@ -17,6 +17,7 @@ declare -a modular_dir=(
 	"ledfw_support-specificTG800"
 	"ledfw_support-specificDGA"
 	"ledfw_support-specificDGA4131"
+	"ledfw_support-specificDGA4331"
 	"upgrade-pack-hw18"
 	"upgrade-pack-hw19"
 )
