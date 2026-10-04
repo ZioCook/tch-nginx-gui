@@ -1,8 +1,8 @@
-# Specifiche Tecniche Hardware & Gateway Technicolor/Vantiva
+# Technicolor / Vantiva Gateways Hardware & Kernel Technical Specifications
 
-[English version](firmware_and_homeware_reference.en.md)
+[Versione in italiano](firmware_and_homeware_reference.md)
 
-Schede tecniche dei gateway supportati basati su SoC Broadcom e stack Homeware.
+Technical reference specification sheets for Broadcom SoC-based gateways running the Homeware software stack (OpenWrt base).
 
 ---
 
@@ -33,18 +33,18 @@ MTD Layout (256 MB):
   mtd5: 00020000 (128 KB)  "eripv2"
   mtd6: 00040000 (256 KB)  "rawstorage"
 
-Sottosistemi Kernel:
+Kernel Subsystems:
   Packet Acceleration: Broadcom Runner (rdpa.ko, bdmf.ko, pktflow.ko, pktrunner.ko, wfd.ko, bcm_ingqos.ko)
   DSL Driver: adsldd.ko (VDSL2 Profile 35b)
-  Dual-Bank: bankmgr.ko (gestione /proc/banktable/)
-  Wireless: Broadcom BCM43684 (802.11ax Wi-Fi 6 4x4), driver BCA 17.10 RC121.39 (wl.ko)
+  Dual-Bank: bankmgr.ko (controls /proc/banktable/)
+  Wireless: Broadcom BCM43684 (802.11ax Wi-Fi 6 4x4), BCA driver 17.10 RC121.39 (wl.ko)
 
-Interfacce di Rete:
+Network Interfaces:
   eth0 - eth3 : Switch LAN Gigabit (10/100/1000 Mbps)
-  eth4        : WAN Gigabit Ethernet dedicata
-  wl0         : Radio Wi-Fi 2.4/5 GHz 802.11ax
-  dsl0        : Interfaccia PTM/ATM modem DSL
-  br-lan      : Bridge principale di rete locale
+  eth4        : Dedicated Gigabit Ethernet WAN
+  wl0         : Wi-Fi Radio 2.4/5 GHz 802.11ax
+  dsl0        : PTM/ATM DSL Modem Interface
+  br-lan      : Primary LAN bridge
 ```
 
 ---
@@ -64,7 +64,7 @@ Software & Kernel:
   Kernel: Linux 4.1.52 (SMP PREEMPT)
   Base OS: OpenWrt SNAPSHOT r14144 (glibc)
   Target: brcm6xxx-tch/VBNTJ_502L07p1
-  Homeware: 19.4 (build 19.4.1051, allineamento 2.4.x)
+  Homeware: 19.4 (build 19.4.1051, 2.4.x alignment)
   Daemons: Nginx 1.16.1, Dropbear v2019.78
 
 MTD Layout (256 MB):
@@ -76,20 +76,20 @@ MTD Layout (256 MB):
   mtd5: 00020000 (128 KB)  "eripv2"
   mtd6: 00040000 (256 KB)  "rawstorage"
 
-Sottosistemi Kernel:
+Kernel Subsystems:
   Packet Acceleration: Broadcom Runner (rdpa.ko, bdmf.ko, pktflow.ko, pktrunner.ko)
-  SFP Subsystem: Gabbia ottica SFP GPON/1G su bus I2C (/dev/i2c-0)
+  SFP Subsystem: SFP Cage GPON/1G optical transceiver over I2C bus (/dev/i2c-0)
   DSL Driver: adsldd.ko (VDSL2 Profile 35b)
   Dual-Bank: bankmgr.ko
-  Wireless: BCM43602 (2.4 GHz) + Quantenna QSR1000 (5 GHz AC Wave 2), driver BCA 17.10 RC121.39
+  Wireless: BCM43602 (2.4 GHz) + Quantenna QSR1000 (5 GHz AC Wave 2), BCA driver 17.10 RC121.39
 
-Interfacce di Rete:
+Network Interfaces:
   eth0 - eth3 : Switch LAN Gigabit
-  eth4        : WAN Gigabit Ethernet dedicata
-  eth5        : Interfaccia fisica SFP Cage
-  wl0         : Radio Wi-Fi 2.4 GHz
-  dsl0        : Interfaccia PTM/ATM modem DSL
-  br-lan      : Bridge principale di rete locale
+  eth4        : Dedicated Gigabit Ethernet WAN
+  eth5        : SFP Cage physical interface
+  wl0         : Wi-Fi Radio 2.4 GHz
+  dsl0        : PTM/ATM DSL Modem Interface
+  br-lan      : Primary LAN bridge
 ```
 
 ---
@@ -111,18 +111,18 @@ Software & Kernel:
   Homeware: 19.4 / 18.x
   Daemons: Nginx 1.16.1, Dropbear v2019.78
 
-Sottosistemi Kernel:
+Kernel Subsystems:
   Packet Acceleration: Broadcom Runner (rdpa.ko, bdmf.ko, pktflow.ko, pktrunner.ko)
   DSL Driver: adsldd.ko (VDSL2 Profile 35b)
   Dual-Bank: bankmgr.ko
   Wireless: Broadcom Wi-Fi 5 Dual-Band (BCM4360 5GHz + BCM43217 2.4GHz)
 
-Interfacce di Rete:
+Network Interfaces:
   eth0 - eth3 : Switch LAN Gigabit
-  eth4        : WAN Gigabit Ethernet
-  wl0, wl1    : Radio Wi-Fi 2.4 / 5 GHz
-  dsl0        : Interfaccia PTM/ATM modem DSL
-  br-lan      : Bridge principale di rete locale
+  eth4        : Gigabit Ethernet WAN
+  wl0, wl1    : Wi-Fi Radio 2.4 / 5 GHz
+  dsl0        : PTM/ATM DSL Modem Interface
+  br-lan      : Primary LAN bridge
 ```
 
 ---
@@ -155,20 +155,20 @@ MTD Layout (128 MB):
   mtd6: 00040000 (256 KB)  "rawstorage"
   mtd7: 00000003 (3 Bytes) "blversion"
 
-Sottosistemi Kernel:
+Kernel Subsystems:
   Packet Acceleration: Broadcom FAP (bcmfap.ko, bcmarl.ko, bcm_bpm.ko, bcm_ingqos.ko)
   DSL Driver: adsldd.ko (VDSL2 Profile 17a)
   Dual-Bank: bankmgr.ko
-  Wireless: BCM4360 + BCM43217 (Wi-Fi 5 AC1600), driver BCA 7.14 RC89.14 (wl.ko)
+  Wireless: BCM4360 + BCM43217 (Wi-Fi 5 AC1600), BCA driver 7.14 RC89.14 (wl.ko)
 
-Interfacce di Rete:
-  eth0 - eth3 : Switch LAN (con mapping vlan_eth0 - vlan_eth3)
-  eth4        : WAN Ethernet
-  wl0, wl1    : Radio Wi-Fi 2.4 GHz / 5 GHz
-  br-lan      : Bridge LAN principale
-  br-guest    : Bridge isolato rete ospiti
+Network Interfaces:
+  eth0 - eth3 : Switch LAN (mapped via vlan_eth0 - vlan_eth3)
+  eth4        : Ethernet WAN
+  wl0, wl1    : Wi-Fi Radio 2.4 GHz / 5 GHz
+  br-lan      : Primary LAN bridge
+  br-guest    : Isolated Guest bridge
 
-Caratteristiche Kernel 3.4:
-  Memoria: MemAvailable non supportato in /proc/meminfo (calcolo: MemFree + Cached + Buffers)
-  Device Tree: /proc/device-tree/model non presente (identificazione tramite /proc/cpuinfo)
+Kernel 3.4 Specifics:
+  Memory: MemAvailable is not supported in /proc/meminfo (computed as: MemFree + Cached + Buffers)
+  Device Tree: /proc/device-tree/model is not present (identified via /proc/cpuinfo)
 ```
