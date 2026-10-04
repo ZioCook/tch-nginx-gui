@@ -1,5 +1,5 @@
 
-9.9.0 (Current Release Series - 9.9.98)
+9.10.0 (Current Release Series)
 ---------------------------------------------------------------------------
 - (Suite di Ripristino di Emergenza - Standalone Rescue Suite v3)
   - Standalone Rescue Server (rescue_server.lua): server HTTP ultra-leggero e resiliente basato su LuaSocket puro (porta 8088), funzionante in modalità Out-of-Band (OOB) senza alcuna dipendenza da Nginx, LuaJIT o Transformer.
