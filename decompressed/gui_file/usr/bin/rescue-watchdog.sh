@@ -2,7 +2,7 @@
 #
 # Rescue Server Watchdog Daemon
 # Monitors Nginx availability and automatically activates the standalone
-# LuaSocket Rescue Console on port 8080 if Nginx or web services crash.
+# LuaSocket Rescue Console on port 8088 if Nginx or web services crash.
 #
 
 FAIL_COUNT=0
@@ -40,6 +40,12 @@ log "Rescue watchdog daemon started (monitoring interval: ${CHECK_INTERVAL}s)...
 
 while true; do
     if check_nginx; then
+        if is_rescue_running; then
+            log "Nginx and web services are healthy and operational. Stopping Rescue Server on port $RESCUE_PORT..."
+            for pid in $(pgrep -f "rescue_server.lua" 2>/dev/null); do
+                kill "$pid" 2>/dev/null
+            done
+        fi
         if [ "$FAIL_COUNT" -gt 0 ]; then
             log "Nginx health check restored (was $FAIL_COUNT failures)."
             FAIL_COUNT=0

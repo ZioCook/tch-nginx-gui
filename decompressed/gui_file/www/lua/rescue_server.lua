@@ -856,7 +856,7 @@ local function render_html()
   <!-- Warning Alert Banner -->
   <div class="alert">
     <i class="fa fa-exclamation-triangle" style="margin-right: 6px;"></i>
-    <strong data-i18n="alert_title">Modalit&agrave; di Emergenza Attiva:</strong> <span data-i18n="alert_desc">Console di gestione Out-of-Band attiva sulla porta <strong>8088</strong> &bull; Operativa indipendentemente dallo stato di Nginx e Transformer.</span>
+    <strong data-i18n="alert_title">Modalit&agrave; di Emergenza Attiva</strong>
   </div>
 
   <!-- Perfectly Balanced 4-Column Grid: 4 cards on row 1, 1 card + 3-col terminal on row 2 -->
@@ -988,7 +988,7 @@ Digita qualsiasi comando root (es. ls -la, ifconfig, ping 8.8.8.8, ps, df -h, fr
   var i18n = {
     it: {
       page_title: "Rescue Console \u2014 Technicolor Gateway",
-      alert_title: "Modalit\u00e0 di Emergenza Attiva:",
+      alert_title: "Modalit\u00e0 di Emergenza Attiva",
       alert_desc: "Console di gestione Out-of-Band attiva sulla porta <strong>8088</strong> &bull; Operativa indipendentemente dallo stato di Nginx e Transformer.",
       c1_title: "Stato del Sistema",
       c1_model: "Modello:",
@@ -1027,7 +1027,7 @@ Digita qualsiasi comando root (es. ls -la, ifconfig, ping 8.8.8.8, ps, df -h, fr
     },
     en: {
       page_title: "Rescue Console \u2014 Technicolor Gateway",
-      alert_title: "Emergency Recovery Mode Active:",
+      alert_title: "Emergency Recovery Mode Active",
       alert_desc: "Out-of-Band management console active on port <strong>8088</strong> &bull; Operates independently from Nginx and Transformer.",
       c1_title: "System Status",
       c1_model: "Model:",
