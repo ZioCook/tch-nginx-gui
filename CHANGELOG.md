@@ -1,4 +1,28 @@
 
+9.9.0 (Current Release Series - 9.9.98)
+---------------------------------------------------------------------------
+- (Suite di Ripristino di Emergenza - Standalone Rescue Suite v3)
+  - Standalone Rescue Server (rescue_server.lua): server HTTP ultra-leggero e resiliente basato su LuaSocket puro (porta 8088), funzionante in modalità Out-of-Band (OOB) senza alcuna dipendenza da Nginx, LuaJIT o Transformer.
+  - Architettura Asincrona & Multi-Tasking: loop select() non bloccante con gestione sicura di streaming upload per archivi .tar.bz2 fino a 128 MB, job di estrazione e verifica in background (bzcat + tar) e lock anti-concorrenza (/tmp/rescue.busy).
+  - Sicurezza LAN & Protezione Avanzata: restrizione accessi a indirizzi privati RFC1918/loopback, verifica rigida delle intestazioni Host e Origin (protezione totale contro attacchi CSRF e DNS rebinding) e intestazioni di sicurezza anti-framing/clickjacking.
+  - Console Web Responsive & Shell Root Interattiva: interfaccia a schede in stile Technicolor autentico con tema verde, filigrana globo, font FontAwesome locali e selettore lingua (IT/EN). Include tab dedicata per shell root con memoria cronologia comandi, timeout di sicurezza e log operativo live a streaming incrementale (/log).
+  - Motore di Ripristino Zero-Touch USB (rescue-usb.sh): modulo di rilevamento ed estrazione automatica di archivi di ripristino (.tar.bz2) da chiavette USB (FAT, FAT32, NTFS, ext4) con notifica LED hardware e validazione checksum.
+  - Demone Watchdog Intelligente (rescue-watchdog.sh): monitoraggio proattivo dello stato dei servizi web primari (Nginx, Transformer), avvio automatico del server di emergenza in caso di crash e spegnimento automatico al ritorno della piena funzionalità.
+  - Informazioni di Sistema Reali e Dinamiche: rilevamento autentico del modello (/etc/config/env prod_friendly_name), versione reale del kernel (/proc/version es. 4.1.52), RAM attiva e uptime.
+- (Gestione Energetica & Controllo LED Hardware)
+  - Menu Unificato 3-Way LED: controllo centralizzato con opzioni Normale, Eco (LED di stato attenuati o spenti) e Stealth (spegnimento totale di tutti i LED, inclusi power, wifi, internet e LED blu su TG789vac v2).
+  - Persistenza dello Stato LED: integrazione profonda con i demoni di gestione hardware (power, ledfw, rootdevice) per preservare e ripristinare le impostazioni Stealth/Eco attraverso riavvii di servizio, reboot e aggiornamenti della GUI.
+  - Arresto Sicuro Hardware (Safe Poweroff): supporto alla pressione prolungata (15s) del tasto fisico WPS con countdown visivo a LED rosso lampeggiante rapido e arresto sicuro del sistema operativo; pulsante dedicato per lo spegnimento sicuro all'interno della modale Gateway.
+- (Frontend, Performance & UBUS Aggregator BFF)
+  - UBUS Aggregator BFF (ubus_aggregator.lua): endpoint batch per l'aggregazione di chiamate UBUS multiple in una singola richiesta HTTP, con sanificazione stringhe taint e timeout rigoroso, riducendo drasticamente i tempi di caricamento del cruscotto.
+  - Nuova Pipeline CI/CD con Minificazione Asset: compilazione automatica e minificazione CSS/JS con CleanCSS e Terser, conversione e ottimizzazione automatica delle immagini in formato WebP, e linting sintassi Lua automatizzato via GitHub Actions.
+- (Supporto Hardware, Modem & Nuovi Firmware)
+  - Pieno Supporto DGA4331 (TIM HUB+) & DGA4132 (TIM HUB): compatibilità ottimizzata per SoC Broadcom BCM963138 e distribuzioni Homeware 19.4 basate su kernel Linux 4.1.52.
+  - Integrazione Upstream DGA4331: merge dei transformer mappings, guardie sulle capability hardware e gestione avanzata dei moduli SFP.
+  - Modalità Bridge / Dumb-AP Perfezionata: isolamento delle interfacce, rilevamento affidabile di IP/DNS e disattivazione selettiva dei servizi per minimizzare l'uso di memoria e CPU.
+  - Diagnostica di Rete & Modale Velocità Ethernet: reintroduzione e ottimizzazione delle modali M-ABR, IGMP Proxy e configurazione velocità di linea Ethernet (10/100/1000 Mbps) con indicatori di link badge.
+  - Miglioramenti Responsive & Mobile: ottimizzazione edge-to-edge di layout, toolbar, tabelle statistiche e modali per smartphone e tablet.
+
 9.8.0
 ---------------------------------------------------------------------------
 - (Supporto Nuovi Firmware & Compatibilità)
