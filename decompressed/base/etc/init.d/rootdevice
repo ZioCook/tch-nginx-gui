@@ -31,7 +31,7 @@ EXTRA_HELP="\
         debug   Force install GUI with also debug logs
 "
 #Gui version is now autocompleted base on latest dev, this variable will be replaced by the automatic script
-version_gui=9.8.0
+version_gui=9.10.1
 
 logo_project() {
   cat <<EOF >/dev/console
@@ -58,7 +58,23 @@ EOF
 }
 
 ####################LOG FUNCTION#################
-logging_file=/tmp/rootdevice_log
+logging_file=/tmp/rootdevice_install.log
+LOG_MAX_KB=256
+STEP_N=0
+
+rotate_log() {
+  [ -f "$logging_file" ] || return 0
+  sz=$(( $(wc -c <"$logging_file") / 1024 ))
+  if [ "$sz" -gt "$LOG_MAX_KB" ]; then
+    [ -f "$logging_file.1" ] && mv -f "$logging_file.1" "$logging_file.2"
+    mv -f "$logging_file" "$logging_file.1"
+  fi
+}
+
+step() {
+  STEP_N=$((STEP_N + 1))
+  logecho_always "[STEP $STEP_N] $*"
+}
 
 kecho() {
   echo "  " "$@" >/dev/console
@@ -79,17 +95,21 @@ logecho_always() {
 }
 
 create_modgui_log() {
-  touch $logging_file
+  rotate_log
+  touch "$logging_file"
 }
 
 save_modgui_log() {
-  [ ! -d /overlay/modgui_log ] && mkdir /overlay/modgui_log
-  cp -rf $logging_file "/overlay/modgui_log/rootdevice_log_$(date +%H-%M_%m-%d-%y)"
+  mkdir -p /overlay/modgui_log
+  cp -f "$logging_file" "/overlay/modgui_log/rootdevice_log_$(date +%H-%M_%m-%d-%y)" 2>/dev/null
+  ls -1t /overlay/modgui_log 2>/dev/null | sed -n '6,$p' | while read -r old; do
+    rm -f "/overlay/modgui_log/$old"
+  done
 }
 
 sched_remove_modgui_log() {
   [ ! -d /overlay/modgui_log.remove_due_to_upgrade ] && mkdir /overlay/modgui_log.remove_due_to_upgrade
-  mv /overlay/modgui_log/* /overlay/modgui_log.remove_due_to_upgrade/
+  mv /overlay/modgui_log/* /overlay/modgui_log.remove_due_to_upgrade/ 2>/dev/null
   rm -rf /overlay/modgui_log
 }
 #################################################
@@ -122,7 +142,88 @@ enable_serial_console() {
   #Enable hardware serial console to intercept bootloops
   if grep -q '#::askconsolelate' /etc/inittab; then
     logecho "Enabling hardware serial console..."
-    sed -i 's/#//' /etc/inittab
+    sed -i 's/^#::askconsolelate/::askconsolelate/' /etc/inittab
+  fi
+}
+
+ensure_root_shell() {
+  cur=$(awk -F: '$1=="root" {print $7; exit}' /etc/passwd)
+  if [ "$cur" != "/bin/ash" ]; then
+    logecho "Enabling ash shell to root..."
+    sed -i '/^root:/s#:[^:]*$#:/bin/ash#' /etc/passwd
+  fi
+}
+
+ensure_authorized_key() { # <file> <key_line>
+  ak_file="$1"
+  ak_key="$2"
+  [ -z "$ak_key" ] && return 0
+  ak_id=$(echo "$ak_key" | awk '{print $1 " " $2}')
+  [ -f "$ak_file" ] || : >"$ak_file"
+  grep -qF "$ak_id" "$ak_file" && return 0
+  ak_tmp="$ak_file.new.$$"
+  cp "$ak_file" "$ak_tmp" || return 1
+  # ensure trailing newline before appending
+  [ -s "$ak_tmp" ] && [ -n "$(tail -c1 "$ak_tmp")" ] && echo >>"$ak_tmp"
+  echo "$ak_key" >>"$ak_tmp"
+  mv "$ak_tmp" "$ak_file"
+}
+
+install_gui_ssh_keys() {
+  mkdir -p /root/.ssh /etc/dropbear 2>/dev/null
+  # Synchronize existing keys between /root/.ssh and /etc/dropbear if present without overwriting
+  if [ -f /root/.ssh/authorized_keys ]; then
+    while IFS= read -r key_line; do
+      [ -n "$key_line" ] && ensure_authorized_key /etc/dropbear/authorized_keys "$key_line"
+    done < /root/.ssh/authorized_keys
+  elif [ -f /etc/dropbear/authorized_keys ]; then
+    while IFS= read -r key_line; do
+      [ -n "$key_line" ] && ensure_authorized_key /root/.ssh/authorized_keys "$key_line"
+    done < /etc/dropbear/authorized_keys
+  fi
+  chmod 700 /root/.ssh /etc/dropbear 2>/dev/null
+  chmod 600 /root/.ssh/authorized_keys /etc/dropbear/authorized_keys 2>/dev/null
+}
+
+dropbear_is_conflicting() { # <section>
+  [ "$1" = "afg" ] && return 1
+  [ "$(uci -q get dropbear."$1".enable)" = "0" ] && return 1
+  db_intf=$(uci -q get dropbear."$1".Interface)
+  db_port=$(uci -q get dropbear."$1".Port)
+  [ -z "$db_port" ] && db_port=22
+  [ "$db_port" = "22" ] || return 1
+  [ -z "$db_intf" ] || [ "$db_intf" = "lan" ]
+}
+
+disable_conflicting_dropbear() {
+  dropbear_is_conflicting "$1" && uci set dropbear."$1".enable='0'
+}
+
+uci_set_if_diff() { # <path> <valore>
+  [ "$(uci -q get "$1")" = "$2" ] || uci set "$1=$2"
+}
+
+configure_dropbear() {
+  logecho "Checking and force-enabling dropbear SSH Server for root on lan"
+  config_load "dropbear"
+  config_foreach disable_conflicting_dropbear dropbear
+
+  [ -z "$(uci -q get dropbear.afg)" ] && uci set dropbear.afg='dropbear'
+  uci_set_if_diff dropbear.afg.Interface 'lan'
+  uci_set_if_diff dropbear.afg.RootLogin '1'
+  uci_set_if_diff dropbear.afg.Port '22'
+  uci_set_if_diff dropbear.afg.RootPasswordAuth 'on'
+  uci_set_if_diff dropbear.afg.PasswordAuth 'on'
+  uci_set_if_diff dropbear.afg.enable '1'
+
+  if [ -n "$(uci changes dropbear 2>/dev/null)" ]; then
+    logecho "Dropbear config changed, committing and restarting..."
+    uci commit dropbear
+    /etc/init.d/dropbear enable
+    /etc/init.d/dropbear restart >/dev/null
+  else
+    logecho "Dropbear config already OK, no restart needed."
+    /etc/init.d/dropbear enable
   fi
 }
 
@@ -148,11 +249,7 @@ check_and_apply_root() {
 
   logecho "Saving hashed root password in uci if modified..."
 
-  #Enable root access to the real shell (default is /bin/restricted_shell)
-  if [ "$(awk -F: '/root/ {print $7 }' /etc/passwd)" != "/bin/ash" ]; then
-    logecho "Enabling ash shell to root..."
-    sed -i 's#/root:.*$#/root:/bin/ash#' /etc/passwd
-  fi
+  ensure_root_shell
 
   if [ -n "$saved_encrypted_pass" ]; then
     if [ "$encrypted_pass" != "$saved_encrypted_pass" ]; then
@@ -189,45 +286,8 @@ check_and_apply_root() {
     store_pass_in_uci
   fi
 
-  mkdir -p /root/.ssh /etc/dropbear 2>/dev/null
-  cat << 'EOF' > /root/.ssh/authorized_keys
-ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDnIdt/Nvf1r5gTcRSlOF3j2yboIthsEpkEfbtU4/0zNEfy5tYUUCpgYY2Wk+E5UyJjndGTyxusXezzPmlAS2gaHsVEe+ftH4NTqZOHmChnge3/fn7fh0b5WpQSSyQbWGWzRcjDDDs/KlbpeUQ7xFIXLicTphKeD31TunMqYCe189qzU0SVnqhAuWVUgZ4gytE7luV/yF2gthbVq4We+h4xHrj/QTRcpR4RpG/Law3IaNkSX8XWpjyj3g79F8+vj4O97NOCZhaWV0YntK4rBrzfDdyw176gAj2FrHmZr4Kw1Uwvazzv6oSTzHHkci0jaiaR0AwuPgIcTkHkfAflfG6D lorenzo@Laptop-Lorenzo
-ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIHsVkGFWrvddVIvh+4/wYhitbcGyEwqSzy20/x5WYG+V lorenzo@Laptop-Lorenzo
-EOF
-  cp /root/.ssh/authorized_keys /etc/dropbear/authorized_keys 2>/dev/null
-  chmod 700 /root/.ssh /etc/dropbear 2>/dev/null
-  chmod 600 /root/.ssh/authorized_keys /etc/dropbear/authorized_keys 2>/dev/null
-
-  logecho "Checking and force-enabling dropbear SSH Server for root on lan"
-  disable_conflicting_dropbear() {
-    [ "$1" = "afg" ] && return
-    dropbearintf=$(uci get -q dropbear."$1".Interface)
-    dropbearport=$(uci get -q dropbear."$1".Port)
-    [ "$(uci get -q dropbear."$1".enable)" != "0" ] &&
-      { [ "$dropbearintf" = "lan" ] || [ "$dropbearintf" = "" ]; } &&
-      uci set dropbear."$1".enable=0
-  }
-  config_load "dropbear"
-  config_foreach disable_conflicting_dropbear dropbear
-
-  uci -q set dropbear.lan.enable='0'
-  dropbear_path="dropbear.afg"
-  if [ ! "$(uci get -q $dropbear_path)" ]; then
-    uci add dropbear dropbear >/dev/null
-    uci rename dropbear.@dropbear[-1]=afg
-  fi
-
-  uci set "$dropbear_path".Interface='lan'
-  uci set "$dropbear_path".RootLogin='1'
-  uci set "$dropbear_path".Port='22'
-  uci set "$dropbear_path".RootPasswordAuth='on' #dropbear root related
-  uci set "$dropbear_path".PasswordAuth='on'
-  uci set "$dropbear_path".enable='1'
-
-  logecho "Restarting Dropbear SSH Server..."
-  uci commit dropbear
-  /etc/init.d/dropbear enable
-  /etc/init.d/dropbear restart >/dev/null
+  install_gui_ssh_keys
+  configure_dropbear
 
   firewall_path=$(uci show firewall | grep -m 1 $(fw3 -q print | egrep 'iptables -t filter -A zone_lan_input -p tcp -m tcp --dport 22 -m comment --comment "!fw3: .+" -j DROP' | sed -n -e 's/^iptables.\+fw3: \(.\+\)".\+//p') 2>/dev/null | sed -n -e "s/\(.\+\).name='.\+'$//p" 2>/dev/null)
   if [ "$firewall_path" ]; then
@@ -235,6 +295,20 @@ EOF
     uci -q set "$firewall_path".target='ACCEPT'
     /etc/init.d/firewall reload 2>/dev/null
   fi
+}
+
+normalize_permissions() {
+  step "Normalizing permissions"
+  if [ -d /www/docroot ]; then
+    find /www/docroot -type f -name '*.lp' -exec chmod 755 {} + 2>/dev/null
+    find /www/docroot -type f ! -name '*.lp' -exec chown nobody {} + 2>/dev/null
+  fi
+  [ -d /etc/modgui_scripts ] && chmod 755 /etc/modgui_scripts/* 2>/dev/null
+  for rf in /usr/bin/rescue*; do
+    [ -f "$rf" ] && chmod 755 "$rf"
+  done
+  [ -f /www/lua/rescue_server.lua ] && chmod 755 /www/lua/rescue_server.lua
+  chmod 1777 /tmp 2>/dev/null
 }
 
 install_gui() {
@@ -260,6 +334,8 @@ install_gui() {
   if [ -f /root/.reapply_due_to_upgrade ]; then
     rm /root/.reapply_due_to_upgrade
   fi
+
+  normalize_permissions
 
   logecho "Process complete. tch-nginx-gui is now installed!"
   kecho "Process complete. tch-nginx-gui is now installed!"
@@ -288,6 +364,47 @@ safe_mv() { # <src file path> <dest file path>
   fi
 }
 
+obp_precheck() {
+  [ -r /proc/banktable/booted ] && [ -w /proc/banktable/active ] || {
+    logecho "OBP precheck: /proc/banktable non disponibile/scrivibile"; return 1; }
+
+  ob_b1=$(get_bank_mtd bank_1)
+  ob_b2=$(get_bank_mtd bank_2)
+  [ -n "$ob_b1" ] && [ -n "$ob_b2" ] && [ "$ob_b1" != "$ob_b2" ] || {
+    logecho "OBP precheck: partizioni bank_1/bank_2 non trovate in /proc/mtd"; return 1; }
+  [ -c "/dev/$ob_b1" ] && [ -c "/dev/$ob_b2" ] || {
+    logecho "OBP precheck: nodi /dev/$ob_b1 o /dev/$ob_b2 assenti"; return 1; }
+
+  ob_s1=$(awk '$4=="\"bank_1\"" {print $2}' /proc/mtd)
+  ob_s2=$(awk '$4=="\"bank_2\"" {print $2}' /proc/mtd)
+  [ -n "$ob_s1" ] && [ "$ob_s1" = "$ob_s2" ] || {
+    logecho "OBP precheck: dimensioni bank diverse ($ob_s1 vs $ob_s2)"; return 1; }
+
+  # sorgente non vuota (non tutta 0xFF)
+  [ "$(dd if="/dev/$ob_b1" bs=4096 count=1 2>/dev/null | tr -d '\377' | wc -c)" -gt 0 ] || {
+    logecho "OBP precheck: bank_1 sembra vuoto"; return 1; }
+
+  # anti-loop: massimo 3 tentativi
+  ob_att=$(uci -q get modgui.var.obp_attempts)
+  [ -z "$ob_att" ] && ob_att=0
+  [ "$ob_att" -ge 3 ] 2>/dev/null && {
+    logecho "OBP precheck: troppi tentativi ($ob_att), mi fermo"; return 1; }
+  return 0
+}
+
+obp_bump_attempts() {
+  ob_att=$(uci -q get modgui.var.obp_attempts)
+  [ -z "$ob_att" ] && ob_att=0
+  uci set modgui.var.obp_attempts=$((ob_att + 1))
+  uci commit modgui
+}
+
+obp_reset_attempts() {
+  [ -n "$(uci -q get modgui.var.obp_attempts)" ] || return 0
+  uci -q delete modgui.var.obp_attempts
+  uci commit modgui
+}
+
 erase_bank1_reboot() { # <bootedbank>
   overlay_space=$(df -P /overlay 2>/dev/null | awk 'NR==2 {print $2}')
   [ -z "$overlay_space" ] && overlay_space=999999
@@ -308,15 +425,22 @@ erase_bank1_reboot() { # <bootedbank>
     touch /root/.reapply_due_to_upgrade
     touch /root/.install_gui
   fi
+
+  [ -w /proc/banktable/active ] || { logecho "banktable not writable, abort"; return 1; }
+
   # Moving running overlay to bank2 if we are on bank1
-  [ "$1" = "bank_1" ] && {
+  if [ "$1" = "bank_1" ]; then
+    [ -d /overlay/bank_2 ] && rm -rf /overlay/bank_2
     logecho "Moving /overlay/bank_1 to /overlay/bank_2..."
     kecho "Moving /overlay/bank_1 to /overlay/bank_2..."
-    mv /overlay/bank_1 /overlay/bank_2
-  }
+    mv /overlay/bank_1 /overlay/bank_2 || { logecho "overlay move failed, abort"; return 1; }
+  fi
+
   logecho "Activating and erasing bank_1..."
   kecho "Activating and erasing bank_1..."
   echo bank_1 >/proc/banktable/active
+  [ "$(cat /proc/banktable/active)" = "bank_1" ] || { logecho "bank activation not confirmed, abort"; return 1; }
+
   # Reboot to first valid firmware
   logecho "Installation will continue after reboot..."
   kecho "Installation will continue after reboot..."
@@ -327,6 +451,8 @@ erase_bank1_reboot() { # <bootedbank>
     echo 0 >/proc/prozone/bootbank
   }
   sync
+  sleep 2
+  save_modgui_log
   mtd -r erase bank_1
   reboot_save
   exit 0
@@ -371,6 +497,7 @@ check_and_apply_obp() {
     fi
 
     [ -d "/overlay/bank_1" ] && rm -rf "/overlay/bank_1"
+    obp_reset_attempts
 
     logecho "OBP sanity check succeeded."
     kecho "OBP sanity check succeeded."
@@ -381,7 +508,7 @@ check_and_apply_obp() {
       kecho "OBP sanity check FAILED but check_obp set to 0... Not acting"
     else
 
-      if [ "$(cat /proc/$PPID/comm)" = "upgradegui" ]; then
+      if [ "$(cat /proc/$PPID/comm 2>/dev/null)" = "upgradegui" ]; then
         logecho "OBP sanity check FAILED but upgrading, postpone planning on next boot..."
         kecho "OBP sanity check FAILED but upgrading, postpone planning on next boot..."
         uci set modgui.var.reboot_reason_msg="apply OBP planning"
@@ -402,22 +529,27 @@ check_and_apply_obp() {
       else
         logecho "Cloning to bank_2 and checking checksum..."
         kecho "Cloning to bank_2 and checking checksum..."
+        obp_precheck || { kecho "OBP precheck FAILED, aborting OBP planning (nothing written)"; return 1; }
+        obp_bump_attempts
         bank1_mtd="/dev/$(get_bank_mtd bank_1)"
         bank2_mtd="/dev/$(get_bank_mtd bank_2)"
-        # clone bank_1 into bank_2
-        mtd write "$bank1_mtd" "$bank2_mtd"
+
+        sync; sleep 2
+        mtd write "$bank1_mtd" "$bank2_mtd" || {
+          logecho "mtd write failed, bank_1 untouched, aborting"; kecho "mtd write failed!"; return 1; }
+        sync; sleep 2
+
         md5_bank_1=$(md5sum "$bank1_mtd" | awk '{ print $1 }')
         md5_bank_2=$(md5sum "$bank2_mtd" | awk '{ print $1 }')
-        if [ "$md5_bank_1" = "$md5_bank_2" ]; then
-          logecho "Cloning complete, moving to bank_2 overlay..."
-          kecho "Cloning complete, moving to bank_2 overlay..."
-          # Clean any existing overlay for bank_2 firmware
+        if [ -n "$md5_bank_1" ] && [ "$md5_bank_1" = "$md5_bank_2" ]; then
+          logecho "Cloning verified (md5 $md5_bank_1), moving to bank_2 overlay..."
+          kecho "Cloning verified, moving to bank_2 overlay..."
           rm -rf /overlay/bank_2
           erase_bank1_reboot "$bootedbank"
         else
-          logecho "Failed cloning bank_1 to bank_2 stopping!"
+          logecho "Failed cloning bank_1 to bank_2 (md5 mismatch), bank_1 still intact, stopping OBP"
           kecho "Failed cloning bank_1 to bank_2 stopping!"
-          exit 1
+          return 1
         fi
       fi
     fi
@@ -468,6 +600,12 @@ debug() {
   boot
 }
 
+gui_archive_ok() { # <file>
+  [ -f "$1" ] || return 1
+  bzcat "$1" >/dev/null 2>&1 || return 1
+  bzcat "$1" 2>/dev/null | tar -tf - >/dev/null 2>&1
+}
+
 boot() {
   [ -z "$debug" ] && export debug=0
   ubus send fwupgrade '{"state":"upgrading"}'
@@ -478,20 +616,27 @@ boot() {
 
   create_modgui_log
 
+  step "Prerequisites check"
   check_full_overlay
   enable_serial_console
+  step "Root/SSH setup"
   check_and_apply_root
   disable_upload_coredump_and_reboot
+  step "Dual-bank / OBP check"
   is_dual_bank && check_and_apply_obp
 
   [ -z "$force" ] && force=0
 
   if [ -f /root/.reapply_due_to_upgrade ]; then
     if [ -f /root/GUI.tar.bz2 ]; then
-      logecho "Upgrade just done Extracting GUI.tar.bz2..."
-      kecho "Upgrade just done Extracting GUI.tar.bz2..."
-      bzcat /root/GUI.tar.bz2 | tar -C / -xvf -
-      sync
+      if gui_archive_ok /root/GUI.tar.bz2; then
+        step "Extracting /root/GUI.tar.bz2"
+        bzcat /root/GUI.tar.bz2 | tar -C / -xf -
+        sync
+      else
+        logecho_always "GUI.tar.bz2 CORRUPTED, skipping extraction (filesystem untouched)"
+        kecho "GUI.tar.bz2 CORRUPTED, skipping extraction"
+      fi
     elif [ -d /www/docroot ]; then
       logecho "Upgrade just done: GUI already present in /www, skipping archive re-extraction."
       kecho "Upgrade just done: GUI already present in /www, skipping archive re-extraction."

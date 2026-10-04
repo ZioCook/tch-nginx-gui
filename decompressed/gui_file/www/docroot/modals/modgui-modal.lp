@@ -374,7 +374,6 @@ content_helper.getExactContent(content)
 
 local update_branch_option = {
         { "stable", T'Stable'},
-        { "preview", T'Preview'},
         { "dev", T'Dev'},
 }
 
