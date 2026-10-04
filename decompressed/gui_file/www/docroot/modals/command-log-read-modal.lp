@@ -93,7 +93,7 @@ html[#html + 1] = [[
 				pollCount++;
 				consecutiveFailures = 0;
 				var clean_log = (data.log || "")
-					.replace(/\x1b\[[0-9;]*[a-zA-Z]/g, "")
+					.replace(/\x1b\x5b[0-9;]*[a-zA-Z]/g, "")
 					.replace(/^[-#=O\s]*\d+\.?\d*%\s*$/gm, "")
 					.replace(/^[-#=O\s]+$/gm, "")
 					.replace(/\n\s*\n/g, "\n");
