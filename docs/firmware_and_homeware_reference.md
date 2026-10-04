@@ -6,11 +6,10 @@ Le informazioni sono verificate direttamente tramite **interrogazione SSH live s
 
 ---
 
-## 1. Quadro Comparativo Hardware dei Dispositivi di Test (Dati Reali Live)
+## 1. Quadro Comparativo Hardware dei Dispositivi di Riferimento
 
 | Parametro | DGA4331 (TIM HUB+) | DGA4132 (TIM HUB) | TG789vac v2 (MST Generic) |
 | :--- | :--- | :--- | :--- |
-| **IP Locale di Test** | `192.168.178.6` | `192.168.178.3` | `192.168.178.7` |
 | **Hardware Version / Board** | `VCNT-3` (BCM963138) | `VBNT-S` (BCM963138) | `VANT-6` (BMIPS4350) |
 | **Architettura CPU** | ARMv7l (Cortex-A9 Dual Core) | ARMv7l (Cortex-A9 Dual Core) | MIPS (BMIPS4350 Dual Core, Big-Endian) |
 | **BogoMIPS** | ~1980 / 1990 | ~1980 / 1990 | ~397 / 403 |
