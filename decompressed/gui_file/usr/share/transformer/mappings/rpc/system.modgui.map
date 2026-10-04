@@ -269,7 +269,9 @@ local SYSTEM_MODGUI_SCRIPTREQUEST_ = {
           "Checking",
           "Requested",
           "In Progress",
-          "Complete"
+          "Complete",
+          "Failed",
+          "Error"
         }
       }
     }

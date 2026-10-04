@@ -1,34 +1,37 @@
 #!/bin/sh
 
 #
-#
 #	 Custom Gui for Technicolor Modem: utility script and modified gui for the Technicolor Modem
 #	 								   interface based on OpenWrt
 #
 #    Copyright (C) 2018  Christian Marangi <ansuelsmth@gmail.com>
 #
-#    This file is part of Custom Gui for Technicolor Modem.
+#  Rewritten for robustness: POSIX / BusyBox ash only (no bashisms).
 #
-#    Custom Gui for Technicolor Modem is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU General Public License as published by
-#    the Free Software Foundation, either version 3 of the License, or
-#    (at your option) any later version.
+#  Usage:
+#     upgradegui               manual upgrade (launched from the GUI)
+#     upgradegui AutoUpgrade   cron-driven upgrade (only if outdated_ver != 0)
+#     upgradegui SetTime       (re)write the root crontab entry
 #
-#    Custom Gui for Technicolor Modem is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU General Public License for more details.
-#
-#    You should have received a copy of the GNU General Public License
-#    along with Custom Gui for Technicolor Modem.  If not, see <http://www.gnu.org/licenses/>.
-#
-#
+#  Safety model of the upgrade:
+#     1. archive downloaded to *.part, then renamed       (no half files)
+#     2. SHA256 verified (MD5 only if SHA256SUMS is unavailable)
+#     3. archive fully test-decompressed and test-listed  (no corrupt tar)
+#     4. free flash space checked against the real unpacked size
+#     5. /www backed up to /tmp (RAM) BEFORE it is wiped, if enough RAM is
+#        available (read from /proc/meminfo: tmpfs on these routers has no
+#        quota, so df /tmp reports 0). With low RAM the backup is skipped
+#        with a WARNING and the upgrade proceeds (archive already verified).
+#     6. extraction exit codes are really checked; on any error /www is
+#        restored from the backup (when present), state is set to "Failed",
+#        ubus gets "done". Extraction progress is logged every 100 files.
 
 LIGHT_RED='\033[1;31m'
 NC='\033[0m'
 
 print_logo() {
-  echo -e "${LIGHT_RED}
+  printf '%b' "$LIGHT_RED"
+  cat <<'EOF'
 
  █████╗ ███╗   ██╗███████╗██╗   ██╗███████╗██╗
 ██╔══██╗████╗  ██║██╔════╝██║   ██║██╔════╝██║
@@ -37,19 +40,66 @@ print_logo() {
 ██║  ██║██║ ╚████║███████║╚██████╔╝███████╗███████╗
 ╚═╝  ╚═╝╚═╝  ╚═══╝╚══════╝ ╚═════╝ ╚══════╝╚══════╝
 (Modified Gui UpgradeScript)               (Christo)
-${NC}
-"
+EOF
+  printf '%b\n' "$NC"
 }
 
-curl="/usr/bin/curl -k -s -f -L"
+#################### CONFIG ####################
+URL_BASE="https://github.com/ZioCook/tch-nginx-gui/releases/download"
+WORKING_DIR="/tmp"
+PERMANENT_STORE_DIR="/root"
+TARGET_DIR="/"
+STABLE_FILE_NAME='GUI.tar.bz2'
+MIN_FREE_KB=3000        # hard floor on /overlay before even starting
+LOW_FLASH_KB=33000      # total /overlay size under which we never store the GUI in /root
+SAFETY_MARGIN_KB=512
+BACKUP_RAM_MARGIN_KB=4096  # RAM that must remain free after the /www backup
+
+CURL_BIN=/usr/bin/curl
+[ -x "$CURL_BIN" ] || CURL_BIN=curl
+CURL="$CURL_BIN -s -f -L --connect-timeout 10 --max-time 180"
 bzcat=/usr/bin/bzcat
+[ -x "$bzcat" ] || bzcat=bzcat
 tar=/bin/tar
+[ -x "$tar" ] || tar=tar
 rootdevice_call="debug"
 
+LOCKDIR="/tmp/upgradegui.lock"
+BACKUP_TAR="$WORKING_DIR/upgradegui_www_backup.tar"
+LISTFILE="$WORKING_DIR/upgradegui.list.$$"
+ERRFILE="$WORKING_DIR/upgradegui.err.$$"
+RC_BZ="$WORKING_DIR/upgradegui.rcbz.$$"
+RC_TAR="$WORKING_DIR/upgradegui.rctar.$$"
+SUMS_FILE="$WORKING_DIR/upgradegui.sums.$$"
+
+# runtime flags
+LOCK_HELD=0
+UPGRADE_ACTIVE=0   # 1 between ubus "upgrading" and ubus "done"
+CRITICAL=0         # 1 while /www is wiped / half extracted
+HAVE_BACKUP=0
+KEEP_BACKUP=0
+OFFLINE=0
+KEEP_ARCHIVE=0     # keep user supplied archive after a non-corruption failure
+FORCE_SAVE_GUI=0
+ARCH_KB=0
+ARCH_FILES=0
+LAST_HASH=""
+
 ############TRANSFORMER UTILITY##################
+# datamodel.set returns nil,err on rejection (e.g. value not in the enumeration)
+# but lua would still exit 0: make it a real exit status.
 set_transformer() {
-  cmd="require('datamodel').set('$1','$2')"
-  lua -e "$cmd"
+  lua -e "local ok, err = require('datamodel').set('$1','$2'); if not ok then io.stderr:write(tostring(err), '\n'); os.exit(1) end"
+}
+
+# Needs "Failed"/"Error" in the state enumeration of system.modgui.map. If an
+# older map rejects both, fall back to Complete (the log says why) rather than
+# leave the WebUI spinning on the last intermediate state.
+set_failed_state() {
+  set_transformer "rpc.system.modgui.executeCommand.state" "Failed" && return 0
+  set_transformer "rpc.system.modgui.executeCommand.state" "Error" && return 0
+  logecho "FAILED - state 'Failed' not supported by system.modgui.map, reported as Complete" >&2
+  set_transformer "rpc.system.modgui.executeCommand.state" "Complete"
 }
 #################################################
 
@@ -58,136 +108,386 @@ logecho() {
   echo "Upgrade Script" "$1"
 }
 
-if [ "$1" ]; then
-  if [ "$1" = "SetTime" ]; then
-    time="$(uci get modgui.gui.autoupgrade_hour)"
-    hour="$(echo $time | sed "s|:.*||")"
-    minute="$(echo $time | sed "s|.*:||")"
-    autoupgrade="$(uci get modgui.gui.autoupgrade)"
-    if [ "$(cat /etc/crontabs/root | grep upgradegui)" ]; then
-      sed -i '/upgradegui/d' /etc/crontabs/root
-    fi
-    if [ "$autoupgrade" = "1" ]; then
-      echo "$minute $hour * * * /usr/share/transformer/scripts/upgradegui AutoUpgrade >/dev/null 2>&1" >>/etc/crontabs/root
-    fi
-    exit 0
-  fi
+have() { command -v "$1" >/dev/null 2>&1; }
 
-  if [ "$1" = "AutoUpgrade" ]; then
-    /usr/share/transformer/scripts/checkver
-    if [ "$(uci get modgui.gui.outdated_ver)" = "0" ]; then
-      logecho "Already at latest version. Aborting upgrade."
-      exit 0
-    fi
-    # Enabling alert for the gui about the autoupgrade
-    uci set modgui.gui.autoupgradeview=auto
-    uci commit modgui
-  fi
+############ CRON (SetTime) #####################
+# Handled first: it needs no lock, no trap and no network.
+if [ "$1" = "SetTime" ]; then
+  CRON_FILE=/etc/crontabs/root
+  [ -f "$CRON_FILE" ] || touch "$CRON_FILE"
+  time="$(uci -q get modgui.gui.autoupgrade_hour)"
+  hour="${time%%:*}"
+  minute="${time##*:}"
+  autoupgrade="$(uci -q get modgui.gui.autoupgrade)"
 
-else
-  print_logo
-  # Enabling alert for the gui about the manual upgrade
-  uci set modgui.gui.autoupgradeview=manual
+  if grep -q upgradegui "$CRON_FILE"; then
+    sed -i '/upgradegui/d' "$CRON_FILE"
+  fi
+  if [ "$autoupgrade" = "1" ]; then
+    case "$hour$minute" in
+    '' | *[!0-9]*)
+      logecho "ERROR: invalid autoupgrade_hour '$time'" >&2
+      exit 1
+      ;;
+    esac
+    if [ "$hour" -gt 23 ] || [ "$minute" -gt 59 ]; then
+      logecho "ERROR: autoupgrade_hour '$time' out of range" >&2
+      exit 1
+    fi
+    echo "$minute $hour * * * /usr/share/transformer/scripts/upgradegui AutoUpgrade >/dev/null 2>&1" >>"$CRON_FILE"
+  fi
+  exit 0
 fi
 
-URL_BASE="https://github.com/ZioCook/tch-nginx-gui/releases/download"
+################## HELPERS ######################
 
-# Check update_branch
-if [ ! "$(uci get -q modgui.gui.update_branch)" ] || [ "$(uci get modgui.gui.update_branch)" = "stable" ]; then
-  update_branch=""
-elif [ "$(uci get modgui.gui.update_branch)" = "preview" ]; then
-  update_branch="_preview"
-else
-  update_branch="_dev"
-fi
-
-normalize() {
-  normalized_version=$1
-  if [ "$(echo $1 | grep -E '\.[0-9]\.')" ]; then
-    normalized_version="$(echo $1 | sed 's|\.\([0-9]\.\)|.0\1|g')"
-  fi
-  if [ "$(echo $normalized_version | tail -c 3 | grep "\.")" ]; then
-    normalized_version="$(echo "$normalized_version" | sed 's|\(\.[0-9][0-9]\.\)\([0-9]\)|\10\2|g')"
-  fi
-
-  echo "$normalized_version"
+# avail_kb <path> <column>   column 4 = available, column 2 = total.
+# -P forces POSIX single-line output (long device names never wrap).
+avail_kb() {
+  v="$(df -Pk "$1" 2>/dev/null | awk -v c="$2" 'END { print $c }')"
+  case "$v" in '' | *[!0-9]*) v="" ;; esac
+  echo "$v"
 }
 
-enum() {
-  echo "$(echo "$1" | sed -e 's/\.//g')"
+# mem_avail_kb : RAM that can be used for /tmp files, from /proc/meminfo.
+# (df /tmp is useless here: unlimited tmpfs reports 0 KB.) Prints nothing if
+# it can't be determined.
+mem_avail_kb() {
+  v="$(awk '/^MemAvailable:/ { a = $2 } /^MemFree:/ { f = $2 } /^Buffers:/ { b = $2 } /^Cached:/ { c = $2 }
+    END { if (a != "") printf "%d\n", a; else if (f != "") printf "%d\n", f + b + c }' /proc/meminfo 2>/dev/null)"
+  case "$v" in '' | *[!0-9]*) v="" ;; esac
+  echo "$v"
 }
 
-#Check if stable have a new version
+# Flash filesystem to check: /overlay if present, otherwise /
+flash_path() {
+  if [ -n "$(avail_kb /overlay 4)" ]; then echo /overlay; else echo /; fi
+}
 
-ubus send fwupgrade '{"state":"upgrading"}'
+# ver_num <component> -> leading digits without leading zeros (0 if none)
+ver_num() {
+  n="$(echo "$1" | sed 's/[^0-9].*//; s/^0*//')"
+  echo "${n:-0}"
+}
 
-WORKING_DIR="/tmp"
-PERMANENT_STORE_DIR="/root"
-TARGET_DIR="/"
-FILE_NAME='GUI'$update_branch'.tar.bz2'
-STABLE_FILE_NAME='GUI.tar.bz2'
-CHECKSUM_FILE="MD5SUMS"
-FORCE_SAVE_GUI=0
+# ver_gt <a> <b>  -> success if version a is strictly newer than b.
+# Compares dotted components numerically one by one: 2.10.0 > 2.9.9,
+# tolerates a leading "v", different lengths and suffixes ("1.2.3-rc1").
+ver_gt() {
+  a="${1#v}"
+  b="${2#v}"
+  while [ -n "$a" ] || [ -n "$b" ]; do
+    ah="${a%%.*}"
+    bh="${b%%.*}"
+    case "$a" in *.*) a="${a#*.}" ;; *) a="" ;; esac
+    case "$b" in *.*) b="${b#*.}" ;; *) b="" ;; esac
+    ah="$(ver_num "$ah")"
+    bh="$(ver_num "$bh")"
+    [ "$ah" -gt "$bh" ] && return 0
+    [ "$ah" -lt "$bh" ] && return 1
+  done
+  return 1
+}
 
-overlay_available_space=$(df /overlay | sed -n 2p | awk {'{print $4}'})
-if [ "$overlay_available_space" -lt 3000 ]; then
-  logecho "ERROR: not enough space to complete operation" >&2
-  #Should probably implement some sort of erase here <kevdagoat>
-  ubus send fwupgrade '{"state":"done"}'
+# download <url> <outfile>
+# Writes to <outfile>.part and renames only on success. Tries a verified TLS
+# connection first and falls back to -k (routers often lack CA certificates).
+download() {
+  url="$1"
+  out="$2"
+  for insecure in "" "-k"; do
+    rm -f "$out.part"
+    # shellcheck disable=SC2086
+    if $CURL $insecure "$url" --output "$out.part" && [ -s "$out.part" ]; then
+      mv -f "$out.part" "$out" && return 0
+    fi
+  done
+  rm -f "$out.part"
+  return 1
+}
+
+# verify_archive <file> <release tag> <name in checksum file>
+# SHA256SUMS is preferred. MD5SUMS is used ONLY when SHA256SUMS cannot be
+# fetched (or sha256sum is missing). A SHA256 mismatch is always fatal.
+verify_archive() {
+  vfile="$1"
+  vtag="$2"
+  vname="$3"
+  base="$URL_BASE/$vtag"
+  algo=""
+  rm -f "$SUMS_FILE"
+
+  if have sha256sum && download "$base/SHA256SUMS" "$SUMS_FILE"; then
+    algo=sha256
+  elif download "$base/MD5SUMS" "$SUMS_FILE"; then
+    algo=md5
+    logecho "WARNING: SHA256SUMS unavailable, falling back to MD5SUMS"
+  else
+    logecho "ERROR: can't download checksum file" >&2
+    return 1
+  fi
+
+  if [ "$algo" = sha256 ]; then
+    actual="$(sha256sum "$vfile" | awk '{print $1}')"
+  else
+    actual="$(md5sum "$vfile" | awk '{print $1}')"
+  fi
+  [ -n "$actual" ] || return 1
+
+  # Prefer matching by file name; tolerate "*name" and "./name" notations.
+  expected="$(awk -v n="$vname" '{ f=$2; sub(/^\*/, "", f); sub(/^\.\//, "", f); if (f == n) { print $1; exit } }' "$SUMS_FILE")"
+  if [ -n "$expected" ]; then
+    [ "$(echo "$expected" | tr 'A-F' 'a-f')" = "$actual" ] && ok=1 || ok=0
+  else
+    # Legacy checksum file layout: accept the hash anywhere in the file.
+    grep -qi -- "$actual" "$SUMS_FILE" && ok=1 || ok=0
+  fi
+  rm -f "$SUMS_FILE"
+
+  if [ "$ok" != 1 ]; then
+    logecho "ERROR: $algo mismatch for $vname (got $actual)" >&2
+    return 1
+  fi
+  LAST_HASH="$actual"
+  logecho "Verified $vname ($algo: $actual)"
+  return 0
+}
+
+# fetch_verified <tag> <name> : download + checksum, removes the file on error
+fetch_verified() {
+  ftag="$1"
+  fname="$2"
+  rm -f "$WORKING_DIR/$fname"
+  if ! download "$URL_BASE/$ftag/$fname" "$WORKING_DIR/$fname"; then
+    logecho "ERROR: can't download $fname ($ftag)" >&2
+    return 1
+  fi
+  if ! verify_archive "$WORKING_DIR/$fname" "$ftag" "$fname"; then
+    rm -f "$WORKING_DIR/$fname"
+    return 1
+  fi
+  return 0
+}
+
+# bz_pipe <archive> <tar args...>
+# Runs "bzcat archive | tar args" and checks BOTH exit codes (BusyBox ash has no
+# pipefail). The reader drains stdin so bzcat never dies on SIGPIPE when tar
+# stops at the end-of-archive marker. tar stdout (file list) -> $LISTFILE.
+bz_pipe() {
+  bp_archive="$1"
+  shift
+  rm -f "$RC_BZ" "$RC_TAR"
+  ( "$bzcat" "$bp_archive" 2>/dev/null; echo $? >"$RC_BZ" ) |
+    ( "$tar" "$@" >"$LISTFILE" 2>"$ERRFILE"; echo $? >"$RC_TAR"; cat >/dev/null )
+  [ "$(cat "$RC_BZ" 2>/dev/null)" = "0" ] && [ "$(cat "$RC_TAR" 2>/dev/null)" = "0" ]
+}
+
+# check_archive <archive> : full test-decompress + test-list, no disk writes.
+# Sets ARCH_FILES and ARCH_KB (total unpacked size).
+check_archive() {
+  if ! bz_pipe "$1" -tvf -; then
+    return 1
+  fi
+  ARCH_FILES="$(wc -l <"$LISTFILE" | tr -d ' ')"
+  ARCH_KB="$(awk '$1 ~ /^-/ { s += $3 } END { printf "%d", s / 1024 }' "$LISTFILE" 2>/dev/null)"
+  case "$ARCH_KB" in '' | *[!0-9]*) ARCH_KB=0 ;; esac
+  [ "${ARCH_FILES:-0}" -gt 0 ]
+}
+
+# bz_extract <archive> : like bz_pipe for extraction, but tar's verbose output
+# is NOT hidden: a counter loop logs "Extracted N files" every 100 files so the
+# GUI log keeps moving. Both exit codes are still checked; the final file
+# count is stored in $LISTFILE.
+bz_extract() {
+  rm -f "$RC_BZ" "$RC_TAR" "$LISTFILE"
+  ( "$bzcat" "$1" 2>/dev/null; echo $? >"$RC_BZ" ) |
+    (
+      { "$tar" -C "$TARGET_DIR" -xvf - 2>"$ERRFILE"; echo $? >"$RC_TAR"; } |
+        {
+          n=0
+          while read -r line; do
+            n=$((n + 1))
+            if [ $((n % 100)) -eq 0 ]; then
+              logecho "Extracted $n files"
+            fi
+          done
+          echo "$n" >"$LISTFILE"
+        }
+      cat >/dev/null
+    )
+  [ "$(cat "$RC_BZ" 2>/dev/null)" = "0" ] && [ "$(cat "$RC_TAR" 2>/dev/null)" = "0" ]
+}
+
+# clean_www : same preservation rules as always
+clean_www() {
+  for dir in /www/*; do
+    [ -e "$dir" ] || continue
+    if [ "$dir" = "/www/docroot" ]; then
+      for subdir in /www/docroot/*; do
+        [ -e "$subdir" ] || continue
+        if [ "$subdir" = "/www/docroot/aria" ] ||
+          [ "$subdir" = "/www/docroot/transmission" ]; then
+          continue
+        elif [ "$subdir" = "/www/docroot/ajax" ]; then
+          for file in /www/docroot/ajax/*; do
+            [ -e "$file" ] || continue
+            #We need this file to handle rootdevice log in gui
+            if [ "$file" != "/www/docroot/ajax/commandlogread.lua" ]; then
+              rm -rf "$file"
+            fi
+          done
+        else
+          rm -rf "$subdir"
+        fi
+      done
+    else
+      rm -rf "$dir"
+    fi
+  done
+}
+
+rollback_www() {
+  CRITICAL=0
+  if [ "$HAVE_BACKUP" = 1 ] && [ -f "$BACKUP_TAR" ]; then
+    logecho "Rolling back /www from backup..." >&2
+    clean_www
+    if "$tar" -C / -xf "$BACKUP_TAR"; then
+      logecho "Rollback completed, previous GUI restored" >&2
+    else
+      KEEP_BACKUP=1
+      logecho "CRITICAL: rollback failed! Backup kept in $BACKUP_TAR" >&2
+    fi
+  else
+    logecho "CRITICAL: /www was modified but no backup is available" >&2
+  fi
+}
+
+cleanup() {
+  rm -f "$LISTFILE" "$ERRFILE" "$RC_BZ" "$RC_TAR" "$SUMS_FILE" "$SUMS_FILE.part"
+  [ "$KEEP_BACKUP" = 1 ] || rm -f "$BACKUP_TAR"
+  if [ "$UPGRADE_ACTIVE" = 1 ]; then
+    UPGRADE_ACTIVE=0
+    ubus send fwupgrade '{"state":"done"}'
+  fi
+  [ "$LOCK_HELD" = 1 ] && rm -rf "$LOCKDIR"
+}
+
+# fail <message> : single exit point for every error
+fail() {
+  trap '' INT TERM HUP
+  logecho "ERROR: $1" >&2
+  [ "$CRITICAL" = 1 ] && rollback_www
+  # partial/downloaded files are removed (a user supplied offline archive is kept)
+  rm -f "$WORKING_DIR/$FILE_NAME.part" "$WORKING_DIR/$STABLE_FILE_NAME.part"
+  if [ "$OFFLINE" = 0 ] || [ "$KEEP_ARCHIVE" = 0 ]; then
+    [ "$OFFLINE" = 0 ] && rm -f "$WORKING_DIR/$FILE_NAME" "$WORKING_DIR/$STABLE_FILE_NAME"
+  fi
+  set_failed_state
+  exit 1
+}
+
+acquire_lock() {
+  if mkdir "$LOCKDIR" 2>/dev/null; then
+    echo $$ >"$LOCKDIR/pid"
+    LOCK_HELD=1
+    return 0
+  fi
+  oldpid="$(cat "$LOCKDIR/pid" 2>/dev/null)"
+  if [ -n "$oldpid" ] && kill -0 "$oldpid" 2>/dev/null; then
+    return 1
+  fi
+  rm -rf "$LOCKDIR"
+  if mkdir "$LOCKDIR" 2>/dev/null; then
+    echo $$ >"$LOCKDIR/pid"
+    LOCK_HELD=1
+    return 0
+  fi
+  return 1
+}
+
+trap cleanup EXIT
+trap 'fail "Interrupted by signal"' INT TERM HUP
+
+################## ENTRY POINT ##################
+
+if ! acquire_lock; then
+  logecho "Another upgrade is already running. Aborting." >&2
   exit 1
 fi
 
-if [ ! -f $WORKING_DIR/$FILE_NAME ]; then #Check if file exist as offline upload is now present
+case "$1" in
+AutoUpgrade)
+  /usr/share/transformer/scripts/checkver || logecho "WARNING: checkver exited with status $?"
+  # checkver ends with 'uci commit env' instead of 'uci commit modgui', so the
+  # modgui.gui.* values it sets are still pending: flush them here.
+  uci -q commit modgui
+  if [ "$(uci -q get modgui.gui.outdated_ver)" = "0" ]; then
+    logecho "Already at latest version. Aborting upgrade."
+    exit 0
+  fi
+  # Enabling alert for the gui about the autoupgrade
+  uci set modgui.gui.autoupgradeview=auto
+  uci commit modgui
+  ;;
+'')
+  print_logo
+  # Enabling alert for the gui about the manual upgrade
+  uci set modgui.gui.autoupgradeview=manual
+  ;;
+*)
+  logecho "WARNING: unknown argument '$1', treating as manual upgrade" >&2
+  uci set modgui.gui.autoupgradeview=manual
+  ;;
+esac
+
+# Check update_branch
+case "$(uci -q get modgui.gui.update_branch)" in
+'' | stable) update_branch="" ;;
+preview) update_branch="_preview" ;;
+*) update_branch="_dev" ;;
+esac
+
+FILE_NAME='GUI'$update_branch'.tar.bz2'
+
+cd "$WORKING_DIR" || {
+  logecho "ERROR: Can't access $WORKING_DIR" >&2
+  exit 1
+}
+
+UPGRADE_ACTIVE=1
+ubus send fwupgrade '{"state":"upgrading"}'
+
+FLASH="$(flash_path)"
+overlay_available_space="$(avail_kb "$FLASH" 4)"
+overlay_total_space="$(avail_kb "$FLASH" 2)"
+if [ -z "$overlay_available_space" ]; then
+  logecho "WARNING: can't read free flash space, skipping space check"
+  overlay_available_space=999999
+fi
+[ -z "$overlay_total_space" ] && overlay_total_space=999999
+if [ "$overlay_available_space" -lt "$MIN_FREE_KB" ]; then
+  fail "not enough space to complete operation (${overlay_available_space} KB free)"
+fi
+
+############ OBTAIN + VERIFY THE ARCHIVE ############
+if [ ! -f "$WORKING_DIR/$FILE_NAME" ]; then #Check if file exist as offline upload is now present
 
   set_transformer "rpc.system.modgui.executeCommand.state" "Downloading"
-
   logecho "Downloading GUI file..."
-  # Enter /tmp folder
-  if ! cd "$WORKING_DIR"; then
-    logecho "ERROR: Can't access $WORKING_DIR" >&2
-    ubus send fwupgrade '{"state":"done"}'
-    exit 1
-  fi
-
-  # Clean older GUI archive if present
-  for file in "$WORKING_DIR"/*; do
-    rm -f "$FILE_NAME"*
-  done
 
   # Resolve the channel once so archive and checksums come from the same release.
   channel=${update_branch#_}
   [ -n "$channel" ] || channel=stable
 
-  # Download new GUI to /tmp
-  if ! dev_version=$(/usr/share/transformer/scripts/checkver ReleaseVersion "$channel") ||
-    ! $curl "$URL_BASE/$dev_version/$FILE_NAME" --output $WORKING_DIR/$FILE_NAME; then
-    logecho "ERROR: Can't find new GUI file" >&2
-    ubus send fwupgrade '{"state":"done"}'
-    exit 1
-  fi
+  dev_version="$(/usr/share/transformer/scripts/checkver ReleaseVersion "$channel")" ||
+    fail "Can't resolve latest $channel release"
+  [ -n "$dev_version" ] || fail "Empty release version for channel $channel"
 
-  # Check GUI hash
-  if [ -f /tmp/$CHECKSUM_FILE ]; then
-    rm "$WORKING_DIR/$CHECKSUM_FILE"
-  fi
-  $curl "$URL_BASE/$dev_version/$CHECKSUM_FILE" --output "$WORKING_DIR/$CHECKSUM_FILE"
-
-  downloaded_md5="$(md5sum "$WORKING_DIR/$FILE_NAME" | cut -d' ' -f1)"
-
-  if ! grep -q "$downloaded_md5" "$WORKING_DIR/$CHECKSUM_FILE"; then
-    rm "$WORKING_DIR/$FILE_NAME"
-    rm "$WORKING_DIR/$CHECKSUM_FILE"
-    logecho "ERROR: File corrupted!!!" >&2
-    logecho "ERROR: Removing upgrade file and aborting." >&2
-    #Call a handler here to say fw upgrade failed? eg. ubus send fwupgrade '{"state":"failed"}'
-    ubus send fwupgrade '{"state":"done"}'
-    exit 1
-  fi
-
-  logecho "Downloaded GUI with hash: $downloaded_md5"
+  fetch_verified "$dev_version" "$FILE_NAME" || fail "Download/verification of $FILE_NAME failed"
+  logecho "Downloaded GUI with hash: $LAST_HASH"
 
   if [ "$update_branch" ]; then
-    stable_version=$(/usr/share/transformer/scripts/checkver ReleaseVersion stable)
+    stable_version="$(/usr/share/transformer/scripts/checkver ReleaseVersion stable)"
     stable_lookup_status=$?
     if [ "$stable_lookup_status" -eq 3 ]; then
       logecho "Stable channel not published. Continuing with verified $update_branch GUI."
@@ -195,117 +495,113 @@ if [ ! -f $WORKING_DIR/$FILE_NAME ]; then #Check if file exist as offline upload
 
       logecho "Dev branch detected... Checking for newer version in stable..."
 
-      if [ -f "$WORKING_DIR/$STABLE_FILE_NAME" ]; then
-        rm "$WORKING_DIR/$STABLE_FILE_NAME"
+      if [ "$stable_lookup_status" -ne 0 ] || [ -z "$stable_version" ]; then
+        fail "Can't find stable GUI release"
       fi
+      fetch_verified "$stable_version" "$STABLE_FILE_NAME" || fail "Download/verification of stable GUI failed"
+      stable_hash="$LAST_HASH"
+      logecho "Downloaded stable GUI with hash: $stable_hash"
+      logecho "Downloaded Stable version: $stable_version"
+      logecho "Downloaded $update_branch version: $dev_version"
 
-      # Download stable GUI to /tmp
-
-      if [ "$stable_lookup_status" -ne 0 ] ||
-        ! $curl "$URL_BASE/$stable_version/$STABLE_FILE_NAME" --output $WORKING_DIR/$STABLE_FILE_NAME ||
-        ! $curl "$URL_BASE/$stable_version/$CHECKSUM_FILE" --output "$WORKING_DIR/$CHECKSUM_FILE"; then
-        logecho "ERROR: Can't find stable GUI file" >&2
-        rm "$WORKING_DIR/$FILE_NAME"
-        rm "$WORKING_DIR/$CHECKSUM_FILE"
-        #Call a handler here to say fw upgrade failed? eg. ubus send fwupgrade '{"state":"failed"}'
-        ubus send fwupgrade '{"state":"done"}'
-        exit 1
-      fi
-
-      stable_md5=$(md5sum $WORKING_DIR/$STABLE_FILE_NAME | cut -d' ' -f1)
-
-      if ! grep -q "$stable_md5" "$WORKING_DIR/$CHECKSUM_FILE"; then
-        rm "$WORKING_DIR/$FILE_NAME"
-        rm "$WORKING_DIR/$STABLE_FILE_NAME"
-        rm "$WORKING_DIR/$CHECKSUM_FILE"
-        logecho "ERROR: Stable file corrupted!!!" >&2
-        logecho "ERROR: Removing upgrade file and aborting." >&2
-        #Call a handler here to say fw upgrade failed? eg. ubus send fwupgrade '{"state":"failed"}'
-        ubus send fwupgrade '{"state":"done"}'
-        exit 1
-      fi
-
-      logecho "Downloaded stable GUI with hash: $stable_md5"
-
-      stable_version_norm="$(normalize $stable_version)"
-
-      logecho "Downloaded Stable version: $stable_version_norm"
-
-      dev_version_norm="$(normalize $dev_version)"
-
-      logecho "Downloaded $update_branch version: $dev_version_norm"
-
-      if [ $(enum $stable_version_norm) -gt $(enum $dev_version_norm) ]; then
+      if ver_gt "$stable_version" "$dev_version"; then
         logecho "Found newer version in stable branch, using it..."
-        rm "$WORKING_DIR/$FILE_NAME"
+        rm -f "$WORKING_DIR/$FILE_NAME"
         FILE_NAME="$STABLE_FILE_NAME"
         FORCE_SAVE_GUI=1
       else
-
-        if [ -f "$PERMANENT_STORE_DIR/$FILE_NAME" ]; then
-          saved_stable_md5=$(md5sum "$PERMANENT_STORE_DIR/$FILE_NAME" | cut -d' ' -f1)
-
-          if [ "$saved_stable_md5" != "$stable_md5" ]; then
-            logecho "Permanent package md5 is not same of latest Stable GUI. Replacing..."
-            rm -f "$PERMANENT_STORE_DIR/$FILE_NAME"
-            cp "$WORKING_DIR/$STABLE_FILE_NAME" "$PERMANENT_STORE_DIR/"
+        # Keep the copy stored in /root aligned with the latest stable.
+        # (the original checked the dev file name here, which never exists)
+        if [ -f "$PERMANENT_STORE_DIR/$STABLE_FILE_NAME" ]; then
+          if have sha256sum; then
+            saved_hash="$(sha256sum "$PERMANENT_STORE_DIR/$STABLE_FILE_NAME" | awk '{print $1}')"
+          else
+            saved_hash="$(md5sum "$PERMANENT_STORE_DIR/$STABLE_FILE_NAME" | awk '{print $1}')"
+          fi
+          if [ "$saved_hash" != "$stable_hash" ]; then
+            logecho "Permanent package hash is not the same of latest Stable GUI. Replacing..."
+            if cp "$WORKING_DIR/$STABLE_FILE_NAME" "$PERMANENT_STORE_DIR/$STABLE_FILE_NAME.part" &&
+              mv -f "$PERMANENT_STORE_DIR/$STABLE_FILE_NAME.part" "$PERMANENT_STORE_DIR/$STABLE_FILE_NAME"; then
+              :
+            else
+              rm -f "$PERMANENT_STORE_DIR/$STABLE_FILE_NAME.part"
+              logecho "WARNING: couldn't refresh $PERMANENT_STORE_DIR/$STABLE_FILE_NAME"
+            fi
           fi
         fi
-
         rm -f "$WORKING_DIR/$STABLE_FILE_NAME"
       fi
     fi
   fi
 else
   logecho "Found file in /tmp dir... doing offline upgrade!"
+  OFFLINE=1
+  KEEP_ARCHIVE=1
   #Save gui always as STABLE in offline upgrade as we can't check or download it.
   FORCE_SAVE_GUI=1
 fi
 
-set_transformer "rpc.system.modgui.executeCommand.state" "Clearing"
+ARCHIVE="$WORKING_DIR/$FILE_NAME"
 
-#NOT NEEDED ANYMORE
-#logecho "Stopping nginx..."
-#/etc/init.d/nginx stop
+############ DRY-RUN THE ARCHIVE (nothing on /www touched yet) ############
+logecho "Testing archive integrity..."
+if ! check_archive "$ARCHIVE"; then
+  # corrupt archive: never reuse it, even if the user uploaded it
+  rm -f "$ARCHIVE"
+  KEEP_ARCHIVE=0
+  fail "Archive is corrupted or not a valid tar.bz2 (removed)"
+fi
+logecho "Archive OK: $ARCH_FILES entries, ~${ARCH_KB} KB unpacked"
 
-logecho "Cleaning www dir"
-#clean old www dir
-
-for dir in /www/*; do
-  if [ "$dir" = "/www/docroot" ]; then
-    for subdir in /www/docroot/*; do
-      if [ "$subdir" = "/www/docroot/aria" ] ||
-        [ "$subdir" = "/www/docroot/transmission" ]; then
-        continue
-      elif [ "$subdir" = "/www/docroot/ajax" ]; then
-        for file in /www/docroot/ajax/*; do
-          #We need this file to handle rootdevice log in gui
-          if [ "$file" != "/www/docroot/ajax/commandlogread.lua" ]; then
-            rm "$file"
-          fi
-        done
-      else
-        rm -rf "$subdir"
-      fi
-    done
-  else
-    rm -rf "$dir"
+############ SPACE CHECK ############
+if [ -d /www ]; then
+  old_www_kb="$(du -sk /www 2>/dev/null | awk '{print $1}')"
+  case "$old_www_kb" in '' | *[!0-9]*) old_www_kb=0 ;; esac
+else
+  old_www_kb=0
+fi
+if [ "$ARCH_KB" -gt 0 ]; then
+  need_kb=$((ARCH_KB + SAFETY_MARGIN_KB))
+  have_kb=$((overlay_available_space + old_www_kb))
+  if [ "$have_kb" -lt "$need_kb" ]; then
+    fail "not enough flash space: need ~${need_kb} KB, available ~${have_kb} KB"
   fi
-done
+fi
+
+############ BACKUP /www TO RAM ############
+if [ -d /www ]; then
+  mem_free="$(mem_avail_kb)"
+  rm -f "$BACKUP_TAR"
+  if [ -n "$mem_free" ] && [ "$mem_free" -lt $((old_www_kb + BACKUP_RAM_MARGIN_KB)) ]; then
+    # Not fatal: the archive was already fully verified above.
+    logecho "WARNING: low RAM (${mem_free} KB available, need ~$((old_www_kb + BACKUP_RAM_MARGIN_KB)) KB): skipping /www safety backup, no rollback possible. Proceeding anyway."
+  elif "$tar" -C / -cf "$BACKUP_TAR" www 2>"$ERRFILE" && "$tar" -tf "$BACKUP_TAR" >/dev/null 2>&1; then
+    HAVE_BACKUP=1
+  else
+    rm -f "$BACKUP_TAR"
+    logecho "WARNING: can't create /www safety backup, no rollback possible. Proceeding anyway."
+  fi
+fi
+
+############ POINT OF NO RETURN (now protected by rollback) ############
+set_transformer "rpc.system.modgui.executeCommand.state" "Clearing"
+logecho "Cleaning www dir"
+CRITICAL=1
+clean_www
 
 set_transformer "rpc.system.modgui.executeCommand.state" "Extracting"
-
 logecho "Extracting file..."
-# Extract new GUI to /
-bzcat "$WORKING_DIR/$FILE_NAME" |
-  tar -C "$TARGET_DIR" -xvf - |
-  while read -r line; do
-    nfile_extracted=$((nfile_extracted + 1))
-    if [ $(($nfile_extracted % 100)) -eq 0 ]; then
-      logecho "Extracted $nfile_extracted files"
-    fi
-  done
+if ! bz_extract "$ARCHIVE"; then
+  fail "Extraction failed: $(tail -n 1 "$ERRFILE" 2>/dev/null)"
+fi
+nfile_extracted="$(cat "$LISTFILE" 2>/dev/null)"
+nfile_extracted="${nfile_extracted:-0}"
+logecho "Extracted $nfile_extracted files"
+CRITICAL=0
+rm -f "$BACKUP_TAR"
+HAVE_BACKUP=0
 
+############ HOUSEKEEPING ############
 #Remove deprecated GUI packages if found in /root
 if [ -f /root/GUI_dev.tar.bz2 ]; then
   logecho "Deleting /root/GUI_dev.tar.bz2..."
@@ -316,38 +612,39 @@ if [ -f /root/GUI.tar.gz ]; then
   rm -f /root/GUI.tar.gz
 fi
 
-overlay_space=$(df -P /overlay 2>/dev/null | awk 'NR==2 {print $2}')
-[ -z "$overlay_space" ] && overlay_space=999999
-if [ "$overlay_space" -lt 33000 ]; then
-  logecho "Detected low flash space device ($overlay_space KB), skipping saving GUI package to /root to avoid flash exhaustion"
-  if [ -f /root/GUI.tar.bz2 ]; then
-    rm -f /root/GUI.tar.bz2
-  fi
-  if [ -f "$WORKING_DIR/$FILE_NAME" ]; then
-    md5sum "$WORKING_DIR/$FILE_NAME" | awk '{print $1}' >/root/gui_orig.md5sum
+# md5 files below are consumed by other scripts: keep the MD5 format on purpose.
+if [ "$overlay_total_space" -lt "$LOW_FLASH_KB" ]; then
+  logecho "Detected low flash space device ($overlay_total_space KB), skipping saving GUI package to /root to avoid flash exhaustion"
+  rm -f /root/GUI.tar.bz2
+  if [ -f "$ARCHIVE" ]; then
+    md5sum "$ARCHIVE" | awk '{print $1}' >/root/gui_orig.md5sum
   fi
 else
   if [ -z "$update_branch" ] || [ "$FORCE_SAVE_GUI" = "1" ]; then
     logecho "Copying file to permanent dir..."
-    #Copy GUI file to permanent dir
-    if [ -f "$PERMANENT_STORE_DIR/$FILE_NAME" ]; then
-      rm -f "$PERMANENT_STORE_DIR/$FILE_NAME"
+    rm -f "$PERMANENT_STORE_DIR/$FILE_NAME" "$PERMANENT_STORE_DIR/$STABLE_FILE_NAME"
+    if cp "$ARCHIVE" "$PERMANENT_STORE_DIR/$STABLE_FILE_NAME.part" &&
+      mv -f "$PERMANENT_STORE_DIR/$STABLE_FILE_NAME.part" "$PERMANENT_STORE_DIR/$STABLE_FILE_NAME"; then
+      :
+    else
+      rm -f "$PERMANENT_STORE_DIR/$STABLE_FILE_NAME.part"
+      logecho "WARNING: couldn't save GUI package to $PERMANENT_STORE_DIR (flash full?)"
     fi
-    cp "$WORKING_DIR/$FILE_NAME" "$PERMANENT_STORE_DIR/$STABLE_FILE_NAME"
   fi
 fi
 
 if [ "$update_branch" = "_dev" ] || [ "$update_branch" = "_preview" ]; then
   logecho "Saving md5sum of dev gui to /root ..."
-  md5sum "$WORKING_DIR/$FILE_NAME" | cut -d' ' -f1 >/root/gui_dev.md5sum
+  md5sum "$ARCHIVE" | cut -d' ' -f1 >/root/gui_dev.md5sum
 fi
 
 sync
 
+############ POST-INSTALL ############
 logecho "Running rootdevice script"
 # Run init.d script
 set_transformer "rpc.system.modgui.executeCommand.state" "In Progress"
-/etc/init.d/rootdevice "$rootdevice_call"
+/etc/init.d/rootdevice "$rootdevice_call" || logecho "WARNING: rootdevice $rootdevice_call exited with status $?"
 /etc/init.d/do_migrate_overlay preserve_files 2>/dev/null || true
 
 # Re-apply Eco/Stealth LED mode after upgrade
@@ -362,13 +659,9 @@ set modgui.gui.new_ver='Unknown'
 commit modgui
 EOF
 
-if [ -f "$WORKING_DIR/$FILE_NAME" ]; then
-  rm -f "$WORKING_DIR/$FILE_NAME"
-fi
-if [ -f "$WORKING_DIR/$CHECKSUM_FILE" ]; then
-  rm -f "$WORKING_DIR/$CHECKSUM_FILE"
-fi
+rm -f "$ARCHIVE" "$WORKING_DIR/$STABLE_FILE_NAME"
 
+UPGRADE_ACTIVE=0
 ubus send fwupgrade '{"state":"done"}'
 set_transformer "rpc.system.modgui.executeCommand.state" "Complete"
 logecho "Upgrade Done"

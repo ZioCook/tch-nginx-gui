@@ -1,168 +1,285 @@
 #!/bin/sh
-#
-#
-#	 Custom Gui for Technicolor Modem: utility script and modified gui for the Technicolor Modem
-#	 								   interface based on OpenWrt
-#
-#    Copyright (C) 2018  Christian Marangi <ansuelsmth@gmail.com>
-#
-#    This file is part of Custom Gui for Technicolor Modem.
-#    
-#    Custom Gui for Technicolor Modem is free software: you can redistribute it and/or modify
-#    it under the terms of the GNU General Public License as published by
-#    the Free Software Foundation, either version 3 of the License, or
-#    (at your option) any later version.
-#    
-#    Custom Gui for Technicolor Modem is distributed in the hope that it will be useful,
-#    but WITHOUT ANY WARRANTY; without even the implied warranty of
-#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#    GNU General Public License for more details.
-#    
-#    You should have received a copy of the GNU General Public License
-#    along with Custom Gui for Technicolor Modem.  If not, see <http://www.gnu.org/licenses/>.
-#
-#
 
-CURRENT_VERSION=$(grep /etc/init.d/rootdevice -e 'version_gui' | sed 's/version_gui=//' | cut -d'-' -f1)
-BASE_DIR="https://github.com/ZioCook/tch-nginx-gui/releases/download"
+#
+#  checkver - GUI update checker / release helper (tch-nginx-gui)
+#
+#  Usage:
+#    checkver [Schedule]                          check for a newer GUI
+#    checkver ReleaseVersion <stable|preview|dev> print latest version of a channel
+#    checkver DownloadStable <dest>               download + verify latest stable GUI.tar.bz2
+#    checkver DownloadInstalled <asset> <dest>    download + verify <asset> of the INSTALLED version
+#
+#  Exit status (contract with wrapper.sh / WebUI):
+#    check mode:  0 = check done (update found OR no update), 1 = network/any failure
+#    ReleaseVersion: 0 = version printed, 3 = channel not published (HTTP 404), 1 = failure
+#    Download*:   0 = file downloaded AND checksum verified, 1 = anything else
+#
+#  Check mode state: sets rpc.system.modgui.executeCommand.state to "Checking".
+#  Results are written to modgui.gui.outdated_ver / new_ver and committed on
+#  the modgui package.
 
-release_channel_version() {
-    case "$1" in stable|preview|dev) ;; *) return 1 ;; esac
-    # Distinguish an unpublished channel from network errors or invalid metadata.
-    response=$(curl -kfLsS -w '\n%{http_code}' "$BASE_DIR/channel-$1/latest.version")
-    curl_status=$?
-    http_status=$(printf '%s\n' "$response" | tail -n 1)
-    if [ "$curl_status" -ne 0 ]; then
-        [ "$curl_status" -eq 22 ] && [ "$http_status" = 404 ] && return 3
-        return 1
-    fi
-    [ "$http_status" = 200 ] || return 1
-    version=$(printf '%s\n' "$response" | sed '$d')
-    case "$version" in ''|*[!0-9.]*) return 1 ;; esac
-    printf '%s\n' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || return 1
-    printf '%s\n' "$version"
-}
+ROOTDEVICE="${ROOTDEVICE:-/etc/init.d/rootdevice}"
+BASE_DIR="${BASE_DIR:-https://github.com/ZioCook/tch-nginx-gui/releases/download}"
+STATE_PATH='rpc.system.modgui.executeCommand.state'
+META_OPTS="--connect-timeout 10 --max-time 30"   # small metadata files
+DL_OPTS="--connect-timeout 10 --max-time 180"    # archives
+TAG="CheckVer Script"
 
-# These modes only fetch release data; they do not run the UCI update check.
-case "$1" in
-    ReleaseVersion)
-        [ "$#" -eq 2 ] || exit 1
-        release_channel_version "$2"
-        exit $?
-        ;;
-    DownloadInstalled|DownloadStable)
-        if [ "$1" = DownloadInstalled ]; then
-            [ "$#" -eq 3 ] || exit 1
-            version="$CURRENT_VERSION"
-            asset="$2"
-            destination="$3"
-        else
-            [ "$#" -eq 2 ] || exit 1
-            version=$(release_channel_version stable) || exit 1
-            asset=GUI.tar.bz2
-            destination="$2"
-        fi
-        case "$version" in ''|*[!0-9.]*) exit 1 ;; esac
-        printf '%s\n' "$version" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' || exit 1
-        case "$asset" in ''|*[!a-zA-Z0-9._-]*) exit 1 ;; esac
-        checksums=$(curl -kfLsS "$BASE_DIR/$version/MD5SUMS") || exit 1
-        expected=$(printf '%s\n' "$checksums" | awk -v name="$asset" '$2 == name {print $1}')
-        [ "${#expected}" -eq 32 ] || exit 1
-        case "$expected" in *[!a-fA-F0-9]*) exit 1 ;; esac
-        temporary="$destination.part.$$"
-        trap 'rm -f "$temporary"' 0
-        trap 'exit 1' 1 2 15
-        curl -kfLsS "$BASE_DIR/$version/$asset" --output "$temporary" || exit 1
-        actual=$(md5sum "$temporary" | cut -d' ' -f1)
-        [ "$actual" = "$expected" ] || exit 1
-        mv "$temporary" "$destination"
-        exit $?
-        ;;
-esac
+log() { logger -s -t "$TAG" "$1"; }
+have() { command -v "$1" >/dev/null 2>&1; }
 
 ############TRANSFORMER UTILITY##################
+# datamodel.set returns nil,err on rejection but lua would still exit 0:
+# turn that into a real exit status.
 set_transformer() {
-	cmd="require('datamodel').set('$1','$2')"
-	lua -e "$cmd"
+  lua -e "local ok, err = require('datamodel').set('$1','$2'); if not ok then io.stderr:write(tostring(err), '\n'); os.exit(1) end"
+}
+
+get_transformer() {
+  lua -e "local r = require('datamodel').get('$1'); if type(r) == 'table' and r[1] then io.write(tostring(r[1].value)) end" 2>/dev/null
 }
 #################################################
 
-set_transformer "rpc.system.modgui.executeCommand.state" "Checking"
-
-connectivity="yes"
-if ping -q -c 1 -W 1 8.8.8.8 >/dev/null; then
-  connectivity="yes"
-else
-  connectivity="no"
-fi
-
-if [ "$1" ]; then
-	if [ "$1" = "Schedule" ]; then
-		RANDOM=$(awk -v min=1 -v max=3600 'BEGIN{srand(); print int(min+rand()*(max-min+1))}')
-		sleep "$RANDOM"
-	fi
-fi
-
-normalize() {
-	normalized_version=$1
-	if [ "$( echo "$1" | grep -E '\.[0-9]\.' )" ]; then
-		normalized_version="$( echo "$1" | sed 's|\.\([0-9]\.\)|.0\1|g' )"
-	fi
-	if [ "$( echo "$normalized_version" | tail -c 3 | grep "\." )" ]; then
-		normalized_version="$( echo "$normalized_version" | sed 's|\(\.[0-9][0-9]\.\)\([0-9]\)|\10\2|g' )"
-	fi
-	
-	echo "$normalized_version"
+# ver_num / ver_gt: same logic validated in upgradegui.
+# ver_gt <a> <b> -> success if a is strictly newer than b (numeric, per component).
+ver_num() {
+  n="$(echo "$1" | sed 's/[^0-9].*//; s/^0*//')"
+  echo "${n:-0}"
 }
 
-enum() {
-	echo "$(echo "$1" | sed -e 's/\.//g')"
+ver_gt() {
+  a="${1#v}"
+  b="${2#v}"
+  while [ -n "$a" ] || [ -n "$b" ]; do
+    ah="${a%%.*}"
+    bh="${b%%.*}"
+    case "$a" in *.*) a="${a#*.}" ;; *) a="" ;; esac
+    case "$b" in *.*) b="${b#*.}" ;; *) b="" ;; esac
+    ah="$(ver_num "$ah")"
+    bh="$(ver_num "$bh")"
+    [ "$ah" -gt "$bh" ] && return 0
+    [ "$ah" -lt "$bh" ] && return 1
+  done
+  return 1
 }
 
-if [ "$connectivity" = "yes" ]; then
-	if [ ! "$(uci get -q modgui.gui.update_branch)" ] || [ "$(uci get modgui.gui.update_branch)" = "stable" ]; then
-		update_branch="stable"
-	elif [ "$(uci get -q modgui.gui.update_branch)" = "preview" ]; then
-		update_branch="preview"
-	else 
-		update_branch="dev"
-	fi
-	newer_stable=0
+is_semver() { printf '%s\n' "$1" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$'; }
 
-    logger -s -t "CheckVer Script" "Installed version: $CURRENT_VERSION checking update on $update_branch branch..."
-	new_version="$(release_channel_version "$update_branch")" || exit 1
-	new_version_norm="$(normalize "$new_version")"
+get_current_version() {
+  grep -e 'version_gui=' "$ROOTDEVICE" 2>/dev/null | head -n 1 |
+    sed 's/.*version_gui=//; s/["'"'"']//g' | cut -d'-' -f1
+}
 
-    logger -s -t "CheckVer Script" "Online version: $new_version"
+# curl_run <timeout opts> <curl args...>
+# Verified TLS first; only on certificate/TLS errors retry with -k (routers often
+# lack CA certificates). Plain network errors are NOT retried (no doubled timeouts).
+# Body (if any) goes to stdout, curl's exit status is returned.
+curl_run() {
+  _opts="$1"
+  shift
+  # shellcheck disable=SC2086
+  _out="$(curl -fLsS $_opts "$@")"
+  _rc=$?
+  case "$_rc" in
+  35 | 51 | 58 | 59 | 60 | 77 | 83)
+    # shellcheck disable=SC2086
+    _out="$(curl -fLsSk $_opts "$@")"
+    _rc=$?
+    ;;
+  esac
+  [ -n "$_out" ] && printf '%s\n' "$_out"
+  return "$_rc"
+}
 
-    if [ "$update_branch" = "dev" ] || [ "$update_branch" = "preview" ]; then #just makes sure there is no newer stable
-        stable_version="$(release_channel_version stable)" || stable_version=0.0.0
+# release_channel_version <channel>
+release_channel_version() {
+  case "$1" in stable | preview | dev) ;; *) return 1 ;; esac
+  response="$(curl_run "$META_OPTS" -w '\n%{http_code}' "$BASE_DIR/channel-$1/latest.version")"
+  curl_status=$?
+  http_status="$(printf '%s\n' "$response" | tail -n 1)"
+  if [ "$curl_status" -ne 0 ]; then
+    [ "$curl_status" -eq 22 ] && [ "$http_status" = 404 ] && return 3
+    return 1
+  fi
+  [ "$http_status" = 200 ] || return 1
+  version="$(printf '%s\n' "$response" | sed '$d')"
+  case "$version" in '' | *[!0-9.]*) return 1 ;; esac
+  is_semver "$version" || return 1
+  printf '%s\n' "$version"
+}
 
-        stable_version_norm="$(normalize "$stable_version")"
+# hash_for <checksums text> <file name> -> lowercase hash of that exact file name
+hash_for() {
+  printf '%s\n' "$1" |
+    awk -v name="$2" '{ f = $2; sub(/^\*/, "", f); sub(/^\.\//, "", f); if (f == name) { print tolower($1); exit } }'
+}
 
-        logger -s -t "CheckVer Script" "Online stable version: $stable_version_norm"
-
-        if [ "$( enum "$stable_version_norm" )" -gt "$( enum "$new_version_norm" )" ]; then
-            logger -s -t "CheckVer Script" "Selecting stable version as it's newer than dev!"
-            new_version="$stable_version STABLE"
-            newer_stable=1 #This could happen if the branch is dev and a stable version is installed.
-        fi
+# fetch_expected <version> <asset> -> sets ALGO (sha256|md5) and EXPECTED.
+# SHA256SUMS first. MD5SUMS only if SHA256SUMS cannot be fetched (or there is
+# no sha256sum binary). A SHA256SUMS without a valid entry is a failure: never
+# downgrade to MD5 in that case.
+fetch_expected() {
+  ALGO=""
+  EXPECTED=""
+  if have sha256sum; then
+    if sums="$(curl_run "$META_OPTS" "$BASE_DIR/$1/SHA256SUMS")"; then
+      EXPECTED="$(hash_for "$sums" "$2")"
+      case "$EXPECTED" in '' | *[!0-9a-f]*) EXPECTED="" ;; esac
+      if [ "${#EXPECTED}" -eq 64 ]; then
+        ALGO=sha256
+        return 0
+      fi
+      log "ERROR: SHA256SUMS has no valid entry for $2"
+      return 1
     fi
+    log "SHA256SUMS not available for $1, falling back to MD5SUMS"
+  fi
+  sums="$(curl_run "$META_OPTS" "$BASE_DIR/$1/MD5SUMS")" || return 1
+  EXPECTED="$(hash_for "$sums" "$2")"
+  case "$EXPECTED" in '' | *[!0-9a-f]*) return 1 ;; esac
+  [ "${#EXPECTED}" -eq 32 ] || return 1
+  ALGO=md5
+  return 0
+}
 
-    current_version_norm="$(normalize "$CURRENT_VERSION")"
+# download_verified <version> <asset> <destination>
+download_verified() {
+  fetch_expected "$1" "$2" || return 1
+  temporary="$3.part.$$"
+  trap 'rm -f "$temporary"' 0
+  trap 'exit 1' 1 2 15
+  curl_run "$DL_OPTS" "$BASE_DIR/$1/$2" --output "$temporary" || return 1
+  [ -s "$temporary" ] || return 1
+  if [ "$ALGO" = sha256 ]; then
+    actual="$(sha256sum "$temporary" | cut -d' ' -f1)"
+  else
+    actual="$(md5sum "$temporary" | cut -d' ' -f1)"
+  fi
+  if [ "$actual" != "$EXPECTED" ]; then
+    log "ERROR: $ALGO mismatch for $2 (expected $EXPECTED, got $actual)"
+    return 1
+  fi
+  mv -f "$temporary" "$3"
+}
 
-    if [ "$( enum "$new_version_norm" )" -gt "$( enum "$current_version_norm" )" ] || [ "$newer_stable" = "1" ]; then
-        logger -s -t "CheckVer Script" "Online version selected: $new_version"
-        logger -s -t "CheckVer Script" "Setting outdate version bit!"
-        uci set modgui.gui.outdated_ver=1
-        uci set modgui.gui.new_ver="$new_version"
-	      sleep 1 #needed to avoid setting Complete status too fast
-    else
-        logger -s -t "CheckVer Script" "No new version detected."
-        uci set modgui.gui.outdated_ver=0
-        uci set modgui.gui.new_ver="Unknown"
-    fi
-	uci commit env
-else
-    logger -s -t "CheckVer Script" "No connection detected!"
+case "$1" in
+ReleaseVersion)
+  [ "$#" -eq 2 ] || exit 1
+  release_channel_version "$2"
+  exit $?
+  ;;
+DownloadInstalled | DownloadStable)
+  if [ "$1" = DownloadInstalled ]; then
+    [ "$#" -eq 3 ] || exit 1
+    version="$(get_current_version)"
+    asset="$2"
+    destination="$3"
+  else
+    [ "$#" -eq 2 ] || exit 1
+    version="$(release_channel_version stable)" || exit 1
+    asset=GUI.tar.bz2
+    destination="$2"
+  fi
+  is_semver "$version" || exit 1
+  case "$asset" in '' | *[!a-zA-Z0-9._-]*) exit 1 ;; esac
+  download_verified "$version" "$asset" "$destination"
+  exit $?
+  ;;
+esac
+
+################## CHECK MODE ##################
+
+# Scheduled runs wait a random 1..3600 s BEFORE touching the state, so the
+# WebUI is not left on "Checking" for up to an hour.
+if [ "$1" = "Schedule" ]; then
+  delay="$(awk -v seed="$(($(date +%s) + $$))" 'BEGIN { srand(seed); print int(1 + rand() * 3600) }')"
+  sleep "$delay"
 fi
+
+PREV_STATE="$(get_transformer "$STATE_PATH")"
+CHECKING_SET=0
+
+# When run standalone (cron / upgradegui AutoUpgrade: previous state Idle) do
+# not leave the datamodel stuck on "Checking". Under wrapper.sh the previous
+# state is "Requested" and wrapper.sh owns the final state, so nothing is done.
+finish() {
+  if [ "$CHECKING_SET" = 1 ]; then
+    case "$PREV_STATE" in
+    '' | Idle)
+      if [ "$(get_transformer "$STATE_PATH")" = "Checking" ]; then
+        set_transformer "$STATE_PATH" "Idle"
+      fi
+      ;;
+    esac
+  fi
+}
+trap finish 0
+trap 'exit 1' 1 2 15
+
+set_transformer "$STATE_PATH" "Checking" && CHECKING_SET=1
+
+CURRENT_VERSION="$(get_current_version)"
+if [ -z "$CURRENT_VERSION" ]; then
+  log "ERROR: can't determine installed version from $ROOTDEVICE"
+  exit 1
+fi
+
+case "$(uci -q get modgui.gui.update_branch)" in
+'' | stable) update_branch="stable" ;;
+preview) update_branch="preview" ;;
+*) update_branch="dev" ;;
+esac
+
+log "Installed version: $CURRENT_VERSION checking update on $update_branch branch..."
+
+# No ping: reachability is whatever curl says. Any failure here is a failed check.
+new_version="$(release_channel_version "$update_branch")"
+status=$?
+if [ "$status" -ne 0 ]; then
+  if [ "$status" -eq 3 ]; then
+    log "ERROR: channel '$update_branch' is not published"
+  else
+    log "ERROR: can't reach the release server (no connection?)"
+  fi
+  exit 1
+fi
+log "Online version: $new_version"
+
+target="$new_version"
+shown_version="$new_version"
+if [ "$update_branch" = "dev" ] || [ "$update_branch" = "preview" ]; then # make sure there is no newer stable
+  stable_version="$(release_channel_version stable)" || stable_version=0.0.0
+  log "Online stable version: $stable_version"
+  if ver_gt "$stable_version" "$new_version"; then
+    log "Selecting stable version as it's newer than $update_branch!"
+    target="$stable_version"
+    shown_version="$stable_version STABLE"
+  fi
+fi
+
+# An update exists only if the selected target is newer than what is installed
+# (the old code flagged "stable newer than dev" as outdated even when that
+# stable was already the installed version).
+if ver_gt "$target" "$CURRENT_VERSION"; then
+  log "Online version selected: $shown_version"
+  log "Setting outdate version bit!"
+  outdated=1
+  new_ver="$shown_version"
+else
+  log "No new version detected."
+  outdated=0
+  new_ver="Unknown"
+fi
+
+if ! uci -q batch <<EOF
+set modgui.gui.outdated_ver='$outdated'
+set modgui.gui.new_ver='$new_ver'
+commit modgui
+EOF
+then
+  log "ERROR: can't write modgui.gui.* to UCI"
+  exit 1
+fi
+
+sleep 1 # needed to avoid setting Complete status too fast
+exit 0
