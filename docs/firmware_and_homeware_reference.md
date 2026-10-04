@@ -1,90 +1,127 @@
-# Riferimento Firmware, Homeware & Specifiche Gateway Technicolor/Vantiva
+# Specifiche Tecniche Hardware, Firmware & Architettura Kernel Technicolor/Vantiva
 
-Questo documento raccoglie la conoscenza architetturale, le versioni firmware, i moduli kernel, le configurazioni di sistema e le differenze hardware dei router Technicolor/Vantiva supportati dalla GUI Custom (**`tch-nginx-gui`**).
-
-Le informazioni sono verificate direttamente tramite **interrogazione SSH live sui dispositivi di test reali**, integrate con i **Vantiva Regulatory Open Source Reports** e il repository **hack-technicolor**.
+Documento tecnico di riferimento per le piattaforme gateway basate su SoC Broadcom (ARMv7 e BMIPS) con stack software Homeware (OpenWrt base).
 
 ---
 
-## 1. Quadro Comparativo Hardware dei Dispositivi di Riferimento
+## 1. Tabella Comparativa Architetture Hardware
 
-| Parametro | DGA4331 (TIM HUB+) | DGA4132 (TIM HUB) | TG789vac v2 (MST Generic) |
+| Parametro Tecnico | DGA4331 | DGA4132 | TG789vac v2 (MST) |
 | :--- | :--- | :--- | :--- |
-| **Hardware Version / Board** | `VCNT-3` (BCM963138) | `VBNT-S` (BCM963138) | `VANT-6` (BMIPS4350) |
-| **Architettura CPU** | ARMv7l (Cortex-A9 Dual Core) | ARMv7l (Cortex-A9 Dual Core) | MIPS (BMIPS4350 Dual Core, Big-Endian) |
-| **BogoMIPS** | ~1980 / 1990 | ~1980 / 1990 | ~397 / 403 |
+| **Codename Scheda** | `VCNT-3` | `VBNT-S` | `VANT-6` |
+| **SoC** | Broadcom BCM963138 | Broadcom BCM63138 | Broadcom BMIPS4350 V8.0 |
+| **Architettura CPU** | ARMv7-A (Cortex-A9 Dual-Core @ 1.0 GHz) | ARMv7-A (Cortex-A9 Dual-Core @ 1.0 GHz) | MIPS32r2 (Dual-Core @ 400 MHz) |
+| **Endianness** | Little-Endian (`armv7l` / `arm_cortex-a9`) | Little-Endian (`armv7l` / `arm_cortex-a9`) | Big-Endian (`mips`) |
+| **BogoMIPS** | 1980.41 / 1990.65 | 1980.41 / 1990.65 | 397.31 / 403.45 |
+| **Memoria RAM Totale** | 430.5 MB (`430520 kB`) | 484.3 MB (`484332 kB`) | 246.9 MB (`246924 kB`) |
+| **Memoria Flash NAND** | 256 MB (NAND Flash `0x10000000`) | 256 MB (NAND Flash `0x10000000`) | 128 MB (NAND Flash `0x08000000`) |
+| **EraseBlock Size** | 128 KB (`0x20000`) | 128 KB (`0x20000`) | 128 KB (`0x20000`) |
 | **Kernel Linux** | `4.1.52` (SMP PREEMPT) | `4.1.52` (SMP PREEMPT) | `3.4.11-rt19` (SMP PREEMPT) |
-| **Distribuzione OpenWrt** | OpenWrt SNAPSHOT `r14144` (glibc) | OpenWrt SNAPSHOT `r14144` (glibc) | OpenWrt Chaos Calmer `15.05.1 r46610` |
-| **Target Build** | `brcm6xxx-tch/VCNTD_502L07p1` | `brcm6xxx-tch/VBNTJ_502L07p1` | `brcm63xx-tch/VANTF` |
-| **Memoria RAM Totale** | **430 MB** (`430520 kB`) | **484 MB** (`484332 kB`) | **246 MB** (`246924 kB`) |
-| **Supporto `MemAvailable`** | Sì (Linux $\ge$ 3.14) | Sì (Linux $\ge$ 3.14) | **No** (richiede fallback `MemFree+Cached+Buffers`) |
-| **Flash Overlay Libera** | ~61 MB (su 80MB) | ~52 MB (su 80MB) | ~30 MB (su 31.5MB) |
-| **Firmware Attivo (Live)** | `AGTHF_1.3.6` (Homeware 19.4) | `AGTHP_2.4.4` (Homeware 19.4) | `17.2.0278` (Netlynk MST Homeware 17.2) |
-| **Boot Bank Attiva** | `bank_2` (passiva: `bank_1`) | `bank_2` (passiva: `bank_1`) | `bank_2` (passiva: `bank_1`) |
-| **Versione Nginx** | `nginx/1.16.1` | `nginx/1.16.1` | `nginx/1.10.1` |
-| **Versione Dropbear** | `Dropbear v2019.78` | `Dropbear v2019.78` | `Dropbear v2016.74` *(richiede KEX SHA1)* |
+| **Distribuzione Base** | OpenWrt SNAPSHOT `r14144` (glibc) | OpenWrt SNAPSHOT `r14144` (glibc) | OpenWrt Chaos Calmer `15.05.1` (r46610) |
+| **Build Target** | `brcm6xxx-tch/VCNTD_502L07p1` | `brcm6xxx-tch/VBNTJ_502L07p1` | `brcm63xx-tch/VANTF` |
+| **Homeware Release** | Homeware 19.4 (`19.4.1051`) | Homeware 19.4 (`19.4.1051`) | Homeware 17.2 (`17.2.0278`) |
+| **Engine Accelerazione HW** | Broadcom Runner (`RDPA` + `BDMF`) | Broadcom Runner (`RDPA` + `BDMF`) | Broadcom FAP (`bcmfap` + `bcmarl`) |
+| **Subsystem Wi-Fi** | BCM43684 (Wi-Fi 6 802.11ax 4x4) | BCM43602 + Quantenna QSR1000 (AC Wave 2) | BCM4360 + BCM43217 (Wi-Fi 5 AC1600) |
+| **Driver Wi-Fi Principale** | Broadcom BCA `17.10 RC121.39` | Broadcom BCA `17.10 RC121.39` | Broadcom BCA `7.14 RC89.14` |
+| **Interfacce WAN Fisiche** | DSL (VDSL2 35b), GbE WAN (`eth4`), GPON | DSL (VDSL2 35b), GbE WAN (`eth4`), SFP (`eth5`) | DSL (VDSL2 17a), GbE WAN (`eth4`) |
+| **Web Server Daemon** | `nginx/1.16.1` | `nginx/1.16.1` | `nginx/1.10.1` |
+| **SSH Daemon** | `Dropbear v2019.78` | `Dropbear v2019.78` | `Dropbear v2016.74` |
 
 ---
 
-## 2. Dettaglio Dispositivi & Comportamento di Sistema
+## 2. Struttura Partizioni Flash (MTD Layout)
 
-### 🔹 1. DGA4331 (TIM HUB+) — `VCNT-3`
-* **SoC & Wi-Fi**: Broadcom BCM963138 con radio Wi-Fi 6 (BCM43684 4x4 5GHz + 4x4 2.4GHz).
-* **Firmware Stock**: Serie `AGTHF` (da `1.0.0` fino all'ultima `1.3.6`), tutte basate su **Homeware 19.4** (`19.4.1051`).
-* **Dual-Bank & OBP**: Sistema OBP (*One Boot Planning*) attivo su MTD con controllo integrità CRC/checksum nello script `rootdevice`.
-* **Note GUI**: Piattaforma principale ad alte prestazioni, ottima disponibilità di RAM libera (> 160MB).
+### DGA4331 (`VCNT-3`) & DGA4132 (`VBNT-S`) — 256 MB NAND
+```text
+mtd0: 10000000 00020000 "brcmnand.0"   (256 MB - Intera NAND fisica)
+mtd1: 04da0000 00020000 "rootfs"        (SquashFS rootfs compressa di sistema)
+mtd2: 05a20000 00020000 "rootfs_data"   (UBI volume montato in /overlay R/W)
+mtd3: 04fc0000 00020000 "bank_1"        (Immagine completa Bank 1: kernel + rootfs)
+mtd4: 04fc0000 00020000 "bank_2"        (Immagine completa Bank 2: kernel + rootfs)
+mtd5: 00020000 00020000 "eripv2"        (128 KB - Certificati, calibrazioni, chiavi hardware)
+mtd6: 00040000 00020000 "rawstorage"    (256 KB - Boot parameters, RIP, OBP flags)
+```
 
-### 🔹 2. DGA4132 (TIM HUB) — `VBNT-S`
-* **SoC & Interfacce**: Broadcom BCM63138, Wi-Fi 5 AC Wave 2, gabbia ottica SFP GPON (moduli Sercomm/Technicolor `AFM0002TIM` / `AFM0003TIM`).
-* **Firmware Stock**: Serie `AGTHP` (da `1.0.1` alle recenti release `2.4.0` $\rightarrow$ `2.4.5`). Le serie 2.4.x sono state ricompilate sulla base kernel **Homeware 19.4.1051** (`4.1.52`).
-* **Note GUI**: Piattaforma di riferimento matura, RAM abbondante (~250MB disponibili), mapping transformer completi per GPON/SFP.
-
-### 🔹 3. DGA4130 (Smart Modem Plus / "Scolapasta Nero") — `VBNT-K`
-* **SoC & Interfacce**: Broadcom BCM63138, profilo EVDSL 35b (200 Mbps).
-* **Firmware Stock**: Serie `AGTOT` / `AGTEF` (aggiornato fino a 2.3.x/2.4.x su base Homeware 19.4).
-* **Note GUI**: Condivide la stessa architettura ARMv7 Cortex-A9 del DGA4132, senza la porta SFP.
-
-### 🔹 4. TG789vac v2 (Smart Modem con Firmware MST) — `VANT-6`
-* **SoC & Architettura**: Broadcom **BMIPS4350** (Dual Core MIPS a 400 MHz, Big Endian).
-* **Ambiente Firmware**: Esegue firmware generico **Netlynk MST** versione **`17.2.0278`** (base **Homeware 17.2** su OpenWrt Chaos Calmer 15.05.1), molto più leggero e aperto rispetto al firmware stock TIM `AGTEF`.
-* **Particolarità e Criticità Tecniche**:
-  1. **Architettura MIPS**: Qualsiasi binario C precompilato per ARM (`armv7l`) **non** può essere eseguito qui; i tool devono essere script POSIX `ash`, Lua 5.1 puro o binari MIPS dedicati.
-  2. **Niente `MemAvailable`**: Il kernel Linux `3.4.11` non calcola `MemAvailable` in `/proc/meminfo`. L'installer deve sommare `MemFree + Cached + Buffers`.
-  3. **No `/proc/device-tree/model`**: L'installer protegge la lettura del device tree con reindirizzamento `2>/dev/null` per non sporcare l'output.
-  4. **Dropbear v2016.74**: Non supporta i moderni algoritmi KEX basati su elliptic-curves (Curve25519/ECDH); richiede client SSH con `KexAlgorithms +diffie-hellman-group14-sha1`.
-  5. **Nginx 1.10.1**: Versione più leggera che beneficia al massimo della pre-compressione `gzip_static`.
+### TG789vac v2 (`VANT-6`) — 128 MB NAND
+```text
+mtd0: 08000000 00020000 "brcmnand.0"   (128 MB - Intera NAND fisica)
+mtd1: 02c40000 00020000 "rootfs"        (SquashFS rootfs compressa di sistema)
+mtd2: 01f80000 00020000 "userfs"        (Partizione JFFS2 / UBIFS montata in /overlay R/W)
+mtd3: 02e60000 00020000 "bank_1"        (Immagine completa Bank 1)
+mtd4: 02e60000 00020000 "bank_2"        (Immagine completa Bank 2)
+mtd5: 00020000 00020000 "eripv2"        (128 KB - Dati crittografici/RIP)
+mtd6: 00040000 00020000 "rawstorage"    (256 KB - Parametri di avvio CFE)
+mtd7: 00000003 00020000 "blversion"     (Versione bootloader)
+```
 
 ---
 
-## 3. Manifest Ufficiale Pacchetti Homeware 19.4 & 17.x (Vantiva OSS)
+## 3. Sottosistemi Kernel & Moduli Driver (`lsmod`)
 
-Dati estratti direttamente dai manifest ufficiali di conformità **Vantiva Homeware Regulatory**:
+### 3.1 Piattaforma ARMv7 BCM63138 (DGA4331 / DGA4132 / DGA4130)
+* **Accelerazione Pacchetti (Broadcom Runner / RDPA)**:
+  - `bdmf.ko` (~1.22 MB): *Broadcom Data Management Framework* (astrazione hardware di basso livello).
+  - `rdpa.ko` (~1.30 MB): *Runner Data Path Architecture* (engine di packet processing su microcodice Runner).
+  - `rdpa_cmd.ko`, `rdpa_gpl.ko`, `rdpa_mw.ko`, `rdpa_usr.ko`: Moduli di controllo e gestione filtri RDPA.
+  - `pktrunner.ko` (40 KB) & `pktflow.ko` (230 KB): Gestione flusso e connessioni offloadate a livello hardware.
+  - `bcm_ingqos.ko` (213 KB): Gestione Ingress QoS accelerata via RDPA.
+* **Driver DSL / XTM / Ethernet**:
+  - `adsldd.ko` (549 KB): Driver firmware modem xDSL (PHY DSP controller per ADSL2+, VDSL2 17a, 35b).
+  - `bcmxtmcfg.ko` & `bcmxtmrtdrv.ko`: Driver di instradamento per ATM/PTM layers.
+  - `bcm_enet.ko` (160 KB) & `bcmvlan.ko` (84 KB): Driver switch gigabit integrato e gestione trunking 802.1Q.
+* **Stack Wi-Fi Broadcom**:
+  - `wl.ko` (~6.04 MB): Driver monolitico Broadcom Wireless Architecture (BCA).
+  - `wfd.ko` (27 KB): *Wireless Forwarding Driver* (inoltro diretto pacchetti Wi-Fi $\leftrightarrow$ Runner senza passare per la CPU host).
+  - `emf.ko` (17 KB) & `igs.ko` (13 KB): *Efficient Multicast Forwarding* & *IGMP Snooping*.
+  - `hnd.ko` (272 KB) & `bcmlibs.ko` (16 KB): Librerie hardware di supporto.
+* **Gestione Dual-Bank & Sistema**:
+  - `bankmgr.ko` (15.4 KB): Driver Technicolor per la lettura/scrittura atomica delle bank di boot (`/proc/banktable/booted`, `/proc/banktable/active`).
 
-### 🛠️ Moduli Kernel Chiave (`kmod-*`)
-* **`kmod-bcm6xxx-tch-runner-br`** (`4.1-`, GPL-v2): Driver di accelerazione hardware Broadcom Runner per il packet forwarding LAN $\leftrightarrow$ WAN $\leftrightarrow$ Wi-Fi.
-* **`kmod-bankmgr`** (`4.1+1.0-`, GPL-v2): Modulo Technicolor di gestione delle partizioni dual-bank (`bootbank` / `altbank`).
-* **`kmod-nf-flow`**, **`kmod-ipt-filter`**, **`kmod-ebtables`**: Moduli di accelerazione e filtraggio netfilter.
-* **`kmod-l2tp`**, **`kmod-gre`**, **`kmod-pppoe`**: Stack di tunneling e connettività WAN.
-
-### 🧩 Componenti Spazio Utente & Transformer
-* **`lsqlite3`** (`0.9.5-1`, MIT): Driver SQLite per Lua, essenziale per transformer e per i database di monitoraggio traffico.
-* **`libcares`** (`1.15.0-4`, MIT): Risolutore DNS asincrono usato da demoni di sistema e transformer.
-* **`libipset`** (`7.3-1`, GPL-v2): Gestione delle tabelle IPset del firewall.
-* **`odhcp6c`** / **`odhcpd`**: Stack client/server IPv6 e DHCPv6 Prefix Delegation.
-* **`mwan`** (`4.1`, GPL-v2): Gestione multi-WAN e failover su connessioni mobili/LTE.
+### 3.2 Piattaforma MIPS BMIPS4350 (TG789vac v2)
+* **Accelerazione Pacchetti (Broadcom FAP)**:
+  - `bcmfap.ko` (205 KB): *Fast Access Packet* (coprocessore MIPS integrato per packet acceleration).
+  - `bcmarl.ko` (6 KB) & `bcm_bpm.ko` (9.8 KB): *Address Resolution Logic* e *Buffer Pool Manager*.
+  - `bcm_ingqos.ko` (9.2 KB): Ingress QoS per architettura FAP.
+* **Driver DSL / Ethernet / Wi-Fi**:
+  - `adsldd.ko` (362 KB): Driver modem xDSL legacy per kernel 3.4.
+  - `bcm_enet.ko` (245 KB): Driver Ethernet switch BMIPS.
+  - `wl.ko`: Driver Broadcom Wi-Fi legacy (BCA `7.14.89.14`).
 
 ---
 
-## 4. Regole di Ottimizzazione GUI (`tch-nginx-gui`)
+## 4. Specifiche Network Stack & Interfacce
 
-1. **Gestione Versioni**:
-   * Release **STABILE**: stringa versione pulita (es. `9.11.0`, senza hash commit).
-   * Canale **DEV**: stringa con commit hash (es. `9.11.1-4632e31`).
+### Mappatura Dispositivi di Rete Kernel (`ip link`)
 
-2. **Compatibilità Shell (BusyBox `ash`)**:
-   * Usare solo costrutti POSIX standard compatibili sia con BusyBox 1.23 (Chaos Calmer) sia con BusyBox 1.33+ (Snapshot).
+#### DGA4132 / DGA4331 (Broadcom BCM63138)
+* `eth0`, `eth1`, `eth2`, `eth3`: Porte LAN 1-4 dello switch integrato (Gigabit Ethernet 10/100/1000).
+* `eth4`: Porta WAN Ethernet dedicata (Gigabit Ethernet RJ-45).
+* `eth5` *(solo DGA4132)*: Interfaccia fisica per modulo transceiver SFP (`/dev/i2c-0`).
+* `wl0`: Radio Wi-Fi 2.4 GHz (Broadcom b/g/n/ax).
+* `wl1` / `qtn`: Radio Wi-Fi 5 GHz (Broadcom BCM43684 o Quantenna AC).
+* `dsl0`: Interfaccia PTM/ATM di livello 2 legata al modem DSL interno.
+* `bcmsw`: Switch di management interno Broadcom.
+* `br-lan`: Bridge software principale contenente `eth0-3`, `wl0`, `wl1`.
 
-3. **Performance CPU & Memory Footprint**:
-   * Evitare chiamate `io.popen` ripetute nei file Lua; usare le API native `uci` e `ubus`.
-   * Servire gli asset statici con estensione `.gz` pre-compressa per azzerare il carico CPU del webserver sui chip MIPS a 400 MHz.
-   * Disabilitare i polling JavaScript ad alta frequenza quando la scheda o il modale non sono visibili a schermo.
+#### TG789vac v2 (Broadcom BMIPS4350)
+* `eth0`, `eth1`, `eth2`, `eth3`: Porte LAN switch Fast/Gigabit.
+* `eth4`: Porta WAN Ethernet.
+* `vlan_eth0`..`vlan_eth3`: Interfacce VLAN 802.1Q agganciate allo switch hardware.
+* `wl0`: Radio Wi-Fi 2.4 GHz.
+* `wl1`: Radio Wi-Fi 5 GHz (BCM4360).
+* `br-lan` & `br-guest`: Bridge di isolamento rete principale e rete ospiti.
+
+---
+
+## 5. Dettagli Runtime & Differenze Interpreti/Demoni
+
+| Sottosistema | Piattaforme Homeware 19.4 (DGA4331, DGA4132, DGA4130) | Piattaforma Homeware 17.2 / MST (TG789vac v2) |
+| :--- | :--- | :--- |
+| **C Library** | `glibc` | `musl` / `uClibc` |
+| **Shell di Sistema** | BusyBox `ash` (v1.33+) | BusyBox `ash` (v1.23) |
+| **Interprete Lua** | Lua 5.1 con moduli `lsqlite3`, `luci`, `cjson`, `ubus` | Lua 5.1 con moduli `lsqlite3`, `ubus` |
+| **IPC & Data Model** | `transformer` demone + `ubus` broker IPC | `transformer` demone + `ubus` broker IPC |
+| **Configurazione Persistente** | UCI (`/etc/config/*`) | UCI (`/etc/config/*`) |
+| **Metodo Controllo Memoria** | `/proc/meminfo` campo `MemAvailable` | `/proc/meminfo` fallback `MemFree + Cached + Buffers` |
+| **Device Model Path** | `/proc/device-tree/model` presente | `/proc/device-tree/model` assente (usare `/proc/cpuinfo`) |
+| **KEX SSH Supportati** | `curve25519-sha256`, `ecdh-sha2-*`, `rsa-sha2-*` | `diffie-hellman-group14-sha1`, `diffie-hellman-group1-sha1` |
