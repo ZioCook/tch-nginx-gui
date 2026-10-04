@@ -159,6 +159,26 @@ archive_version() {
   return 1
 }
 
+mem_avail_kb() {
+  ma=0
+  mf=0
+  mc=0
+  mb=0
+  while read -r k v rest; do
+    case "$k" in
+      MemAvailable:) ma="$v" ;;
+      MemFree:)      mf="$v" ;;
+      Cached:)       mc="$v" ;;
+      Buffers:)      mb="$v" ;;
+    esac
+  done < /proc/meminfo 2>/dev/null
+  if is_num "$ma" && [ "$ma" -gt 0 ]; then
+    echo "$ma"
+  else
+    echo $((mf + mc + mb))
+  fi
+}
+
 get_lan_ip() {
   lip=$(uci -q get network.lan.ipaddr 2>/dev/null)
   if [ -z "$lip" ] && have ip; then
@@ -261,8 +281,8 @@ if [ -z "$LOCAL_FILE" ]; then
 fi
 ok "Strumenti di base presenti"
 
-# rilevamento hardware
-hw_model=$(tr -d '\000' </proc/device-tree/model 2>/dev/null)
+hw_model=""
+[ -r /proc/device-tree/model ] && hw_model=$(tr -d '\000' </proc/device-tree/model 2>/dev/null)
 hw_env=$(uci -q get env.var.prod_friendly_name 2>/dev/null)
 hw_cpu=$(sed -n 's/^\(system type\|Hardware\|model name\)[[:space:]]*:[[:space:]]*//p' /proc/cpuinfo 2>/dev/null | head -n 1)
 hw_arch=$(uname -m 2>/dev/null)
@@ -270,13 +290,22 @@ info "Hardware: ${hw_env:-n/d} | ${hw_model:-n/d} | ${hw_cpu:-n/d} | $hw_arch"
 
 # RAM (/tmp)
 ram_free=$(free_kb /tmp)
-is_num "$ram_free" || die "Impossibile leggere lo spazio libero di /tmp."
-memfree=$(awk '/^MemAvailable:/ {print $2; f=1} END{}' /proc/meminfo 2>/dev/null)
-[ -z "$memfree" ] && memfree=$(awk '/^(MemFree|Cached):/ {s+=$2} END{print s}' /proc/meminfo 2>/dev/null)
-if [ "$ram_free" -lt "$MIN_RAM_KB" ]; then
-  die "/tmp ha solo $((ram_free / 1024)) MB liberi (minimo $((MIN_RAM_KB / 1024)) MB). Libera RAM e riprova."
+is_num "$ram_free" || ram_free=0
+memfree=$(mem_avail_kb)
+is_num "$memfree" || memfree=0
+
+# Su kernel con tmpfs unbounded (es. 3.4 su TG789vac v2) df riporta 0 per /tmp
+if [ "$ram_free" -eq 0 ] && [ "$memfree" -gt 0 ]; then
+  ram_avail="$memfree"
+else
+  ram_avail="$ram_free"
+  [ "$memfree" -lt "$ram_avail" ] && [ "$memfree" -gt 0 ] && ram_avail="$memfree"
 fi
-ok "RAM /tmp: $((ram_free / 1024)) MB liberi (RAM disponibile: $((${memfree:-0} / 1024)) MB)"
+
+if [ "$ram_avail" -lt "$MIN_RAM_KB" ]; then
+  die "/tmp o RAM insufficiente ($((ram_avail / 1024)) MB disponibili, minimo $((MIN_RAM_KB / 1024)) MB). Libera memoria e riprova."
+fi
+ok "RAM /tmp: $((ram_avail / 1024)) MB disponibili (RAM libera di sistema: $((memfree / 1024)) MB)"
 
 # Flash (/overlay)
 if [ -d /overlay ]; then
