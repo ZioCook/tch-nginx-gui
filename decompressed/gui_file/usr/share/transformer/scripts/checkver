@@ -78,7 +78,7 @@ curl_run() {
   _opts="$1"
   shift
   # shellcheck disable=SC2086
-  _out="$(curl -fLsS $_opts "$@")"
+  _out="$(curl -fLsS $_opts "$@" 2>/dev/null)"
   _rc=$?
   case "$_rc" in
   35 | 51 | 58 | 59 | 60 | 77 | 83)
