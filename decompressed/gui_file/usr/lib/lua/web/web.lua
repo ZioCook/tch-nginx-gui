@@ -33,6 +33,9 @@ tainting.set_escape_function(html_escape)
 
 -- Now instruct the datamodel module to taint all values.
 require("datamodel").enable_tainting()
+pcall(function()
+    require("web.dm_memo").install(require("datamodel"))
+end)
 
 local intl = require 'web.intl'
 

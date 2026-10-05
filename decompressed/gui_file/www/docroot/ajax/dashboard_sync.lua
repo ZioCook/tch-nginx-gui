@@ -2,6 +2,12 @@
 -- Batches polling data for Gateway, Internet, xDSL, Ports, Telephony, and Devices
 -- drastically reducing CPU context-switching, thread creation, and HTTP round-trips.
 
+if not _G.__gc_tuned then
+    _G.__gc_tuned = true
+    collectgarbage("setpause", 300)
+    collectgarbage("setstepmul", 200)
+end
+
 if gettext and gettext.textdomain then
     gettext.textdomain('webui-core')
 end
@@ -666,44 +672,8 @@ local function get_mmpbx()
 end
 
 --------------------------------------------------------------------------------
--- DISPATCH REQUESTED MODULES SAFELY
+-- PRE-SERIALIZED MODULE CACHE & ASSEMBLE RESPONSE
 --------------------------------------------------------------------------------
-if need("gateway") then
-    local ok, res = pcall(get_gateway)
-    if not ok and ngx and ngx.log then ngx.log(ngx.ERR, "dashboard_sync gateway: " .. tostring(res)) end
-    if ok and res then result.gateway = res end
-end
-
-if need("wan") then
-    local ok, res = pcall(get_wan)
-    if not ok and ngx and ngx.log then ngx.log(ngx.ERR, "dashboard_sync wan: " .. tostring(res)) end
-    if ok and res then result.wan = res end
-end
-
-if need("xdsl") then
-    local ok, res = pcall(get_xdsl)
-    if not ok and ngx and ngx.log then ngx.log(ngx.ERR, "dashboard_sync xdsl: " .. tostring(res)) end
-    if ok and res then result.xdsl = res end
-end
-
-if need("ports") then
-    local ok, res = pcall(get_ports)
-    if not ok and ngx and ngx.log then ngx.log(ngx.ERR, "dashboard_sync ports: " .. tostring(res)) end
-    if ok and res then result.ports = res end
-end
-
-if need("devices") then
-    local ok, res = pcall(get_devices)
-    if not ok and ngx and ngx.log then ngx.log(ngx.ERR, "dashboard_sync devices: " .. tostring(res)) end
-    if ok and res then result.devices = res end
-end
-
-if need("mmpbx") then
-    local ok, res = pcall(get_mmpbx)
-    if not ok and ngx and ngx.log then ngx.log(ngx.ERR, "dashboard_sync mmpbx: " .. tostring(res)) end
-    if ok and res then result.mmpbx = res end
-end
-
 local function sanitize_value(v, seen)
     seen = seen or {}
     local tv = type(v)
@@ -723,8 +693,6 @@ local function sanitize_value(v, seen)
     end
 end
 
-local clean_result = sanitize_value(result)
-
 local function json_exception(reason, value, state, defaultmessage)
     if type(value) == "userdata" then
         return json.quotestring(tostring(untaint(value)))
@@ -735,17 +703,78 @@ local function json_exception(reason, value, state, defaultmessage)
     return json.quotestring("<" .. tostring(defaultmessage) .. ">")
 end
 
+local function encode_module_payload(data)
+    local clean_data = sanitize_value(data)
+    local buf = {}
+    if json.encode(clean_data, { indent = false, buffer = buf, exception = json_exception }) then
+        return table.concat(buf)
+    end
+    return "{}"
+end
+
+local _jcache = _G._dashboard_jcache
+if not _jcache then
+    _jcache = {}
+    _G._dashboard_jcache = _jcache
+end
+
+local session = ngx.ctx and ngx.ctx.session
+local role = (session and session.getRoleId and session:getRoleId()) or "default"
+
+local function module_json(name, ttl, builder)
+    local bucket = _jcache[role]
+    if not bucket then
+        bucket = {}
+        _jcache[role] = bucket
+    end
+    local e = bucket[name]
+    local now = os.time()
+    if e and ttl > 0 then
+        local d = now - e.t
+        if d >= 0 and d < e.ttl then
+            return e.s
+        end
+    end
+    local ok, data = pcall(builder)
+    local s
+    if ok and data then
+        s = encode_module_payload(data)
+    else
+        s = "{}"
+        if ngx and ngx.log then
+            ngx.log(ngx.ERR, "dashboard_sync " .. name .. ": " .. tostring(data))
+        end
+    end
+    bucket[name] = { s = s, t = now, ttl = ok and ttl or 2 }
+    return s
+end
+
+local pieces = {}
+if need("gateway") then
+    pieces[#pieces + 1] = '"gateway":' .. module_json("gateway", 0, get_gateway)
+end
+if need("wan") then
+    pieces[#pieces + 1] = '"wan":' .. module_json("wan", 5, get_wan)
+end
+if need("xdsl") then
+    pieces[#pieces + 1] = '"xdsl":' .. module_json("xdsl", 15, get_xdsl)
+end
+if need("ports") then
+    pieces[#pieces + 1] = '"ports":' .. module_json("ports", 10, get_ports)
+end
+if need("devices") then
+    pieces[#pieces + 1] = '"devices":' .. module_json("devices", 10, get_devices)
+end
+if need("mmpbx") then
+    pieces[#pieces + 1] = '"mmpbx":' .. module_json("mmpbx", 15, get_mmpbx)
+end
+
 if ngx and ngx.header then
     ngx.header["Content-Type"] = "application/json; charset=utf-8"
     ngx.header["Cache-Control"] = "no-cache, no-store, must-revalidate"
 end
 
-local buffer = {}
-if json.encode(clean_result, { indent = false, buffer = buffer, exception = json_exception }) then
-    ngx.say(buffer)
-else
-    ngx.say("{}")
-end
+ngx.say("{" .. table.concat(pieces, ",") .. "}")
 if ngx and ngx.exit and ngx.HTTP_OK then
     ngx.exit(ngx.HTTP_OK)
 end
