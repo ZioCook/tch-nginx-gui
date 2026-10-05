@@ -6,7 +6,6 @@ declare -a modular_dir=(
 	"gui_file"
 	"traffic_mon"
 	"upgrade-pack-specificDGA"
-	"upgrade-pack-specificDGA4331"
 	"upgrade-pack-specificTG800"
 	"upgrade-pack-specificTG789"
 	"upgrade-pack-specificTG789Xtream35B"
