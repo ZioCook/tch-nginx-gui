@@ -404,7 +404,7 @@ fi
 # IMPORTANT: On DGA4331 (VCNT-3 / BCM43684 FullMAC DHD), PCIe interrupts are tightly
 # coupled with Broadcom Runner/HWA packet flow acceleration on Core 0. Migrating
 # dhdpcie IRQ 92/93 away from Core 0 causes flow ring desynchronization and fatal dongle traps!
-if [ "$hw_ver" = "hw19" ]; then
+tune_hw19() {
   local board_m="$(uci get -q env.rip.board_mnemonic)"
   local prod_name="$(uci get -q env.var.prod_friendly_name)"
   if [ "$board_m" != "VCNT-3" ] && [ "$prod_name" != "MediaAccess DGA4331" ]; then
@@ -468,5 +468,6 @@ if [ "$hw_ver" = "hw19" ]; then
       ln -sf /etc/init.d/telnetd /etc/init.d/telnet
     fi
   fi
-fi
+}
+[ "$hw_ver" = "hw19" ] && tune_hw19
 
