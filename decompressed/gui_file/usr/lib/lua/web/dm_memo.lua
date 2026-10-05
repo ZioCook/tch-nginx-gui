@@ -4,7 +4,7 @@
 local M = {}
 
 -- Mode: "off" | "audit" (counts duplicate calls, does not return cache) | "on" (returns cached clone)
-local MODE        = "audit"
+local MODE        = "on"
 local MAX_AGE     = 1.0    -- seconds: valid only within single request execution window
 local MAX_ENTRIES = 256
 

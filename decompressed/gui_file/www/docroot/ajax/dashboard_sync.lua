@@ -672,6 +672,47 @@ local function get_mmpbx()
 end
 
 --------------------------------------------------------------------------------
+-- 7. NET (Real-time Network Throughput Rates via /proc/net/dev)
+--------------------------------------------------------------------------------
+local has_netrate, netrate = pcall(require, "netrate")
+
+local function get_net()
+    if not has_netrate then
+        return { status = "unavailable", rates = {} }
+    end
+    local rates, status = netrate.sample()
+    rates = rates or {}
+
+    local wan_dev
+    local rpc_wan = proxy.get("rpc.network.interface.@wan.device")
+    if rpc_wan and rpc_wan[1] and rpc_wan[1].value ~= "" then
+        wan_dev = rpc_wan[1].value
+    end
+    if not wan_dev or wan_dev == "" then
+        for _, candidate in ipairs({ "ppp0", "eth4", "ptm0", "erouter0", "dsl0" }) do
+            if rates[candidate] then
+                wan_dev = candidate
+                break
+            end
+        end
+    end
+
+    local lan_dev = "br-lan"
+    if not rates[lan_dev] and rates["eth0"] then
+        lan_dev = "eth0"
+    end
+
+    return {
+        status = status or "ok",
+        wan_ifname = wan_dev or "unknown",
+        lan_ifname = lan_dev,
+        wan = (wan_dev and rates[wan_dev]) or { rx = 0, tx = 0 },
+        lan = rates[lan_dev] or { rx = 0, tx = 0 },
+        rates = rates,
+    }
+end
+
+--------------------------------------------------------------------------------
 -- PRE-SERIALIZED MODULE CACHE & ASSEMBLE RESPONSE
 --------------------------------------------------------------------------------
 local function sanitize_value(v, seen)
@@ -767,6 +808,9 @@ if need("devices") then
 end
 if need("mmpbx") then
     pieces[#pieces + 1] = '"mmpbx":' .. module_json("mmpbx", 15, get_mmpbx)
+end
+if need("net") then
+    pieces[#pieces + 1] = '"net":' .. module_json("net", 0, get_net)
 end
 
 if ngx and ngx.header then
