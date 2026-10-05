@@ -52,7 +52,7 @@ local SSH_light_map = {
   enabled = "1",--"green"
 }
 
-local telnet_available = content_helper.fileExists("/bin/busybox_telnet")
+local telnet_available = content_helper.fileExists("/bin/busybox_telnet") or content_helper.fileExists("/usr/sbin/telnetd")
 local telnet_state = "NotAvailable"
 
 if telnet_available then

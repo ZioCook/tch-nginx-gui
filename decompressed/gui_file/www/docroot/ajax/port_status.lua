@@ -106,9 +106,13 @@ local mode_labels = {
 	gn = "g/n",
 	anac = "a/n/ac",
 	an = "a/n",
+	bgnax = "b/g/n/ax",
+	anacax = "a/n/ac/ax",
+	ax = "ax",
+	ac = "ac",
 }
 
-local radio_names = proxy.getPN("rpc.wireless.radio.", false) or {}
+local radio_names = proxy.getPN("rpc.wireless.radio.", true) or {}
 local seen_radios = {}
 for _, radio_entry in ipairs(radio_names) do
 	local radio = radio_entry.path:match("^rpc%.wireless%.radio%.@([%w_]+)%.$")
@@ -125,17 +129,25 @@ for _, radio_entry in ipairs(radio_names) do
 		local enabled = wifi_content.status == "1"
 		local speed = tonumber(wifi_content.speed)
 		local band = wifi_content.band and wifi_content.band ~= "" and wifi_content.band or radio
+		local speed_str = "-"
+		if enabled and speed then
+			if speed >= 1000000 then
+				speed_str = string.format("%.1f Gbps", speed / 1000000)
+			else
+				speed_str = string.format("%d Mbps", math.floor(speed / 1000))
+			end
+		end
 		port_data[#port_data+1] = {
 			"Wi-Fi " .. band,
 			ui_helper.createSimpleLight(wifi_content.status or "0", "", {}, "fa fa-wifi"),
-			enabled and speed and (speed / 1000 .. " Mbps") or "-",
+			speed_str,
 			enabled and (mode_labels[wifi_content.mode] or wifi_content.mode or "-") or "-",
 		}
 	end
 end
 
 table.sort(port_data, function (a, b)
-    return a[1] < b[1]
+    return tostring(a[1]) < tostring(b[1])
 end)
 
 local port_table = ui_helper.createTable(port_columns, port_data, port_options, nil, nil)

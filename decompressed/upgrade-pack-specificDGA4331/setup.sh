@@ -54,4 +54,28 @@ fi
 uci -q get modgui.app >/dev/null || uci set modgui.app=app
 uci set modgui.app.specific_app='1'
 uci commit modgui
+
+# Ensure telnet support and symlinks exist on DGA4331
+if [ ! -f /bin/busybox_telnet ] && [ ! -x /usr/sbin/telnetd ]; then
+  logecho "Installing busybox_telnet for DGA4331..."
+  opkg install busybox_telnet 2>/dev/null
+fi
+
+if [ ! -f /etc/config/telnet ]; then
+  touch /etc/config/telnet
+  uci set telnet.general=telnet
+  uci set telnet.general.enable='0'
+  uci commit telnet
+fi
+
+if [ -f /bin/busybox_telnet ]; then
+  ln -sf /bin/busybox_telnet /usr/sbin/telnetd
+fi
+
+if [ -f /etc/init.d/telnet ] && [ ! -f /etc/init.d/telnetd ]; then
+  ln -sf /etc/init.d/telnet /etc/init.d/telnetd
+elif [ -f /etc/init.d/telnetd ] && [ ! -f /etc/init.d/telnet ]; then
+  ln -sf /etc/init.d/telnetd /etc/init.d/telnet
+fi
+
 logecho "DGA4331 specific package installed successfully."

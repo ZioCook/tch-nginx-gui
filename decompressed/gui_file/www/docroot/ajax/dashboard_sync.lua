@@ -525,7 +525,57 @@ local function get_ports()
         return true
     end
 
-    local port_data = content_helper.loadTableData(port_options.basepath, port_columns, port_filter, nil)
+    local port_data = content_helper.loadTableData(port_options.basepath, port_columns, port_filter, nil) or {}
+
+    local mode_labels = {
+        bgn = "b/g/n",
+        gn = "g/n",
+        anac = "a/n/ac",
+        an = "a/n",
+        bgnax = "b/g/n/ax",
+        anacax = "a/n/ac/ax",
+        ax = "ax",
+        ac = "ac",
+    }
+
+    local radio_names = proxy.getPN("rpc.wireless.radio.", true) or {}
+    local seen_radios = {}
+    for _, radio_entry in ipairs(radio_names) do
+        local radio = radio_entry.path:match("^rpc%.wireless%.radio%.@([%w_]+)%.$")
+        if radio and not seen_radios[radio] then
+            seen_radios[radio] = true
+            local base_path = "rpc.wireless.radio.@" .. radio .. "."
+            local wifi_content = {
+                status = base_path .. "admin_state",
+                speed = base_path .. "phy_rate",
+                mode = base_path .. "standard",
+                band = base_path .. "supported_frequency_bands",
+            }
+            content_helper.getExactContent(wifi_content)
+            local enabled = wifi_content.status == "1"
+            local speed = tonumber(wifi_content.speed)
+            local band = wifi_content.band and wifi_content.band ~= "" and wifi_content.band or radio
+            local speed_str = "-"
+            if enabled and speed then
+                if speed >= 1000000 then
+                    speed_str = format("%.1f Gbps", speed / 1000000)
+                else
+                    speed_str = format("%d Mbps", floor(speed / 1000))
+                end
+            end
+            port_data[#port_data + 1] = {
+                "Wi-Fi " .. band,
+                ui_helper.createSimpleLight(wifi_content.status or "0", "", {}, "fa fa-wifi"),
+                speed_str,
+                enabled and (mode_labels[wifi_content.mode] or wifi_content.mode or "-") or "-",
+            }
+        end
+    end
+
+    table.sort(port_data, function(a, b)
+        return tostring(a[1]) < tostring(b[1])
+    end)
+
     local port_table = ui_helper.createTable(port_columns, port_data, port_options, nil, nil)
 
     return { port_table = html_flatten(port_table) }
