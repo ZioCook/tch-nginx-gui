@@ -182,25 +182,20 @@ function M.getTemperatures()
   end
 
   -- 4. Thermal Zones (if any)
-  local f_tz = io.popen("cat /sys/class/thermal/thermal_zone*/temp 2>/dev/null")
-  if f_tz then
-    local out = f_tz:read("*a")
+  for idx = 0, 3 do
+    local f_tz = io.open("/sys/class/thermal/thermal_zone" .. idx .. "/temp", "r")
+    if not f_tz then break end
+    local line = f_tz:read("*l")
     f_tz:close()
-    if out and #out > 0 then
-      local idx = 0
-      for t in out:gmatch("%d+") do
-        local val = tonumber(t)
-        if val then
-          if val > 1000 then val = math.floor(val / 1000) end
-          temps[#temps + 1] = {
-            sensor = "SoC Thermal Zone " .. idx,
-            temp = val,
-            unit = "°C",
-            chip = "soc",
-          }
-          idx = idx + 1
-        end
-      end
+    local val = line and tonumber(line:match("%d+"))
+    if val then
+      if val > 1000 then val = math.floor(val / 1000) end
+      temps[#temps + 1] = {
+        sensor = "SoC Thermal Zone " .. idx,
+        temp = val,
+        unit = "°C",
+        chip = "soc",
+      }
     end
   end
 

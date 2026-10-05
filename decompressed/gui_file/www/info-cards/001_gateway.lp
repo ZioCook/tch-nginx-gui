@@ -52,14 +52,17 @@ if not ( content.friendly_product_name == "" ) and not ( content.friendly_produc
 	end
 end
 
-local nf_conntrack_count = io.popen("sysctl -n -e net.nf_conntrack_max net.ipv4.netfilter.ip_conntrack_max")
+local max_conn = content_helper.readfile("/proc/sys/net/netfilter/nf_conntrack_max")
+	or content_helper.readfile("/proc/sys/net/ipv4/netfilter/ip_conntrack_max")
+	or "65536"
+if type(max_conn) == "string" then
+	max_conn = max_conn:match("%d+") or max_conn
+end
 
 content["uptime"] = content_helper.readfile("/proc/uptime","number",floor)
 content["connection"] = content_helper.readfile("/proc/sys/net/netfilter/nf_conntrack_count")
-content["total_connection"] = nf_conntrack_count:read()
+content["total_connection"] = tostring(max_conn)
 content["system_time"] = os.date("%d/%m/%Y %Hh:%Mm:%Ss",os.time())
-
-nf_conntrack_count:close()
 
   ngx.print('\
 \

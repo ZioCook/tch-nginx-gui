@@ -819,6 +819,10 @@ if ngx and ngx.header then
 end
 
 ngx.say("{" .. table.concat(pieces, ",") .. "}")
+if ngx and ngx.eof then
+    pcall(ngx.eof)
+    collectgarbage("step", 64)
+end
 if ngx and ngx.exit and ngx.HTTP_OK then
     ngx.exit(ngx.HTTP_OK)
 end
