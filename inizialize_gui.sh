@@ -39,7 +39,7 @@ if [ "$CI" = "true" ] && [ -f "$HOME/gui_build/data/type" ]; then
 fi
 
 mkdir -p compressed
-rm -f compressed/GUI*.tar.bz2 compressed/GUI*.zip
+rm -f compressed/GUI$type.tar.bz2 compressed/GUI$type.zip
 
 commit_epoch=$(git log -1 --format=%ct 2>/dev/null || echo 1700000000)
 commit_date=$(date -u -d "@$commit_epoch" +"%Y-%m-%d %H:%M:%S" 2>/dev/null || echo "2026-10-05 00:00:00")
