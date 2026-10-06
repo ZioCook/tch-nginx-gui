@@ -59,20 +59,31 @@ local vQTN = post_helper.validateQTN
 
 -- Take the input options for a listbox, the value and return the associated text
 local listboxToText = function(options, value)
-    for i,v in ipairs(options) do
-        if v[1] == value then
-           return v[2]
+    if type(options) == "table" then
+        for i,v in ipairs(options) do
+            if v[1] == value then
+               return v[2]
+            end
         end
     end
     return value
 end
 
 local getargs = ngx.req.get_uri_args()
-local getradio = getargs.radio
-local getiface = getargs.iface
+local postargs = (ngx.req.get_method() == "POST") and ngx.req.get_post_args() or {}
+local getradio = postargs.curradio or postargs.radio or getargs.radio
+local getiface = postargs.curiface or postargs.iface or getargs.iface
+if getradio then
+  getradio = string.untaint(getradio)
+  getradio = match(getradio, "^([^%?&]+)") or getradio
+end
+if getiface then
+  getiface = string.untaint(getiface)
+  getiface = match(getiface, "^([^%?&]+)") or getiface
+end
 local getWifiAnalyzer = getargs.isWifiAnalyzer
 
-local curradio
+local curradio = "radio_2G"
 local curiface = "wl0"
 local curap = "ap0"
 local isguest = "0"
@@ -119,8 +130,8 @@ end
 local radios = {}
 local radioNames = proxy.getPN("rpc.wireless.radio.", true)
 if not radioNames or not next(radioNames) then
-    ngx.log(ngx.ERR, "Wireless radio data unavailable")
-    return ngx.exit(ngx.HTTP_SERVICE_UNAVAILABLE)
+  ngx.log(ngx.ERR, "Wireless radio data unavailable")
+  return ngx.exit(ngx.HTTP_SERVICE_UNAVAILABLE)
 end
 for i,v in ipairs(radioNames) do
     local radio = match(v.path, "rpc%.wireless%.radio%.@([^%.]+)%.")
@@ -132,7 +143,6 @@ for i,v in ipairs(radioNames) do
     end
 end
 table.sort(radios)
-curradio = curradio or radios[1]
 
 ajax_helper.handleAjaxQuery({
     phy_rate = "rpc.wireless.radio.@" .. curradio .. ".phy_rate",
@@ -162,18 +172,29 @@ for i,v in ipairs(wl_list) do
   local path = "rpc.wireless.ssid.@" .. v.value
   local values = proxy.get(path .. ".radio" , path .. ".ssid",path .. ".stb", path .. ".ap_display_name")
   if values ~= nil then
+    local ap_iso = proxy.get(v.path .. "ap_isolation")
+    local iface_state = proxy.get(path .. ".oper_state")
+    local radio_val = values[1] and values[1].value or ""
+    local ssid_val = values[2] and values[2].value or ""
+    local stb_val = values[3] and values[3].value or "0"
+    local ap_name = values[4] and values[4].value or ""
     wls[#wls+1] = {
-            radio = values[1].value,
-            ssid = values[2].value,
+            radio = radio_val,
+            ssid = ssid_val,
             iface = v.value,
-            stb = values[3].value,
-            ap_display_name = values[4].value
+            stb = stb_val,
+            ap_display_name = ap_name,
+            ap_isolation = ap_iso and ap_iso[1] and ap_iso[1].value or "0",
+            oper_state = iface_state and iface_state[1] and iface_state[1].value or "0",
         }
     if (v.value == getiface) or (not getiface and v.value == curiface) then
         curiface = v.value
         curap = match(v.path, "rpc%.wireless%.ap%.@([^%.]+)%.")
-        isguest = proxy.get(v.path .. "ap_isolation")[1].value
-        cur_ssid = values[2].value
+        isguest = ap_iso and ap_iso[1] and ap_iso[1].value or "0"
+        cur_ssid = ssid_val
+        if radio_val ~= "" and not getradio then
+            curradio = radio_val
+        end
     end
  end
 end
@@ -184,6 +205,31 @@ table.sort(wls, function(a,b)
         return a.radio < b.radio
     end
 end)
+
+-- Determine if guest network is currently enabled (any guest SSID with state=1)
+local guest_ifaces = { "wl0_1", "wl1_1" }
+local guest_ap_map = { wl0_1 = "ap2", wl1_1 = "ap3" }
+local guest_enabled_raw = proxy.get("uci.wireless.wifi-iface.@wl0_1.state")
+local guest_network_enabled = guest_enabled_raw and guest_enabled_raw[1] and untaint(guest_enabled_raw[1].value) == "1" and "1" or "0"
+
+
+-- Handle guest network toggle
+if ngx.req.get_method() == "POST" and ngx.req.get_post_args().action == "toggle_guest" then
+    local new_state = ngx.req.get_post_args().guest_state
+    if new_state == "1" or new_state == "0" then
+        for _, iface in ipairs(guest_ifaces) do
+            proxy.set("uci.wireless.wifi-iface.@" .. iface .. ".state", new_state)
+            local ap = guest_ap_map[iface]
+            if ap then
+                proxy.set("uci.wireless.wifi-ap.@" .. ap .. ".state", new_state)
+            end
+        end
+        proxy.apply()
+    end
+    ngx.header.content_type = "application/json"
+    ngx.print('{"success":"true","guest_state":"' .. (new_state or "0") .. '"}')
+    ngx.exit(ngx.HTTP_OK)
+end
 
 if ngx.req.get_method() == "POST"  and  ngx.req.get_post_args().action == "set_reg" then
     local content_acl ={
@@ -207,7 +253,8 @@ end
 
 if ngx.req.get_method() == "GET" and ngx.req.get_uri_args().action == "get_reg_status"  then
     local acl_ap = ngx.req.get_uri_args().curap
-    local reg_status = proxy.get("rpc.wireless.ap.@"..acl_ap..".acl.state")[1].value
+    local reg_data = proxy.get("rpc.wireless.ap.@"..acl_ap..".acl.state")
+    local reg_status = reg_data and reg_data[1] and reg_data[1].value or "0"
     ngx.print(reg_status)
     ngx.exit(ngx.HTTP_OK)
 end
@@ -327,9 +374,24 @@ for i,v in ipairs(radios) do
   radioData[v] = rdata
 end
 
-if radioData[curradio].remotely_managed == "1" and radioData[curradio].integrated_ap ~= "1" then
+if not radioData[curradio] then
+  curradio = (radios and radios[1]) or "radio_2G"
+end
+if not radioData[curradio] then
+  radioData[curradio] = {
+    supported_frequency_bands = (curradio == "radio_5G") and "5GHz" or "2.4GHz",
+    remotely_managed = "0",
+    supported_standards = (curradio == "radio_5G") and "anacax" or "bgnax",
+    integrated_ap = "1",
+    phy_rate = "0",
+    country = "EU",
+    channel = "auto"
+  }
+end
+
+if radioData[curradio] and radioData[curradio].remotely_managed == "1" and radioData[curradio].integrated_ap ~= "1" then
     isExtRemman = "1"
-elseif radioData[curradio].remotely_managed == "1" and radioData[curradio].integrated_ap == "1" then
+elseif radioData[curradio] and radioData[curradio].remotely_managed == "1" and radioData[curradio].integrated_ap == "1" then
 	isIntRemman = "1"
 end
 
@@ -338,29 +400,32 @@ end
 -- We're defining the listbox enums here to be able to use them to validate the input
 -- Listbox that shows the supported WiFi standards
 local wifi_standard_24GHz = {
+      { "n", T'802.11n'},
       { "bg", T'802.11b/g'},
       { "bgn", T'802.11b/g/n'},
 }
 
 local wifi_standard_5GHz = {
-    ["an"]= T'802.11a/n',
-    ["anac"]= T'802.11a/n/ac',
+    { "an", T'802.11a/n'},
+    { "ac", T'802.11ac'},
+    { "anac", T'802.11a/n/ac'},
 }
 
-local wifiStandard = {
-  standard = "uci.wireless.wifi-device.@radio_5G.standard"
-}
+local supported_standards = untaint(radioData[curradio].supported_standards) or ""
+if supported_standards:match("ax") or supported_standards == "bgnax" then
+  wifi_standard_24GHz[#wifi_standard_24GHz + 1] = { "bgnax", T'802.11b/g/n/ax'}
+end
+if supported_standards:match("ax") or supported_standards == "anacax" then
+  wifi_standard_5GHz[#wifi_standard_5GHz + 1] = { "anacax", T'802.11a/n/ac/ax'}
+  wifi_standard_5GHz[#wifi_standard_5GHz + 1] = { "nacax", T'802.11n/ac/ax'}
+  wifi_standard_5GHz[#wifi_standard_5GHz + 1] = { "nac", T'802.11n/ac'}
+end
 
 local wifi_standard={}
 if radioData[curradio].supported_frequency_bands == "5GHz" then
-  content_helper.getExactContent(wifiStandard)
-  if wifiStandard.standard and wifiStandard.standard ~= "" then
-    wifi_standard[1] = {wifiStandard.standard,wifi_standard_5GHz[untaint(wifiStandard.standard)]}
-  else
-    wifi_standard[1] = {"",""}
-  end
+  wifi_standard = wifi_standard_5GHz
 else
-    wifi_standard = wifi_standard_24GHz
+  wifi_standard = wifi_standard_24GHz
 end
 
 local bandsteer_rssi_threshold = {}
@@ -373,8 +438,18 @@ end
 local wifipower = {}
 
 for i=-6,6 do
-	local power = i < 0 and i or format("+%s",i)
-	tinsert(wifipower,{tostring(power),format("%s dBm",power)})
+	local val = tostring(i)
+	local label = (i > 0 and ("+" .. i) or tostring(i)) .. " dBm"
+	tinsert(wifipower, { val, label })
+end
+
+local function validateTxPower(value, postdata, key)
+	local n = tonumber(value)
+	if n and n >= -6 and n <= 6 then
+		postdata[key] = tostring(n)
+		return true
+	end
+	return nil, T"Invalid value."
 end
 
 local cw_40 = {
@@ -386,18 +461,34 @@ local cw_80 = {
     {"20/40MHz", T"20/40MHz"},
     {"auto", T"Auto (20/40/80MHz)"},
 }
+local cw_160 = {
+    {"20MHz", T"20MHz"},
+    {"20/40MHz", T"20/40MHz"},
+    {"20/40/80MHz", T"20/40/80MHz"},
+    {"auto", T"Auto (20/40/80/160MHz)"},
+}
 
 local cw = {
   ["bg"] = "channelwidth20",
+  ["n"] = "channelwidth40",
   ["bgn"] = "channelwidth40",
+  ["bgnax"] = "channelwidth40",
+  ["gnax"] = "channelwidth40",
+  ["nax"] = "channelwidth40",
   ["an"] = "channelwidth40",
+  ["ac"] = "channelwidth80",
   ["anac"] = "channelwidth80",
+  ["nac"] = "channelwidth80",
+  ["anacax"] = "channelwidth160",
+  ["nacax"] = "channelwidth160",
+  ["acax"] = "channelwidth160",
 }
 
 local cwmaps = {
     ["channelwidth20"] = cw_40,
     ["channelwidth40"] = cw_40,
     ["channelwidth80"] = cw_80,
+    ["channelwidth160"] = cw_160,
 }
 
 local cddList = {
@@ -406,7 +497,7 @@ local cddList = {
   {"off", T"Off"}
 }
 
-local channelwidth = cwmaps[cw[untaint(radioData[curradio].supported_standards)]]
+local channelwidth = cwmaps[cw[untaint(radioData[curradio].supported_standards)]] or (radioData[curradio].supported_frequency_bands == "5GHz" and cw_160 or cw_40)
 
 local supported_modes_data  = proxy.get("rpc.wireless.ap.@" .. curap .. ".security.supported_modes")
 local supported_modes = format("%s", supported_modes_data and supported_modes_data[1] and supported_modes_data[1].value or "")
@@ -416,6 +507,9 @@ local secmodes_matched = {
      ["wpa2-psk"] = T"WPA2 PSK",
      ["wpa-wpa2-psk"] =  T"WPA+WPA2 PSK",
      ["wpa-wpa2"] =  T"WPA+WPA2",
+     ["wpa3-psk"] = T"WPA3 Personal (SAE)",
+     ["wpa2-wpa3-psk"] = T"WPA2/WPA3 Mixed PSK/SAE",
+     ["owe"] = T"OWE (Enhanced Open)",
 }
 supported_modes:gsub("[^%s]+", function(c)
     if secmodes_matched[c] then
@@ -424,6 +518,15 @@ supported_modes:gsub("[^%s]+", function(c)
         secmodes[#secmodes+1] = { c, T(string.upper(c)) }
     end
 end)
+if #secmodes == 0 then
+    secmodes = {
+        { "wpa2-wpa3-psk", secmodes_matched["wpa2-wpa3-psk"] },
+        { "wpa3-psk", secmodes_matched["wpa3-psk"] },
+        { "wpa2-psk", secmodes_matched["wpa2-psk"] },
+        { "wpa-wpa2-psk", secmodes_matched["wpa-wpa2-psk"] },
+        { "none", secmodes_matched["none"] },
+    }
+end
 -- remove radius modes if in guest ap page
 if isguest == "1" then
     local num = #secmodes
@@ -441,20 +544,25 @@ local acl_modes = {
       { "lock", T"Whitelist" },
  }
 
- if radioData[curradio].remotely_managed ~= "1" then
+ if radioData[curradio] and radioData[curradio].remotely_managed ~= "1" then
     acl_modes[#acl_modes+1] = {"register", T"Register"}
 
  end
 
 local function getValidateChannelWidth(channelWidth)
+  local val_fn = gVIES(channelWidth)
   return function(value, postdata, key)
-    local success, msg = gVIES(channelWidth)
-    if success then
-      postdata["requested_channel_width"] = postdata[cw[untaint(postdata["standard"])]]
-      return true
-    else
-      return nil, msg
+    local target_cw = cw[untaint(postdata["standard"])]
+    if key == target_cw then
+      local success, msg = val_fn(value, postdata, key)
+      if success then
+        postdata["requested_channel_width"] = value
+        return true
+      else
+        return nil, msg
+      end
     end
+    return true
   end
 end
 
@@ -526,7 +634,8 @@ for i,v in ipairs(aap) do
 end
 
 -- If this AP connects to STB, "engineer" role has full access, other roles only have simple stats
-if proxy.get(pathiface .. "stb")[1].value == "1" then
+local stb_data = proxy.get(pathiface .. "stb")
+if stb_data and stb_data[1] and stb_data[1].value == "1" then
     if ngx.ctx.session:getrole() ~= "engineer" then
         stbLimit = true
     end
@@ -542,7 +651,8 @@ local function getValidateBandSteerPeerFields(value, object, key)
     end
     if session:retrieve("bs_check_action") == "TRUE" then
         session:store("bs_check_action", "")
-        bandsteer_enabled = proxy.get("uci.wireless.wifi-ap.@ap0.bandsteer_id")[1].value
+        local bs_data = proxy.get("uci.wireless.wifi-ap.@ap0.bandsteer_id")
+        bandsteer_enabled = bs_data and bs_data[1] and bs_data[1].value or "off"
     else
         bandsteer_enabled = object.band_steer_enabled
     end
@@ -560,6 +670,13 @@ local function getValidateBandSteerPeerFields(value, object, key)
                     object.bspeer_security_mode = object.security
                     object.bspeer_wpa_psk_key = object.wpa_psk
                     object.bspifacessid = object.ssid
+                    if object.security == "wpa3-psk" then
+                        object.bspeer_pmf = "required"
+                    elseif object.security == "wpa2-wpa3-psk" then
+                        object.bspeer_pmf = "optional"
+                    elseif object.security == "none" then
+                        object.bspeer_pmf = "disabled"
+                    end
                 end
             end
             return true
@@ -582,6 +699,13 @@ local function getValidateBandSteerPeerFields(value, object, key)
                         object.bspeer_security_mode = object.security
                         object.bspeer_wpa_psk_key = object.wpa_psk
                         object.bspifacessid = object.ssid
+                        if object.security == "wpa3-psk" then
+                            object.bspeer_pmf = "required"
+                        elseif object.security == "wpa2-wpa3-psk" then
+                            object.bspeer_pmf = "optional"
+                        elseif object.security == "none" then
+                            object.bspeer_pmf = "disabled"
+                        end
                     end
                 end
             end
@@ -646,6 +770,15 @@ local wps_button_mode = {
 
 -- Constructing the rpc parameters and validations for post handleQuery
 local function getParamsAndValidation()
+  local wps_button_handler = setmetatable({
+        ["1"] = "wps_button_pressed.sh",
+        ["0"] = "acl_button_pressed.sh",
+    }, untaint_mt)
+
+  -- Only include wps_button_handler if the UCI path actually exists on this device
+  local wps_path = "uci.button.button.@wps.handler"
+  local wps_exists = proxy.get(wps_path) ~= nil
+
   -- rpc parameters list
   local mapParams = {
     ssid = pathiface .. "ssid",
@@ -654,11 +787,13 @@ local function getParamsAndValidation()
     wep_key = pathap .. "security.wep_key",
     wpa_psk = pathap .. "security.wpa_psk_passphrase",
     acl_mode = pathap .. "acl.mode",
-    wps_button_handler = "uci.button.button.@wps.handler",
     standard = pathradio .. "standard",
     requested_channel = pathradio .. "requested_channel",
     requested_channel_width = pathradio .. "requested_channel_width",
     }
+  if wps_exists then
+    mapParams.wps_button_handler = wps_path
+  end
     if isguest=="1" then
         mapParams.ap_enabled = pathap .. "admin_state"
     end
@@ -723,7 +858,9 @@ local function getParamsAndValidation()
         local bandsteerAddParams = {
           bspifacessid = piface .. "@" .. bandsteeriface .. ".ssid",
           bspeer_security_mode = pap .. "@" .. bspeerap .. ".security_mode",
-          bspeer_wpa_psk_key = pap .. "@" .. bspeerap .. ".wpa_psk_key", }
+          bspeer_wpa_psk_key = pap .. "@" .. bspeerap .. ".wpa_psk_key",
+          bspeer_pmf = pap .. "@" .. bspeerap .. ".pmf",
+        }
         for k,v in pairs(bandsteerAddParams) do
           bandsteerParams[k] = v
         end
@@ -741,16 +878,17 @@ local function getParamsAndValidation()
     sgi = gOV(vB),
     cdd = gVIES(cddList),
     stbc = gOV(vB),
-    tx_power_adjust = gVIES(wifipower),
+    tx_power_adjust = validateTxPower,
 	tx_power_overrule_reg = vB,
     channelwidth20 = getValidateChannelWidth(cw_40),
     channelwidth40 = getValidateChannelWidth(cw_40),
     channelwidth80 = getValidateChannelWidth(cw_80),
+    channelwidth160 = getValidateChannelWidth(cw_160),
     ap_enabled = vB,
     security = gVIES(secmodes),
     ssid = gAV(gVSLIR(1,32),getValidateExtraSpaces),
     wep_key = gVIPIL(vWEP,"security", {"wep"}),
-    wpa_psk = gVIPIL(vPSK,"security", {"wpa-psk", "wpa2-psk", "wpa-wpa2-psk"}),
+    wpa_psk = gVIPIL(vPSK,"security", {"wpa-psk", "wpa2-psk", "wpa-wpa2-psk", "wpa3-psk", "wpa2-wpa3-psk"}),
     wps_enabled = gOV(vB),
     acl_mode = gVIES(acl_modes),
     radius_authent_ip = VIPIL_IP,
@@ -761,7 +899,6 @@ local function getParamsAndValidation()
     radius_account_port = gOV(VIPIL_port),
     radius_authent_state = gCV(radiusCond, getReplaceValue("1"), getReplaceValue("0")), -- we know that we're enforcing the server ip and port is there
     radius_account_state = gCV(gAV(radiusCond, checkIPandPort), getReplaceValue("1"), getReplaceValue("0")), -- if no server ip or port, don't set to 1
-    wps_button_handler = post_helper.getValidateInEnumSelect(wps_button_mode),
     bsid = getValidateBandSteerPeerFields,
     frame_bursting = vB,
     ap_broadcast_ssid = vB,
@@ -775,6 +912,10 @@ local function getParamsAndValidation()
 	eco_single_rx_chain = vB,
 	eco_fast_radio_toggle = vB,
   }
+  -- Only validate wps_button_handler if path exists on this device
+  if wps_exists then
+    mapValid.wps_button_handler = post_helper.getValidateInEnumSelect(wps_button_mode)
+  end
 
 	if isguest ~= "1" then
 		mapValid.admin_state = validateRadioandAp
@@ -881,18 +1022,22 @@ end
          pathap .. "wps.ap_pin",
          pathap .. "wps.ap_setup_locked"
   }
-  local step = 2
-  for i=0, 60, step do
-     ngx.sleep(step)
-     local content_val = proxy.get(unpack(content_ssid))
-     if (content_val and #content_val > 0) then
-        content["macaddress"] = content_val[1].value
-        content["stb"] = content_val[2].value
-        content["ap_display_name"] = content_val[3].value
-        content["wps_ap_pin_code"] = content_val[4].value
-        content["wps_ap_setup_locked"] = content_val[5].value
+  local content_val = proxy.get(unpack(content_ssid))
+  if not (content_val and #content_val > 0) then
+    for i=1, 15 do
+      ngx.sleep(1)
+      content_val = proxy.get(unpack(content_ssid))
+      if (content_val and #content_val > 0) then
         break
-     end
+      end
+    end
+  end
+  if (content_val and #content_val > 0) then
+    content["macaddress"] = content_val[1] and content_val[1].value or ""
+    content["stb"] = content_val[2] and content_val[2].value or "0"
+    content["ap_display_name"] = content_val[3] and content_val[3].value or ""
+    content["wps_ap_pin_code"] = content_val[4] and content_val[4].value or ""
+    content["wps_ap_setup_locked"] = content_val[5] and content_val[5].value or "0"
   end
 
 param = {
@@ -906,7 +1051,7 @@ for i in string.gmatch(param["allowed_channels"], "%S+") do
 end
 
 local radion_data=proxy.get(pathradio)
-for _, v in pairs(radion_data) do
+for _, v in pairs(radion_data or {}) do
     if not content[v.param] then
         content[v.param]=v.value
     end
@@ -915,6 +1060,13 @@ end
 -- Ensure Channel and Current channel are the same value after clicking Save
 if content["requested_channel"] ~= nil and content["channel"] ~= nil and content["requested_channel"] ~= "auto" then
     content["channel"] = content["requested_channel"]
+end
+
+if content["tx_power_adjust"] then
+    local n = tonumber(content["tx_power_adjust"])
+    if n then
+        content["tx_power_adjust"] = tostring(n)
+    end
 end
 
 local band_steer_supported = 0
@@ -951,27 +1103,34 @@ end
 ngx.print(ui_helper.createHeader(T"Wireless", true, false))   ngx.print('\
 \
 <div class="modal-body update">\
-');
+');  
     local lp = require("web.lp")
     lp.setpath("/www/snippets/")
     lp.include("tabs-wireless.lp")
   ngx.print('\
-<form class="form-horizontal" method="post" action="');  ngx.print( ngx.var.request_uri ); ngx.print('">\
-');
+<form class="form-horizontal" method="post" action="/modals/wireless-modal.lp?radio=');  ngx.print(curradio); ngx.print('&iface=');  ngx.print(curiface); ngx.print('">\
+<input type="hidden" name="curradio" value="'); ngx.print(curradio); ngx.print('">\
+<input type="hidden" name="curiface" value="'); ngx.print(curiface); ngx.print('">\
+');  
 -- Do not display the navlist on the list if only 1 SSID
 if #wls > 0 then
   ngx.print('\
 <div class="span2">\
     <ul class="nav nav-list">\
-    ');
+    ');  
    local html = {}
     local prevradio = ""
     for i,v in ipairs(wls) do
+        -- Skip guest SSIDs from sidebar when guest network is disabled
+        if (v.ap_isolation == "1" or v.iface == "wl0_1" or v.iface == "wl1_1") and guest_network_enabled == "0" then
+            -- do not show in sidebar
+        else
         if v.radio ~= prevradio then
-            if radioData[untaint(v.radio)].remotely_managed == "1" and radioData[untaint(v.radio)].integrated_ap ~= "1" then
-                html[#html+1] = format('<li class="nav-header">%s %s</li>', T"External access points", radioData[untaint(v.radio)].supported_frequency_bands)
+            local v_rdata = (radioData and radioData[untaint(v.radio)]) or {}
+            if v_rdata.remotely_managed == "1" and v_rdata.integrated_ap ~= "1" then
+                html[#html+1] = format('<li class="nav-header">%s %s</li>', T"External access points", v_rdata.supported_frequency_bands or "")
             else
-                html[#html+1] = format('<li class="nav-header">%s %s</li>', T"Access Points", radioData[untaint(v.radio)].supported_frequency_bands)
+                html[#html+1] = format('<li class="nav-header">%s %s</li>', T"Access Points", v_rdata.supported_frequency_bands or "")
             end
             prevradio = v.radio
         end
@@ -979,7 +1138,7 @@ if #wls > 0 then
         if v.iface == curiface and getWifiAnalyzer == nil then
             active = "active"
         end
-        local url = "modals/wireless-modal.lp?radio=" .. v.radio .. "&iface=" .. v.iface
+        local url = "/modals/wireless-modal.lp?radio=" .. v.radio .. "&iface=" .. v.iface
         -- Do not display stb ssid
         if v.ap_display_name ~= nil and v.ap_display_name ~= "" then
             html[#html+1] = format('<li class="%s"><a  id = "Wireless_Tab_%s" href="#" data-remote="%s">%s</a></li>', active, i, url, v.ap_display_name)
@@ -988,10 +1147,11 @@ if #wls > 0 then
         else
             html[#html+1] = format('<li class="%s"><a  id = "Wireless_Tab_%s" href="#" data-remote="%s">%s</a></li>', active, i, url, v.ssid)
         end
+        end -- end guest check
     end
     -- If wifi analyzer enabled, draw it
     local wifi_analyzer_disable = proxy.get("uci.wireless.wifi.@global.wifi_analyzer_disable")
-    if wifi_analyzer_disable and wifi_analyzer_disable[1].value ~= "1" then
+    if wifi_analyzer_disable and wifi_analyzer_disable[1] and wifi_analyzer_disable[1].value ~= "1" then
       html[#html+1] = string.format('<li class="nav-header">%s</li>', T"Wireless Data")
       local freq = "2.4"
       local isDuplicate = {}
@@ -1003,7 +1163,7 @@ if #wls > 0 then
             active = "active"
             radio = v.radio
           end
-          local url = "modals/wireless-modal.lp?radio=" .. v.radio .. "&isWifiAnalyzer=" .. v.iface
+          local url = "/modals/wireless-modal.lp?radio=" .. v.radio .. "&isWifiAnalyzer=" .. v.iface
           html[#html+1] = format('<li class="%s"><a href="#" data-remote="%s" id ="wifianalyzer_%s">%s %sGHz</a></li>',active, url,freq,T"Analyzer",freq )
           local link_id = "2"
           if freq == "5" then link_id = "5" end
@@ -1022,21 +1182,51 @@ if #wls > 0 then
       end
     end
     if session:hasAccess("/modals/wireless-client-modal.lp") then
-      html[#html+1] = format('<li><a href="#" data-remote="modals/wireless-client-modal.lp" >%s</a></li>', T"Client Monitoring" )
+      html[#html+1] = format('<li><a href="#" data-remote="/modals/wireless-client-modal.lp" >%s</a></li>', T"Client Monitoring" )
     end
     ngx.print(html)
       ngx.print('\
     </ul>\
 </div>\
 <div class="span6">\
-');
+');  
 end
 
 local current_acl_mode = content["acl_mode"]
 if getWifiAnalyzer == nil then  ngx.print('\
-');
+');  
 ngx.print(ui_helper.createMessages(message_helper.popMessages()))
 if bandsteerhelpmsg then ngx.print(ui_helper.createMessages(bandsteerhelpmsg)) end
+
+-- Guest network toggle fieldset (only show on main pages, not on guest SSID tab)
+if isguest ~= "1" and getWifiAnalyzer == nil then
+  local guest_html = {}
+  local guest_switch_attrs = {
+    input = { id = "guest_network_switch", class = "monitor-changes" }
+  }
+  local guest_label_attrs = {
+    group = { class = "control-group" }
+  }
+  guest_html[#guest_html+1] = ui_helper.createSwitch(T"Guest Network (Guest)", "guest_network_enabled_ui", guest_network_enabled, guest_switch_attrs)
+  local info_class = { group = { class = "control-group" }, span = { class = "span2 simple-desc" } }
+  if curradio == "radio_5G" or (radioData[curradio] and radioData[curradio].supported_frequency_bands == "5GHz") then
+    local ssid_5g = proxy.get("uci.wireless.wifi-iface.@wl1_1.ssid")
+    if ssid_5g and ssid_5g[1] then
+      guest_html[#guest_html+1] = ui_helper.createLabel(T"Guest SSID:", untaint(ssid_5g[1].value), info_class)
+    end
+  else
+    local ssid_2g = proxy.get("uci.wireless.wifi-iface.@wl0_1.ssid")
+    if ssid_2g and ssid_2g[1] then
+      guest_html[#guest_html+1] = ui_helper.createLabel(T"Guest SSID:", untaint(ssid_2g[1].value), info_class)
+    end
+  end
+
+
+  ngx.print('<fieldset id="guest-network-section"><legend>' .. T"Guest Network" .. '</legend>')
+  ngx.print(guest_html)
+  ngx.print('</fieldset>')
+end
+
   ngx.print('\
 <fieldset>\
 <legend>');  ngx.print( T"Interface" ); ngx.print('</legend>\
@@ -1060,7 +1250,7 @@ if bandsteerhelpmsg then ngx.print(ui_helper.createMessages(bandsteerhelpmsg)) e
             },
         }
         -- Display infomation indicating it is a guest SSID
-
+		
         --html[#html + 1] = ui_helper.createAlertBlock(T"This is a guest network. The guest network has no local network access.", guest_alert)
 		html[#html + 1] = ui_helper.createLabel(T"Radio", labelstate)
 
@@ -1068,11 +1258,7 @@ if bandsteerhelpmsg then ngx.print(ui_helper.createMessages(bandsteerhelpmsg)) e
         html[#html + 1] = ui_helper.createLabel(T"Frequency band", content["supported_frequency_bands"])
         -- Label that shows the MAC address of the Wifi interface
         html[#html + 1] = ui_helper.createLabel(T"MAC address", content["macaddress"])
-    if radioData[curradio].supported_frequency_bands == "5GHz" then
-      html[#html + 1] = ui_helper.createLabel(T"Standard", listboxToText(wifi_standard, wifiStandard.standard), advanced)
-    else
-      html[#html + 1] = ui_helper.createLabel(T"Standard", listboxToText(wifi_standard, content["standard"]), advanced)
-    end
+        html[#html + 1] = ui_helper.createLabel(T"Standard", listboxToText(wifi_standard, content["standard"]), advanced)
         -- Current speed of the Wifi interface
         html[#html + 1] = ui_helper.createLabel(T"Speed", content["phy_rate"] / 1000 .. "Mbps", { span = {
             id = "phy_rate",
@@ -1103,23 +1289,17 @@ if bandsteerhelpmsg then ngx.print(ui_helper.createMessages(bandsteerhelpmsg)) e
         -- Select the standard to use
         local stdattributes = {
             group = {
-                class = "advanced hide",
+                class = "",
             },
             select = {
                 class = "monitor-changes"
             }
         }
-   if radioData[curradio].supported_frequency_bands == "5GHz" then
-     html[#html + 1] = ui_helper.createLabel(T"Standard", listboxToText(wifi_standard, wifiStandard.standard), stdattributes)
-     stdattributes.select={class = "monitor-changes",style="display:none"}
-     html[#html + 1] = ui_helper.createSimpleInputSelect("standard", wifi_standard, wifiStandard.standard,stdattributes)
-   else
-    if not stbLimit then
-        html[#html + 1] = ui_helper.createInputSelect(T"Standard", "standard", wifi_standard, content["standard"], stdattributes)
-    else
-        html[#html + 1] = ui_helper.createLabel(T"Standard", listboxToText(wifi_standard, content["standard"]), stdattributes)
-    end
-   end
+        if not stbLimit then
+            html[#html + 1] = ui_helper.createInputSelect(T"Standard", "standard", wifi_standard, content["standard"], stdattributes)
+        else
+            html[#html + 1] = ui_helper.createLabel(T"Standard", listboxToText(wifi_standard, content["standard"]), stdattributes)
+        end
 
         -- Current speed of the Wifi interface
         html[#html + 1] = ui_helper.createLabel(T"Speed", content["phy_rate"] / 1000 .. "Mbps", { span = {
@@ -1139,7 +1319,7 @@ if bandsteerhelpmsg then ngx.print(ui_helper.createMessages(bandsteerhelpmsg)) e
             ["data-ajaxrefresh"] = "5",
         }})
         if not stbLimit then
-            html[#html + 1] ='<div class ="advanced hide">'
+            html[#html + 1] ='<div>'
             local cw20attributes  = {
                 group = {
                     class ="hide monitor-standard monitor-b monitor-bg",
@@ -1150,7 +1330,7 @@ if bandsteerhelpmsg then ngx.print(ui_helper.createMessages(bandsteerhelpmsg)) e
 
             local cw40attributes  = {
                 group = {
-                    class ="hide monitor-standard monitor-bgn monitor-an",
+                    class ="hide monitor-standard monitor-bgn monitor-n monitor-an monitor-bgnax monitor-gnax monitor-nax",
                 },
 
             }
@@ -1159,11 +1339,19 @@ if bandsteerhelpmsg then ngx.print(ui_helper.createMessages(bandsteerhelpmsg)) e
 
             local cw80attributes  = {
                 group = {
-                    class ="hide monitor-standard monitor-anac",
+                    class ="hide monitor-standard monitor-anac monitor-ac monitor-nac",
                 },
             }
 
             html[#html + 1] = ui_helper.createInputSelect(T"Channel Width", "channelwidth80", cw_80, content["requested_channel_width"], cw80attributes)
+
+            local cw160attributes = {
+                group = {
+                    class ="hide monitor-standard monitor-anacax monitor-nacax monitor-acax",
+                },
+            }
+
+            html[#html + 1] = ui_helper.createInputSelect(T"Channel Width", "channelwidth160", cw_160, content["requested_channel_width"], cw160attributes)
             html[#html + 1] = '</div>'
 			if isExtRemman ~= "1" and isIntRemman ~= "1" then
 				html[#html + 1] = ui_helper.createSwitch(T"Bypass Reg Domain Power Rule", "tx_power_overrule_reg", content["tx_power_overrule_reg"], advanced)
@@ -1172,6 +1360,8 @@ if bandsteerhelpmsg then ngx.print(ui_helper.createMessages(bandsteerhelpmsg)) e
                 html[#html + 1] = ui_helper.createInputSelect(T"Cyclic-Delay Diversity", "cdd", cddList, content["cdd"], advanced)
                 html[#html + 1] = ui_helper.createSwitch(T"Space Time Block Code", "stbc", content["stbc"], advanced)
                 html[#html + 1] = ui_helper.createSwitch(T"Frame Bursting", "frame_bursting", content["frame_bursting"], advanced)
+            else
+				html[#html + 1] = ui_helper.createLabel(T"Output Power", T"Managed automatically by regulatory tables (Quantenna 5GHz)", advanced)
             end
         end
     end
@@ -1183,8 +1373,8 @@ if bandsteerhelpmsg then ngx.print(ui_helper.createMessages(bandsteerhelpmsg)) e
 if isguest ~= "1" then
 
 	html = {}
-
-
+	
+	
 	html[#html + 1] = '<legend class="advanced hide">'
     html[#html + 1] = T"Eco Settings"
     html[#html + 1] = "</legend>"
@@ -1196,7 +1386,7 @@ if isguest ~= "1" then
 	--html[#html + 1] = ui_helper.createSwitch(T"Single Rx Chain", "eco_single_rx_chain", content["eco_single_rx_chain"], advanced)
 
 	ngx.print(html)
-
+	
 end
 
     html = {}
@@ -1273,7 +1463,7 @@ end
 
     local pskclass = {
         group = {
-            class ="monitor-security monitor-wpa-psk monitor-wpa2-psk monitor-wpa-wpa2-psk",
+            class ="monitor-security monitor-wpa-psk monitor-wpa2-psk monitor-wpa-wpa2-psk monitor-wpa3-psk monitor-wpa2-wpa3-psk",
         },
         input = {
             class= "span4",
@@ -1347,7 +1537,7 @@ if isguest ~= "1"  then
 
     local wps_class = {
         group = {
-            class = "monitor-security monitor-none monitor-wpa2-psk monitor-wpa-wpa2-psk monitor-ap_broadcast_ssid monitor-1"
+            class = "monitor-security monitor-none monitor-wpa2-psk monitor-wpa-wpa2-psk monitor-wpa2-wpa3-psk monitor-ap_broadcast_ssid monitor-1"
         }
     }
     html[#html + 1] = ui_helper.createSwitch(T"WPS", "wps_enabled", content["wps_enabled"], wps_class)
@@ -1370,15 +1560,17 @@ if isguest ~= "1"  then
         ["data-name"] = "action",
         ["data-value"] = "wps_pbc",
     }
-    if radioData[curradio].remotely_managed ~= "1" or radioData[curradio].integrated_ap == "1"  then
+    if not radioData[curradio] or radioData[curradio].remotely_managed ~= "1" or radioData[curradio].integrated_ap == "1" then
      html[#html + 1] = ui_helper.createButton(T"WPS PBC", T"Trigger", "icon-refresh", wps_class)
-	 html[#html + 1] = ui_helper.createInputRadio(T"WPS Buttom Mode", "wps_button_handler" , wps_button_mode , content["wps_button_handler"] , nil)
+	 if content["wps_button_handler"] ~= nil then
+	   html[#html + 1] = ui_helper.createInputRadio(T"WPS Buttom Mode", "wps_button_handler" , wps_button_mode , content["wps_button_handler"] , nil)
+	 end
     end
 end
    if 1 == band_steer_supported then
         local bssecclass = {
             group = {
-                class ="monitor-security monitor-wpa-psk monitor-wpa2-psk monitor-wpa-wpa2-psk monitor-none",
+                class ="monitor-security monitor-wpa-psk monitor-wpa2-psk monitor-wpa-wpa2-psk monitor-wpa3-psk monitor-wpa2-wpa3-psk monitor-none",
             },
         }
 
@@ -1405,7 +1597,7 @@ end
 \
 </fieldset>\
 \
-        ');
+        ');  
         if not stbLimit then
             html = {}
             html[#html + 1] = "<fieldset class=\"advanced hide\">"
@@ -1464,7 +1656,7 @@ end
 ); ngx.print('\
 ');  end  ngx.print('\
 </fieldset>\
-');
+');  
 else
   --wifi analyzer handler
   local uri = ngx.var.uri
@@ -1496,7 +1688,7 @@ else
 ');  ngx.print( T"Please update your browser to use this page." ); ngx.print('\
 </canvas>\
 \
-');
+');  
     html = {}
 
     local freq = "2"
@@ -1823,15 +2015,15 @@ function get_random_color() {\
     });\
 </script>\
 \
-');
+');  
 --End of wifi analyzer
 end  ngx.print('\
-');
+');  
 -- Do not display the navlist on the list if only 1 SSID
 if #wls > 1 then
   ngx.print('\
 </div>\
-');
+');  
 end
   ngx.print('\
 </form>\
@@ -1894,7 +2086,7 @@ if(aclmode == "register"){\
 function get_status_acl() {\
    $("#btn_acl").attr(\'disabled\', true);\
    setTimeout(function(){\
-   $.get("modals/wireless-modal.lp?action=get_reg_status&curap=');  ngx.print(curap); ngx.print('", function(res){\
+   $.get("/modals/wireless-modal.lp?action=get_reg_status&curap=');  ngx.print(curap); ngx.print('", function(res){\
      if (res != "register"){\
        get_status_acl();\
      }\
@@ -1907,7 +2099,7 @@ function get_status_acl() {\
 \
 $("#btn_acl").on("click", function() {\
    if($("#btn_acl").attr("disabled")!= undefined ) return false;\
-   $.post("modals/wireless-modal.lp",{ action: "set_reg", curap: "');  ngx.print(curap); ngx.print('", CSRFtoken: $("meta[name=CSRFtoken]").attr("content")},\
+   $.post("/modals/wireless-modal.lp",{ action: "set_reg", curap: "');  ngx.print(curap); ngx.print('", CSRFtoken: $("meta[name=CSRFtoken]").attr("content")},\
       get_status_acl);\
  });\
 \
@@ -1921,26 +2113,34 @@ $(document).ready(function() {\
     }\
 });\
 \
-$("#save-config").click(function(){\
-	var params = [];\
-	params.push({\
-	name : "ssidName",\
-	value : $("#ssid").val()\
-	},{\
-	name : "wpa_psk",\
-	value : $("#wpa_psk").val()\
-	},{\
-	name : "security",\
-	value : $("#security").val()\
-	},{\
-	name : "CSRFtoken",\
-	value :$("meta[name=CSRFtoken]").attr("content")\
-	},{\
-	name : "action",\
-	value: "bs_check"\
+if ("1" == bschecked) {\
+	$("#save-config").click(function(){\
+		var params = [];\
+		params.push({\
+		name : "ssidName",\
+		value : $("#ssid").val()\
+		},{\
+		name : "wpa_psk",\
+		value : $("#wpa_psk").val()\
+		},{\
+		name : "security",\
+		value : $("#security").val()\
+		},{\
+		name : "curradio",\
+		value : "'); ngx.print(curradio); ngx.print('"\
+		},{\
+		name : "curiface",\
+		value : "'); ngx.print(curiface); ngx.print('"\
+		},{\
+		name : "CSRFtoken",\
+		value :$("meta[name=CSRFtoken]").attr("content")\
+		},{\
+		name : "action",\
+		value: "bs_check"\
+		});\
+		$.post("/modals/wireless-modal.lp?radio='); ngx.print(curradio); ngx.print('&iface='); ngx.print(curiface); ngx.print('",params);\
 	});\
-	$.post("modals/wireless-modal.lp",params);\
-});\
+}\
 \
 $(\'input[id="band_steer_enabled"]\').on("click", function(){\
     if ("1" == bschecked) {\
@@ -1949,6 +2149,20 @@ $(\'input[id="band_steer_enabled"]\').on("click", function(){\
         $(\'option[value="wpa2"]\').hide();\
         $(\'option[value="wpa"]\').hide();\
     }\
+});\
+\
+// Guest network toggle handler\
+$(\'#guest_network_switch\').on("change", function(){\
+    var newState = $(this).val() === "1" ? "1" : "0";\
+    $.post("/modals/wireless-modal.lp", {\
+        action: "toggle_guest",\
+        guest_state: newState,\
+        CSRFtoken: $("meta[name=CSRFtoken]").attr("content")\
+    }, function(data) {\
+        if (data && data.success) {\
+            location.reload();\
+        }\
+    }, "json");\
 });\
 </script>\
 ');

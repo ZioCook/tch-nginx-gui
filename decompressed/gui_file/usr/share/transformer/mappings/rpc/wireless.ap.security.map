@@ -26,6 +26,10 @@ local wireless_ap_security_ = {
             access = "readOnly",
             type = "string",
         },
+        pmf = {
+            access = "readWrite",
+            type = "string",
+        },
     },
   }
 }
@@ -55,23 +59,47 @@ local function getDataForAP(ap)
     return result[ap] or {}
 end
 
+local namemap = {   mode="security_mode",
+                    wpa_psk_passphrase="wpa_psk_key"
+                }
+
+local default_supported_modes = "none wpa2-psk wpa-wpa2-psk wpa3-psk wpa2-wpa3-psk"
+
 local function getall(mapping, key)
     local apData = getDataForAP(key)
     local sanitizedData = {}
     for k,v in pairs(apData) do
         sanitizedData[k] = nilToEmptyString(v)
     end
+    if not sanitizedData.wpa_psk_passphrase or sanitizedData.wpa_psk_passphrase == "" then
+        sanitizedData.wpa_psk_passphrase = (sanitizedData.wpa_psk_key and sanitizedData.wpa_psk_key ~= "") and sanitizedData.wpa_psk_key or nilToEmptyString(uci_helper.get_from_uci({config = "wireless", sectionname = key, option = "wpa_psk_key"}))
+    end
+    if not sanitizedData.mode or sanitizedData.mode == "" then
+        sanitizedData.mode = (sanitizedData.security_mode and sanitizedData.security_mode ~= "") and sanitizedData.security_mode or nilToEmptyString(uci_helper.get_from_uci({config = "wireless", sectionname = key, option = "security_mode"}))
+    end
+    if not sanitizedData.pmf or sanitizedData.pmf == "" then
+        sanitizedData.pmf = nilToEmptyString(uci_helper.get_from_uci({config = "wireless", sectionname = key, option = "pmf"}))
+    end
+    if not sanitizedData.supported_modes or sanitizedData.supported_modes == "" then
+        sanitizedData.supported_modes = default_supported_modes
+    end
     return sanitizedData
 end
 
 local function get(mapping, paramName, key)
     local apData = getDataForAP(key)
-    return nilToEmptyString(apData[paramName]);
+    local val = apData[paramName]
+    if (val == nil or val == "") and namemap[paramName] then
+        val = apData[namemap[paramName]]
+    end
+    if val == nil or val == "" then
+        val = uci_helper.get_from_uci({config = "wireless", sectionname = key, option = namemap[paramName] or paramName})
+    end
+    if paramName == "supported_modes" and (val == nil or val == "") then
+        val = default_supported_modes
+    end
+    return nilToEmptyString(val)
 end
-
-local namemap = {   mode="security_mode",
-                    wpa_psk_passphrase="wpa_psk_key"
-                }
 local set = function(mapping, param, value, key)
   if param == "wpa_psk_passphrase" then
     local pskmatch = "^[ -~]+$"
@@ -86,17 +114,26 @@ local set = function(mapping, param, value, key)
   end
   if param == "mode" then
     if value == "wpa3-psk" then
-      local wpsVal = uci_helper.get_from_uci({config = "wireless", sectionname = key, option = "wps_state"}) or "0"
+      local wpsVal = uci_helper.get_from_uci({config = "wireless", sectionname = key, option = "wps_state"}) or "1"
       uci_helper.set_on_uci({ config = "system", sectionname = key , option = "last_state"}, wpsVal, commitapply)
+      uci_helper.set_on_uci({ config = "wireless", sectionname = key , option = "wps_state"}, "0", commitapply)
+      uci_helper.set_on_uci({ config = "wireless", sectionname = key , option = "pmf"}, "required", commitapply)
+    elseif value == "wpa2-wpa3-psk" then
+      uci_helper.set_on_uci({ config = "wireless", sectionname = key , option = "pmf"}, "optional", commitapply)
+      local wpsVal = uci_helper.get_from_uci({ config = "system", sectionname = key, option = "last_state"}) or "1"
+      uci_helper.set_on_uci({ config = "wireless", sectionname = key , option = "wps_state"}, wpsVal, commitapply)
     else
       local secMode = uci_helper.get_from_uci({config = "wireless", sectionname = key, option = "security_mode"})
       if secMode ~= value then
-        local wpsVal = uci_helper.get_from_uci({ config = "system", sectionname = key, option = "last_state"}) or "0"
+        local wpsVal = uci_helper.get_from_uci({ config = "system", sectionname = key, option = "last_state"}) or "1"
         uci_helper.set_on_uci({ config = "wireless", sectionname = key , option = "wps_state"}, wpsVal, commitapply)
+      end
+      if value == "none" then
+        uci_helper.set_on_uci({ config = "wireless", sectionname = key , option = "pmf"}, "disabled", commitapply)
       end
     end
   end
-    uci_helper.set_on_uci({ config = "wireless", sectionname = key , option = namemap[param] or param}, value, commitapply)
+  uci_helper.set_on_uci({ config = "wireless", sectionname = key , option = namemap[param] or param}, value, commitapply)
 end
 
 wireless_ap_security_.getall = getall

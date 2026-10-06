@@ -36,64 +36,68 @@ local retranscountstart = 0
 
 --AJAX Part
 local function AJAX(mac)
-  local  ssid_path, count =  "", 0
-  local content = {}
+  local ssid_path, count = "", 0
+  local content = {
+    rx_bytes = "0",
+    tx_bytes = "0",
+    assoc_time = "0",
+    ps_off_on_transistions = "0",
+    rx_phy_rate = "0",
+    tx_phy_rate = "0",
+    rx_data_rate = "0",
+    tx_data_rate = "0",
+    flags = "",
+    rssi = "0",
+    capabilities = "",
+    ssid = "",
+    freq = "",
+  }
   local path = "rpc.wireless.ap."
   local path_value = content_helper.convertResultToObject(path, proxy.get(path))
-  local mac_found , mac_address_path ,mac_address_value ,ap
+  local mac_found, mac_address_path, mac_address_value, ap
+  local target_mac = mac and mac:untaint()
   for _,v in ipairs(path_value) do
      ap = match(v.paramindex, "@([^%.]+)")
      mac_address_path = path.."@"..ap..".station."
      mac_address_value = content_helper.convertResultToObject(mac_address_path, proxy.get(mac_address_path))
-     for _,w in  ipairs(mac_address_value) do
+     for _,w in ipairs(mac_address_value) do
        mac_found = match(w.paramindex, "@([^%.]+)")
-       if mac_found == mac:untaint() and (w.flags ~= "" and w.rssi ~= "0") then
+       if mac_found == target_mac and (w.flags ~= "" and w.rssi ~= "0") then
          ssid_path = format("rpc.wireless.ssid.@%s.",v.ssid)
-         count = count +1
-         content = {
-           rx_bytes = w.rx_bytes,
-           tx_bytes = w.tx_bytes,
-           assoc_time = w.assoc_time,
-           ps_off_on_transistions = w.ps_off_on_transistions,
-           rx_phy_rate = w.rx_phy_rate,
-           tx_phy_rate = w.tx_phy_rate,
-           rx_data_rate = w.rx_data_rate,
-           tx_data_rate = w.tx_data_rate,
-           flags = w.flags,
-           rssi = w.rssi,
-           capabilities = w.capabilities,
-          }
-        elseif count == 0 then
-          content = {
-            rx_bytes = "0",
-            tx_bytes = "0",
-            assoc_time = "0",
-            ps_off_on_transistions = "0",
-            rx_phy_rate = "0",
-            tx_phy_rate = "0",
-            rx_data_rate = "0",
-            tx_data_rate = "0",
-            flags = "",
-            rssi = "0",
-            capabilities = w.capabilities,
-          }
-        end
-      end
+         count = count + 1
+         content.rx_bytes = w.rx_bytes
+         content.tx_bytes = w.tx_bytes
+         content.assoc_time = w.assoc_time
+         content.ps_off_on_transistions = w.ps_off_on_transistions
+         content.rx_phy_rate = w.rx_phy_rate
+         content.tx_phy_rate = w.tx_phy_rate
+         content.rx_data_rate = w.rx_data_rate
+         content.tx_data_rate = w.tx_data_rate
+         content.flags = w.flags
+         content.rssi = w.rssi
+         content.capabilities = w.capabilities or ""
+         break
+       end
+     end
+     if count > 0 then
+       break
+     end
   end
-  if content.rssi == "0" then content.rssi ="-100" end
+  if content.rssi == "0" then content.rssi = "-100" end
   content.assoc_time = secondsToTime(content.assoc_time)
-  local ssid_content = {
-     ssid = ssid_path .. "ssid",
-     radio = ssid_path .. "radio",
-  }
-  content_helper.getExactContent(ssid_content)
-   content.ssid = ssid_content.ssid
-   content.freq = ""
-   if ssid_content.radio == "radio_5G" then
-         content.freq = "5GHz"
-   elseif ssid_content.radio == "radio_2G" then
-         content.freq = "2.4GHz"
-   end
+  if count > 0 and ssid_path ~= "" then
+    local ssid_content = {
+       ssid = ssid_path .. "ssid",
+       radio = ssid_path .. "radio",
+    }
+    content_helper.getExactContent(ssid_content)
+    content.ssid = ssid_content.ssid
+    if ssid_content.radio == "radio_5G" then
+      content.freq = "5GHz"
+    elseif ssid_content.radio == "radio_2G" then
+      content.freq = "2.4GHz"
+    end
+  end
 
   local html = {}
   html[#html+1]="{"
