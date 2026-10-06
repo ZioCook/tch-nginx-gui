@@ -1,358 +1,233 @@
-var KoRequest = {};
-var connectionissue = 0;
-
-var modgui = modgui || {};
-!function (module) {
-
-	function standardCloseAction() {
-		tch.showProgress(waitMsg);
-		window.location.reload(true);
-	}
-	function postAction(action, logModal, customCloseAction, customTarget) {
-		var onClose = ( typeof customCloseAction === "function" ) && customCloseAction || function() {
-			tch.showProgress(waitMsg);
-			window.location.reload(true);
-		}
-
-		var target = customTarget ? customTarget : $(".modal form").attr("action");
-		$.post(
-			target, {
-				action: action,
-				CSRFtoken: $("meta[name=CSRFtoken]").attr("content")
-			},
-			null,
-			"json"
-		);
-		if(logModal){
-			clearKoInterval();
-			$(window).on('shown.bs.modal', function() {
-				$(".modal-backdrop").unbind();
-				$("#close-config,.modal-action-close").unbind( "click" );
-				$("#close-config,.modal-action-close").on("click", function() {
-					onClose();
-				});
-			});
-			tch.openModal("/modals/command-log-read-modal.lp");
-		}
-		return false;
-	}
-
-	function createAjaxUpdateCard(CardIdRefresh, ajaxLink, IntervalVar, RefreshTime, CustomRefreshFunction) {
-
-		var element = document.getElementById(CardIdRefresh);
-		if (!element) return ;
-
-		var ElementBinding = {};
-		var ElementBindingList = [];
-		var ObserveElement;
-		$("#" + CardIdRefresh).find("[data-bind]").each(function () {
-			ObserveElement = $(this).data("bind").split(":")[1].trim();
-			ElementBindingList.push(ObserveElement);
-			ElementBinding[ObserveElement] = ko.observable();
-		});
-
-		var arrayLength = ElementBindingList.length;
-
-		var AjaxRefresh = ( typeof CustomRefreshFunction === "function" ) && CustomRefreshFunction || function() {
-			var updateLink = "auto_update=true";
-			if ( /[a-z]+=[a-z]+/.test(ajaxLink) ) {
-				updateLink = "&" + updateLink;
-			} else {
-				updateLink = "?" + updateLink;
-			};
-			$.post(ajaxLink + updateLink, [tch.elementCSRFtoken()], function (data) {
-				for (var i = 0; i < arrayLength; i++) {
-					if (data[ElementBindingList[i]] != undefined) {
-						ElementBinding[ElementBindingList[i]](data[ElementBindingList[i]]);
-					}
-				}
-			}, "json")
-				.done(function(data) {
-					if(connectionissue==1) {
-						if ($("#popUp").is(":visible"))
-							tch.removeProgress();
-						connectionissue = 0;
-					}
-				})
-				.fail(function(data) {
-					connectionissue = 1;
-					switch (data.status) {
-						case 200:
-							if(data.responseText.indexOf("sign-me-in") !== -1 ) {
-								if(!$("#popUp").is(":visible"))
-									tch.showProgress(loginMsg);
-								window.location.href = "/";
-							}
-							break;
-						case 500:
-							window.location.href = "/error.lp?status="+data.status+"&err="+data.getResponseHeader("error-msg");
-							break;
-						default:
-							if(!$("#popUp").is(":visible"))
-								tch.showProgress(connectionLost + " " + data.statusText);
-					}
-				});
-		};
-
-		AjaxRefresh(ElementBinding);
-
-		if (!ko.dataFor(element))
-			ko.applyBindings(ElementBinding, element);
-		KoRequest[IntervalVar] = {
-			interval : setInterval(AjaxRefresh,RefreshTime,ElementBinding),
-			function : AjaxRefresh,
-			binding : ElementBinding,
-			refreshTime: RefreshTime,
-		};
-	}
-
-	function linkCheckUpdate() {
-		$(".check_update").on("click", function (e) {
-			e.stopPropagation();
-			if(KoRequest.CheckVer) return;
-			postAction("checkver", null, null, '/modals/modgui-modal.lp?auto_update=true');
-			$(".check_update_spinner").addClass("fa-spin");
-				KoRequest.CheckVer = {
-					interval : setInterval(function () {
-						$.ajax({
-							url:"/ajax/commandlogread.lua?auto_update=true",
-							data: [tch.elementCSRFtoken()],
-							type: "POST",
-							dataType: "json",
-							timeout: 500,
-							success: function (data) {
-								if (data.state == "Checking") {
-									if (data.new_version_text) {
-										if (data.new_version_text == "Unknown") {
-											$(".gui_version_status").removeClass("yellow");
-											$(".gui_version_status").addClass("green");
-											$(".gui_version_status_text").text(gui_var.gui_updated);
-											$("#upgrade-alert").addClass("hide");
-										} else {
-											$(".gui_version_status").removeClass("green");
-											$(".gui_version_status").addClass("yellow");
-											$("#upgradebtn").removeClass("hide");
-											$(".gui_version_status_text").text(gui_var.gui_outdated);
-											$("#upgrade-alert").removeClass("hide");
-											$("#new-version-text").text(data.new_version_text);
-										}
-									}
-								} else if (data.state == "Complete") {
-									$(".gui_version_status_text").parent().fadeOut().fadeIn();
-									$(".check_update_spinner").removeClass("fa-spin");
-									clearInterval(KoRequest.CheckVer.interval);
-									KoRequest.CheckVer = null;
-								}
-							}
-						})
-					}, "500")
-				}
-		})
-	};
-
-	function freshStyle(stylesheet) {
-		$("#theme_skin").attr("href", "/theme/" + stylesheet);
-	}
-
-	function scrollFunction() {
-		if (document.body.scrollTop > 60 || document.documentElement.scrollTop > 60) {
-			$("#scroll-up").removeClass("hide");
-			$("#scroll-down").addClass("hide");
-		} else {
-			$("#scroll-up").addClass("hide");
-			$("#scroll-down").removeClass("hide");
-		}
-	}
-
-	function clearKoInterval() {
-		Object.keys(KoRequest).forEach(function(interval) {
-			if(KoRequest[interval])
-				clearInterval(KoRequest[interval].interval);
-		});
-	}
-
-	function restartKoInterval() {
-		Object.keys(KoRequest).forEach(function(interval) {
-			if(KoRequest[interval])
-				KoRequest[interval].interval = setInterval(KoRequest[interval].function,KoRequest[interval].refreshTime,KoRequest[interval].binding);
-		});
-	}
-
-	// Resolve mac to vendor
-	// Take mac and the JQuery div object to put the vendor
-	function getVendorFromMac(mac, div) {
-		div.addClass("fa fa-sync fa-spin");
-		$.ajax({
-			url: "/modals/modgui-modal.lp?auto_update=true",
-			method: 'POST',
-			data: {
-				action: 'getVendor',
-				mac: mac,
-				CSRFtoken: $("meta[name=CSRFtoken]").attr("content")
-			},
-			error: function() {
-				div.removeClass("fa fa-sync fa-spin");
-				div.text('Error');
-			},
-			success: function (data) {
-				div.removeClass("fa fa-sync fa-spin");
-				div.text(data || 'Unknown');
-			}
-		});
-	}
-
-	module.postAction = postAction,
-	module.createAjaxUpdateCard = createAjaxUpdateCard,
-	module.linkCheckUpdate = linkCheckUpdate,
-	module.freshStyle = freshStyle,
-	module.scrollFunction = scrollFunction,
-	module.clearKoInterval = clearKoInterval,
-	module.restartKoInterval = restartKoInterval,
-	module.getVendorFromMac = getVendorFromMac
+if(typeof ko!=="undefined"&&ko.options){ko.options.deferUpdates=true;}
+var KoRequest={};var connectionissue=0;var modgui=modgui||{};!function(module){function standardCloseAction(){tch.showProgress(waitMsg);window.location.reload(true);}
+function postAction(action,logModal,customCloseAction,customTarget){var onClose=(typeof customCloseAction==="function")&&customCloseAction||function(){tch.showProgress(waitMsg);window.location.reload(true);}
+var target=customTarget?customTarget:$(".modal form").attr("action");$.post(target,{action:action,CSRFtoken:$("meta[name=CSRFtoken]").attr("content")},null,"json");if(logModal){clearKoInterval();$(window).on('shown.bs.modal',function(){$(".modal-backdrop").unbind();$("#close-config,.modal-action-close").unbind("click");$("#close-config,.modal-action-close").on("click",function(){onClose();});});tch.openModal("/modals/command-log-read-modal.lp");}
+return false;}
+var _syncCards={};var _syncTimer=null;var _syncInFlight=false;
+function _getSyncModule(link){
+    if(!link)return null;
+    if(link.indexOf("cpuload.lua")!==-1)return "gateway";
+    if(link.indexOf("internet.lua")!==-1){
+        if(link.indexOf("datatype=xdsl")!==-1)return "xdsl";
+        return "wan";
+    }
+    if(link.indexOf("connected_device.lua")!==-1)return "devices";
+    if(link.indexOf("mmpbx_status.lua")!==-1)return "mmpbx";
+    if(link.indexOf("port_status.lua")!==-1)return "ports";
+    if(link.indexOf("dashboard_sync.lua")!==-1)return "all";
+    return null;
 }
-(modgui);
+function _masterSync(){
+    if(document.hidden||_syncInFlight)return;
+    var activeCards=[];var modulesSet={};
+    for(var cardId in _syncCards){
+        var card=_syncCards[cardId];
+        var el=document.getElementById(card.id);
+        if(!el){delete _syncCards[cardId];continue;}
+        if(card.bindings&&card.bindings._isIntersecting===false){continue;}
+        activeCards.push(card);
+        if(card.module)modulesSet[card.module]=true;
+    }
+    if(activeCards.length===0)return;
+    _syncInFlight=true;
+    var modulesList=Object.keys(modulesSet).join(",");
+    var postData=[tch.elementCSRFtoken()];
+    postData.push({name:"modules",value:modulesList});
+    $.ajax({
+        url:"/ajax/dashboard_sync.lua?auto_update=true",
+        type:"POST",
+        dataType:"json",
+        timeout:8000,
+        data:postData,
+        success:function(data){
+            if(!data||typeof data!=="object")return;
+            for(var c=0;c<activeCards.length;c++){
+                var card=activeCards[c];
+                var modData=data[card.module];
+                if(!modData||typeof modData!=="object")continue;
+                for(var i=0;i<card.list.length;i++){
+                    var key=card.list[i];
+                    var val=modData[key];
+                    if(val!==undefined&&typeof card.bindings[key]==="function"){
+                        card.bindings[key](val);
+                    }
+                }
+            }
+        }
+    }).done(function(){
+        if(connectionissue==1){
+            if($("#popUp").is(":visible"))tch.removeProgress();
+            connectionissue=0;
+        }
+    }).fail(function(data){
+        connectionissue=1;
+        switch(data.status){
+            case 200:
+                if(data.responseText&&data.responseText.indexOf("sign-me-in")!==-1){
+                    if(!$("#popUp").is(":visible"))tch.showProgress(loginMsg);
+                    window.location.href="/";
+                }
+                break;
+            case 500:
+                window.location.href="/error.lp?status="+data.status+"&err="+data.getResponseHeader("error-msg");
+                break;
+            default:
+                if(!$("#popUp").is(":visible"))tch.showProgress(connectionLost+" "+data.statusText);
+        }
+    }).always(function(){
+        _syncInFlight=false;
+    });
+}
+function createAjaxUpdateCard(CardIdRefresh,ajaxLink,IntervalVar,RefreshTime,CustomRefreshFunction){
+    var element=document.getElementById(CardIdRefresh);
+    if(!element)return;
+    var ElementBinding={};
+    var ElementBindingList=[];
+    $("#"+CardIdRefresh).find("[data-bind]").each(function(){
+        var bindVal=$(this).data("bind")||"";
+        var pairs=bindVal.split(",");
+        for(var p=0;p<pairs.length;p++){
+            var parts=pairs[p].split(":");
+            if(parts.length>=2){
+                var obs=parts[1].trim();
+                if(obs&&ElementBindingList.indexOf(obs)===-1){
+                    ElementBindingList.push(obs);
+                    ElementBinding[obs]=ko.observable();
+                }
+            }
+        }
+    });
+    var arrayLength=ElementBindingList.length;
+    var syncModule=!CustomRefreshFunction&&_getSyncModule(ajaxLink);
+    if(syncModule){
+        _syncCards[CardIdRefresh]={
+            id:CardIdRefresh,
+            module:syncModule,
+            bindings:ElementBinding,
+            list:ElementBindingList
+        };
+        if(!ko.dataFor(element))ko.applyBindings(ElementBinding,element);
+        if(window.IntersectionObserver){
+            ElementBinding._isIntersecting=true;
+            var observer=new IntersectionObserver(function(entries){
+                ElementBinding._isIntersecting=entries[0].isIntersecting;
+                if(entries[0].isIntersecting){_masterSync();}
+            });
+            observer.observe(element);
+        }
+        if(!_syncTimer){
+            _syncTimer=setInterval(_masterSync,4000);
+            setTimeout(_masterSync,100);
+            if(!window._syncVisBound){
+                window._syncVisBound=true;
+                document.addEventListener("visibilitychange",function(){
+                    if(!document.hidden){_masterSync();}
+                });
+            }
+        }
+        return;
+    }
+    var AjaxRefresh=(typeof CustomRefreshFunction==="function")&&CustomRefreshFunction||function(){
+        if(document.hidden)return;
+        if(ElementBinding._isIntersecting===false)return;
+        var updateLink="auto_update=true";
+        if(/[a-z]+=[a-z]+/.test(ajaxLink)){updateLink="&"+updateLink;}else{updateLink="?"+updateLink;};
+        $.post(ajaxLink+updateLink,[tch.elementCSRFtoken()],function(data){
+            for(var i=0;i<arrayLength;i++){
+                if(data[ElementBindingList[i]]!=undefined){
+                    ElementBinding[ElementBindingList[i]](data[ElementBindingList[i]]);
+                }
+            }
+        },"json").done(function(data){
+            if(connectionissue==1){
+                if($("#popUp").is(":visible"))tch.removeProgress();
+                connectionissue=0;
+            }
+        }).fail(function(data){
+            connectionissue=1;
+            switch(data.status){
+                case 200:
+                    if(data.responseText.indexOf("sign-me-in")!==-1){
+                        if(!$("#popUp").is(":visible"))tch.showProgress(loginMsg);
+                        window.location.href="/";
+                    }
+                    break;
+                case 500:
+                    window.location.href="/error.lp?status="+data.status+"&err="+data.getResponseHeader("error-msg");
+                    break;
+                default:
+                    if(!$("#popUp").is(":visible"))tch.showProgress(connectionLost+" "+data.statusText);
+            }
+        });
+    };
+    AjaxRefresh(ElementBinding);
+    if(!ko.dataFor(element))ko.applyBindings(ElementBinding,element);
+    if(window.IntersectionObserver){
+        ElementBinding._isIntersecting=true;
+        var observer=new IntersectionObserver(function(entries){
+            ElementBinding._isIntersecting=entries[0].isIntersecting;
+            if(entries[0].isIntersecting){AjaxRefresh(ElementBinding);}
+        });
+        observer.observe(element);
+    }
+    KoRequest[IntervalVar]={interval:setInterval(AjaxRefresh,RefreshTime,ElementBinding),function:AjaxRefresh,binding:ElementBinding,refreshTime:RefreshTime,};
+}
+function linkCheckUpdate(){$(".check_update").on("click",function(e){e.stopPropagation();if(KoRequest.CheckVer)return;postAction("checkver",null,null,'/modals/modgui-modal.lp?auto_update=true');$(".check_update_spinner").addClass("fa-spin");KoRequest.CheckVer={interval:setInterval(function(){$.ajax({url:"/ajax/commandlogread.lua?auto_update=true",data:[tch.elementCSRFtoken()],type:"POST",dataType:"json",timeout:500,success:function(data){if(data.state=="Checking"){if(data.new_version_text){if(data.new_version_text=="Unknown"){$(".gui_version_status").removeClass("yellow").addClass("green");$(".gui_version_status_text").text(gui_var.gui_updated);$("#upgrade-alert").addClass("hide");$("#upgradebtn, .sub-upgrade").addClass("hide");}else{$(".gui_version_status").removeClass("green").addClass("yellow");$("#upgradebtn, .sub-upgrade").removeClass("hide");$(".gui_version_status_text").text(gui_var.gui_outdated);$("#upgrade-alert").removeClass("hide");var ver_tag=data.new_version_text.split(" ")[0];$("#new-version-text").html('<a target="_blank" href="https://github.com/ZioCook/tch-nginx-gui/releases/tag/'+ver_tag+'">'+data.new_version_text+'</a>');}}}else if(data.state=="Complete"){$(".gui_version_status_text").parent().fadeOut().fadeIn();$(".check_update_spinner").removeClass("fa-spin");clearInterval(KoRequest.CheckVer.interval);KoRequest.CheckVer=null;}}})},"500")}})};function freshStyle(stylesheet){$("#theme_skin").attr("href","/theme/"+stylesheet);}
+function scrollFunction(){if(document.body.scrollTop>60||document.documentElement.scrollTop>60){$("#scroll-up").removeClass("hide");$("#scroll-down").addClass("hide");}else{$("#scroll-up").addClass("hide");$("#scroll-down").removeClass("hide");}}
+function clearKoInterval(){
+    if(_syncTimer){clearInterval(_syncTimer);_syncTimer=null;}
+    Object.keys(KoRequest).forEach(function(interval){if(KoRequest[interval]&&KoRequest[interval].interval)clearInterval(KoRequest[interval].interval);});
+}
+function restartKoInterval(){
+    if(!_syncTimer&&Object.keys(_syncCards).length>0){
+        _syncTimer=setInterval(_masterSync,4000);
+        _masterSync();
+    }
+    Object.keys(KoRequest).forEach(function(interval){if(KoRequest[interval]&&KoRequest[interval].function)KoRequest[interval].interval=setInterval(KoRequest[interval].function,KoRequest[interval].refreshTime,KoRequest[interval].binding);});
+}
+function getVendorFromMac(mac,div){div.addClass("fa fa-sync fa-spin");$.ajax({url:"/modals/modgui-modal.lp?auto_update=true",method:'POST',data:{action:'getVendor',mac:mac,CSRFtoken:$("meta[name=CSRFtoken]").attr("content")},error:function(){div.removeClass("fa fa-sync fa-spin");div.text('Error');},success:function(data){div.removeClass("fa fa-sync fa-spin");div.text(data||'Unknown');}});}
+module.postAction=postAction,module.createAjaxUpdateCard=createAjaxUpdateCard,module.linkCheckUpdate=linkCheckUpdate,module.freshStyle=freshStyle,module.scrollFunction=scrollFunction,module.clearKoInterval=clearKoInterval,module.restartKoInterval=restartKoInterval,module.getVendorFromMac=getVendorFromMac}
+(modgui);window.onscroll=function(){modgui.scrollFunction()};$(function(){$("a[href*=\'#\']").on("click",function(e){e.preventDefault();$("html, body").animate({scrollTop:$($(this).attr("href")).offset().top},500,"linear");});$(document).on('mouseenter','td[data-toggle="tooltip_mac"]',function(){var elem=this;var mac=$(elem).children("#mac_data").text();$(elem).append('<div class="tooltip bottom fade in"><div class="tooltip-arrow"></div><div class="tooltip-inner">'+
+mac+'</br>'+'<div data-type="vendor"></div>'
++'</div></div>');modgui.getVendorFromMac(mac,$(elem).children('.tooltip').children('.tooltip-inner').children('div[data-type="vendor"]'));}).on('mouseleave','td[data-toggle="tooltip_mac"]',function(){$('.tooltip').remove();});if(gui_var.randomcolor=="1"){setInterval(function(){var colorR=Math.floor((Math.random()*256));var colorG=Math.floor((Math.random()*256));var colorB=Math.floor((Math.random()*256));$(":root").get(0).style.setProperty("--first-color-accent","rgb("+colorR+","+colorG+","+colorB+")");$(":root").get(0).style.setProperty("--first-color-accent-50","rgba("+colorR+","+colorG+","+colorB+", 0.5)");$(":root").get(0).style.setProperty("--first-color-accent-80","rgba("+colorR+","+colorG+","+colorB+", 0.8)");},750);}
+var currentPath = document.location.pathname;
+var activeView = (currentPath == "/stats.lp" || (currentPath == "/" && gui_var.pageselector_othertext == gui_var.stats_text)) ? "stats" : "cards";
 
-window.onscroll = function () {
-	modgui.scrollFunction()
-};
+function updateSwitchButtonUI() {
+    if (activeView == "stats") {
+        $("#cards-text").text(gui_var.cards_text);
+        document.title = "Gateway - " + gui_var.stats_text;
+    } else {
+        $("#cards-text").text(gui_var.stats_text);
+        document.title = "Gateway - " + gui_var.cards_text;
+    }
+}
+updateSwitchButtonUI();
 
-$(function () {
-	$("a[href*=\'#\']").on("click", function (e) {
-		e.preventDefault();
-		$("html, body").animate({
-			scrollTop: $($(this).attr("href")).offset().top
-		}, 500, "linear");
-	});
+$("#switchViewButton").on("click", function() {
+    var targetPage = (activeView == "stats") ? "cards.lp" : "stats.lp";
+    var nextView = (activeView == "stats") ? "cards" : "stats";
+    var buttonNextText = (nextView == "stats") ? gui_var.cards_text : gui_var.stats_text;
+    var pageTitle = "Gateway - " + ((nextView == "stats") ? gui_var.stats_text : gui_var.cards_text);
 
-	$(document).on('mouseenter', 'td[data-toggle="tooltip_mac"]', function () {
-		var elem = this;
-		var mac = $(elem).children("#mac_data").text();
-		$(elem).append('<div class="tooltip bottom fade in"><div class="tooltip-arrow"></div><div class="tooltip-inner">'+
-		mac+'</br>'+
-		'<div data-type="vendor"></div>'
-		+'</div></div>');
-		modgui.getVendorFromMac(mac,$(elem).children('.tooltip').children('.tooltip-inner').children('div[data-type="vendor"]'));
-	}).on('mouseleave', 'td[data-toggle="tooltip_mac"]', function () {
-		$('.tooltip').remove();
-	});
+    $("#cards-text").text(openMsg);
+    $("#refresh-cards").show();
+    $("#refresh-cards").css("margin-right", "5px");
+    $("#refresh-cards").addClass("fa fa-sync fa-spin");
+    modgui.clearKoInterval();
+    KoRequest = {};
 
-	if (gui_var.randomcolor == "1") {
-		setInterval(function () {
-			var colorR = Math.floor((Math.random() * 256));
-			var colorG = Math.floor((Math.random() * 256));
-			var colorB = Math.floor((Math.random() * 256));
-			$(":root").get(0).style.setProperty("--first-color-accent", "rgb(" + colorR + "," + colorG + "," + colorB + ")");
-			$(":root").get(0).style.setProperty("--first-color-accent-50", "rgba(" + colorR + "," + colorG + "," + colorB + ", 0.5)");
-			$(":root").get(0).style.setProperty("--first-color-accent-80", "rgba(" + colorR + "," + colorG + "," + colorB + ", 0.8)");
-		}, 750);
-	}
-
-	var pathname = document.location.pathname;
-	var page = gui_var.pageselector_page;
-	var text = gui_var.pageselector_text;
-
-	if (pathname == "/stats.lp") {
-		$("#cards-text").text(gui_var.cards_text);
-		document.title = "Gateway - "+gui_var.stats_text;
-	} else if (pathname == "/cards.lp") {
-		$("#cards-text").text(gui_var.stats_text);
-		document.title = "Gateway - "+gui_var.cards_text;
-	} else if (pathname == "/" ) {
-		document.title = "Gateway - "+gui_var.pageselector_othertext;
-	}
-
-	$("#switchViewButton").on("click", function () {
-		var pathname = document.location.pathname;
-		var text = gui_var.pageselector_othertext;
-		var view = gui_var.pageselector_text;
-
-		if (pathname == "/stats.lp") {
-			page = "cards.lp";
-			text = gui_var.stats_text;
-			view = gui_var.cards_text;
-		} else if (pathname == "/cards.lp") {
-			page = "stats.lp";
-			text = gui_var.cards_text;
-			view = gui_var.stats_text;
-		}
-
-		$("#cards-text").text(openMsg);
-		$("#refresh-cards").show();
-		$("#refresh-cards").css("margin-right", "5px");
-		$("#refresh-cards").addClass("fa fa-sync fa-spin");
-		modgui.clearKoInterval();
-		KoRequest = {};
-
-		$.get(page + "?contentonly=true").done(function (data) {
-			$(".dynamic-content").replaceWith(data);
-			$("#cards-text").text(text);
-			$("#refresh-cards").hide();
-			window.history.pushState("gateway", "Gateway - "+view, page);
-			document.title = "Gateway - "+view;
-			$("#switchViewButton").trigger("switchcard");
-		});
-	});
-	$("#upgradebtn").on("hover",
-		function () {
-			$("#upgradebtn").css("color", "white");
-		},
-		function () {
-			$("#upgradebtn").css("color", "orangered");
-		}
-	);
-
-	if ((gui_var.autoupgradeview != "") && (gui_var.autoupgradeview != "none")) {
-		modgui.postAction("autoupgrade_view");
-	};
-
-	if ( gui_var.gui_animation == "1" ) {
-		AOS.init();
-	};
+    $.get(targetPage + "?contentonly=true").done(function(data) {
+        $(".dynamic-content").replaceWith(data);
+        activeView = nextView;
+        $("#cards-text").text(buttonNextText);
+        $("#refresh-cards").hide();
+        window.history.pushState("gateway", pageTitle, targetPage);
+        document.title = pageTitle;
+        $("#switchViewButton").trigger("switchcard");
+    }).fail(function() {
+        $("#refresh-cards").hide();
+        updateSwitchButtonUI();
+    });
 });
-
-$(document).ready(function () {
-	ko.bindingHandlers.text = {
-		init: function (element, valueAccessor) {
-			$(element).text(ko.unwrap(valueAccessor()));
-		},
-		update: function (element, valueAccessor) {
-			var value = ko.unwrap(valueAccessor());
-			if (value != $(element).text()) {
-				if (!$(element).hasClass("hide") && gui_var.gui_animation == "1") {
-					$(element).fadeOut(function () {
-						$(this).text(value).fadeIn();
-					});
-				} else {
-					$(element).text(value);
-				}
-			}
-		}
-	};
-	ko.bindingHandlers.log_text = {
-		init: function (element, valueAccessor) {
-			$(element).text(ko.unwrap(valueAccessor()));
-		},
-		update: function (element, valueAccessor) {
-			var value = ko.unwrap(valueAccessor());
-			$(element).text(value);
-			$(element).parent().parent().parent().scrollTop($(element).parent().parent().parent()[0].scrollHeight);
-		}
-	};
-	ko.bindingHandlers.html = {
-		init: function (element, valueAccessor) {
-			$(element).html(ko.unwrap(valueAccessor()));
-		},
-		update: function (element, valueAccessor) {
-			var value = ko.unwrap(valueAccessor());
-			if (value != $(element).html()) {
-				if (!$(element).hasClass("hide") && gui_var.gui_animation == "1") {
-					$(element).fadeOut(function () {
-						$(this).html(value).fadeIn();
-					});
-				} else {
-					$(element).html(value);
-				}
-			}
-		}
-	};
-});
+$("#upgradebtn").on("hover",function(){$("#upgradebtn").css("color","white");},function(){$("#upgradebtn").css("color","orangered");});if((gui_var.autoupgradeview!="")&&(gui_var.autoupgradeview!="none")){modgui.postAction("autoupgrade_view");};if(gui_var.gui_animation=="1"){AOS.init();};});$(document).ready(function(){ko.bindingHandlers.text={init:function(element,valueAccessor){$(element).text(ko.unwrap(valueAccessor()));},update:function(element,valueAccessor){var value=ko.unwrap(valueAccessor());if(value!=$(element).text()){if(!$(element).hasClass("hide")&&gui_var.gui_animation=="1"){$(element).fadeOut(function(){$(this).text(value).fadeIn();});}else{$(element).text(value);}}}};ko.bindingHandlers.log_text={init:function(element,valueAccessor){var scroller=element;if(window.getComputedStyle){var cs=window.getComputedStyle(element);if(cs.overflowY!=="auto"&&cs.overflowY!=="scroll"&&element.parentNode&&element.parentNode.parentNode&&element.parentNode.parentNode.parentNode){scroller=element.parentNode.parentNode.parentNode;}}var st={element:element,node:document.createTextNode(""),scroller:scroller,src:"",pending:"",stick:true,raf:0};element.classList.add("log-console");element.textContent="";element.appendChild(st.node);st.onScroll=function(){st.stick=(st.scroller.scrollHeight-st.scroller.scrollTop-st.scroller.clientHeight<=32);};st.scroller.addEventListener("scroll",st.onScroll,{passive:true});ko.utils.domData.set(element,"log_text_state",st);ko.utils.domNodeDisposal.addDisposeCallback(element,function(){if(st.raf){cancelAnimationFrame(st.raf);}st.scroller.removeEventListener("scroll",st.onScroll);});},update:function(element,valueAccessor){var st=ko.utils.domData.get(element,"log_text_state");if(!st)return;var v=ko.unwrap(valueAccessor());st.pending=(v===null||v===undefined)?"":String(v);if(!st.raf){st.raf=requestAnimationFrame(function(){st.raf=0;var value=st.pending;if(value===st.src)return;if(value.length>=st.src.length&&value.indexOf(st.src)===0){st.node.appendData(value.slice(st.src.length));}else{st.node.nodeValue=value;}st.src=value;if(st.stick&&st.node.length>200000){st.node.deleteData(0,st.node.length-150000);}if(st.stick){st.scroller.scrollTop=st.scroller.scrollHeight;if(st.scroller!==st.element){st.element.scrollTop=st.element.scrollHeight;}}});}}};ko.bindingHandlers.html={init:function(element,valueAccessor){$(element).html(ko.unwrap(valueAccessor()));},update:function(element,valueAccessor){var value=ko.unwrap(valueAccessor());if(value!=$(element).html()){if(!$(element).hasClass("hide")&&gui_var.gui_animation=="1"){$(element).fadeOut(function(){$(this).html(value).fadeIn();});}else{$(element).html(value);}}}};});

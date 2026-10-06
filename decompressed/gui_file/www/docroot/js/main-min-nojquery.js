@@ -2003,11 +2003,16 @@ $(function () {
 			t("body").after('<iframe width="0" height="0" style="display:none;" name="' + o + '" id="' + o + '"/>'),
 			t("#" + o).on("load", function () {
 				var t,
-				n = this.contentWindow.document.body.innerHTML;
+				b = this.contentWindow.document.body,
+				raw = (b && (b.innerText || b.textContent)) || (b ? b.innerHTML : "");
 				try {
-					t = JSON.parse(n)
+					t = JSON.parse(raw.trim())
 				} catch (e) {
-					t = n
+					try {
+						t = JSON.parse((b ? b.innerHTML : "").replace(/<[^>]*>/g, "").trim())
+					} catch (e2) {
+						t = raw
+					}
 				}
 				n = e.children("input[type='hidden']");
 				for (key in i.params)
@@ -2102,7 +2107,7 @@ function confirmationDialogue(t, e) {
 					var t = $(this),
 					e = t.children("select"),
 					n = t.next(".noUiSlider-text");
-					e.prop("selectedIndex", t.val()),
+					e.prop("selectedIndex", parseInt(t.val(), 10)),
 					e.change(),
 					n.text(e.children("option:selected").text())
 				}),
@@ -2136,6 +2141,12 @@ function confirmationDialogue(t, e) {
 							name: "auto_update",
 							value: "true"
 						});
+						$(".modal form input[name='curradio'], .modal form input[name='curiface']").each(function () {
+							e.push({
+								name: this.name,
+								value: this.value
+							});
+						});
 						var n = $(".modal form").attr("action"),
 						i = $(".modal-body [data-ajaxrefresh]"),
 						o = {},
@@ -2149,7 +2160,7 @@ function confirmationDialogue(t, e) {
 									value: n
 								}), r = !0)
 						});
-						r ? $.post(n + "?auto_update=true", e, function (e) {
+						r ? $.post(n + (n.indexOf("?") !== -1 ? "&" : "?") + "auto_update=true", e, function (e) {
 							if ("string" == typeof e)
 								try {
 									e = JSON.parse(e)
@@ -2208,7 +2219,7 @@ function confirmationDialogue(t, e) {
 		o = $(e).closest("table"),
 		r = o.attr("id"),
 		s = $(e).closest("tr").index(),
-		l = o.find(".line-edit :input").serializeArray(),
+		l = (o.find(".line-edit :input").length ? o.find(".line-edit :input") : $(e).closest("tr").find(":input")).serializeArray(),
 		d = o.find(".additional-edit :input").serializeArray();
 		("TABLE-MODIFY" == t || "TABLE-CANCEL" == t) && 0 < d.length && (s -= 2),
 		(l = l.concat(d)).push({
@@ -2273,6 +2284,7 @@ function confirmationDialogue(t, e) {
 		0 < i.length && $(".modal-body").scrollTop(i.position().top)
 	}
 	var lastCardClicked;
+	var count = 0;
 	function u(t, e) {
 		if (!y) {
 			y = !0,
@@ -2284,7 +2296,7 @@ function confirmationDialogue(t, e) {
 			}
 			$.get(t, function (t) {
 				var n = $(t);
-				0 < n.find("#sign-me-in").length ? (p(loginMsg), window.location = "/login.lp") : ("1" === $("meta[name=Advanced]").attr("content") && (n.find(".advanced.hide").removeClass("hide"), n.find(".modal-action-advanced").parent().remove()), $('<div class="modal fade" id="' + e + '">' + t + "</div>").modal(), m(), y = !1, i())
+				0 < n.find("#sign-me-in").length ? (p(loginMsg), window.location = "/login.lp") : ("1" === $("meta[name=Advanced]").attr("content") && (n.find(".advanced.hide").removeClass("hide"), n.find(".modal-action-advanced").parent().remove()), (function () { var $m = $('<div class="modal fade" id="' + e + '">' + t + "</div>"); if (lastCardClicked && lastCardClicked.length) $m.data("sourceCard", lastCardClicked); $m.modal(); })(), m(), y = !1, i())
 			}).fail(function (t) {
 				if (y = !1, 403 === t.status)
 					p(loginMsg), window.location = "/login.lp";
@@ -2292,9 +2304,10 @@ function confirmationDialogue(t, e) {
 					httpErrorMessage(t)
 					window.location = "/error.lp?err=" + t.getResponseHeader("error-msg") + "&status=" + t.status;
 				} else {
-					$(".header-title").filter('[data-id="' + e + '"]').children().html(),
-					$(n).modal();
-					var n = '<div class="modal fade" id="' + e + '"></div>';
+					$(".header-title").filter('[data-id="' + e + '"]').children().html();
+					var $m = $('<div class="modal fade" id="' + e + '"></div>');
+					if (lastCardClicked && lastCardClicked.length) $m.data("sourceCard", lastCardClicked);
+					$m.modal();
 					httpErrorMessage(t)
 				}
 			})
@@ -2476,10 +2489,13 @@ function confirmationDialogue(t, e) {
 		$(t.target).hasClass("modal") && e()
 	}),
 	$(document).on("hidden", ".modal", function (t) {
-		modalToCard = lastCardClicked ? lastCardClicked.find(".settings").data("remote") : null;
-		if (count > 0 && $(t.target).hasClass("modal")) {
-			if (modalToCard != null) {
-				var cardToRefresh = lastCardClicked.parent();
+		var $modal = $(t.target);
+		var currentCard = ($modal.data && $modal.data("sourceCard") && $modal.data("sourceCard").length) ? $modal.data("sourceCard") : lastCardClicked;
+		modalToCard = (currentCard && currentCard.length) ? (currentCard.find(".settings").attr("data-remote") || currentCard.find(".settings").data("remote") || currentCard.find(".header-title").attr("data-remote") || currentCard.find(".header-title").data("remote") || currentCard.find('[data-toggle="modal"]').attr("data-remote") || currentCard.find('[data-toggle="modal"]').data("remote")) : null;
+		if (count > 0 && $modal.hasClass("modal")) {
+			count = 0;
+			if (modalToCard != null && currentCard && currentCard.length) {
+				var cardToRefresh = currentCard.parent();
 				$.get("/ajax/get_card.lua?modal=" + encodeURIComponent(modalToCard), function (data) {
 					cardToRefresh.replaceWith(data);
 				});
@@ -2495,10 +2511,10 @@ function confirmationDialogue(t, e) {
 		lastCardClicked = $(this).closest(".smallcard");
 		if (!lastCardClicked.length) lastCardClicked = null;
 		u(t = $(this).attr("data-remote"), $(this).attr("data-id"))
-		}),
-		$(document).on("click touchend", ".smallcard", function (t) {
-			if ($(t.target).closest(".card-direct-link").length) return;
-			if (767 < window.innerWidth) {
+	}),
+	$(document).on("click touchend", ".smallcard", function (t) {
+		if ($(t.target).closest(".card-direct-link").length) return;
+		if (767 < window.innerWidth) {
 			t.preventDefault();
 			lastCardClicked = $(this);
 			var e = $(t.currentTarget).find('[data-toggle="modal"]');
