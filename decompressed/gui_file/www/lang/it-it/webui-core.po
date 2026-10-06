@@ -390,7 +390,7 @@ msgid "Broadband"
 msgstr "Banda larga"
 
 msgid "Broadband Connection"
-msgstr "Connessione a banda larga"
+msgstr "Connessione banda larga"
 
 msgid "Broadband type"
 msgstr "Tipo banda larga"
@@ -876,7 +876,7 @@ msgid "Enable Syslog"
 msgstr "Syslog abilitato"
 
 msgid "Enabled"
-msgstr "Attivato"
+msgstr "Abilitato"
 
 msgid "Encapsulation"
 msgstr "Incapsulamento"
@@ -1053,7 +1053,7 @@ msgid "Force Update"
 msgstr "Forza aggiornamento"
 
 msgid "Frame Bursting"
-msgstr "Frame Bursting"
+msgstr "Frame Bursting (Burst pacchetti)"
 
 msgid "Framing parameters"
 msgstr "Parametri framing"
@@ -1785,7 +1785,7 @@ msgid "Ports already Reserved"
 msgstr "Numero porta già in uso"
 
 msgid "Power"
-msgstr "Alimentazione"
+msgstr "Potenza"
 
 msgid "Power Transitions"
 msgstr "Transizioni alimentazione"
@@ -2034,7 +2034,7 @@ msgid "Setup Wizard"
 msgstr "Configurazione guidata"
 
 msgid "Short Guard Interval"
-msgstr "Short Guard Interval"
+msgstr "Intervallo di guardia breve (SGI)"
 
 msgid "Sign in"
 msgstr "Accedi"
@@ -2067,7 +2067,7 @@ msgid "Source IP"
 msgstr "IP sorgente"
 
 msgid "Space Time Block Code"
-msgstr "Space Time Block Code"
+msgstr "Codifica a blocchi spazio-temporale (STBC)"
 
 msgid "Speed"
 msgstr "Velocità"
@@ -2690,6 +2690,9 @@ msgstr "Dettagli xDSL"
 msgid "xDSL Disabled"
 msgstr "xDSL disabilitato"
 
+msgid "Managed automatically by regulatory tables (Quantenna 5GHz)"
+msgstr "Gestita automaticamente dalle tabelle di regolamentazione (Quantenna 5GHz)"
+
 msgid "xDSL Enabled"
 msgstr "xDSL abilitato"
 
@@ -2930,7 +2933,7 @@ msgid "<p>%s GUI Version "
 msgstr "<p>GUI %s "
 
 msgid "<p>Coded & Expanded by <font style=\"color:#0088cc;\">Ansuel</font> and <a href=\"https://github.com/Ansuel/tch-nginx-gui/graphs/contributors\">these GitHub users.</a><br/>Unlock Utility by <font style=\"color:#0088cc;\">ADeltaX</font>"
-msgstr "<p>Codice di <font style=\"color:#0088cc;\">Ansuel</font> e <a href=\"https://github.com/Ansuel/tch-nginx-gui/graphs/contributors\">questi utenti GitHub.</a><br/>Utiliy di sblocco di <font style=\"color:#0088cc;\">ADeltaX</font>"
+msgstr "<p>Codice di <font style=\"color:#0088cc;\">Ansuel</font> e <a href=\"https://github.com/ZioCook/tch-nginx-gui/graphs/contributors\">questi utenti GitHub.</a><br/>Utiliy di sblocco di <font style=\"color:#0088cc;\">ADeltaX</font>"
 
 msgid " && Translated by <font style=\"color:#0088cc;\">%s</font>"
 msgstr " - Traduzione GUI di <font style=\"color:#0088cc;\">%s</font>"
@@ -4139,8 +4142,8 @@ msgstr "App specifica già installata"
 msgid "Specific App"
 msgstr "App specifica"
 
-msgid "If you don't have connection, specific app can be downloaded here ( https://github.com/Ansuel/tch-nginx-gui/releases (upgrade-pack-specific%s.tar.bz2) ) and installed manually here."
-msgstr "Se non hai una connessione l'app specifica può essere scaricata qui ( https://github.com/Ansuel/tch-nginx-gui/releases (upgrade-pack-specific%s.tar.bz2) ) e installata manualmente qui."
+msgid "If you don't have connection, specific app can be downloaded here ( https://github.com/ZioCook/tch-nginx-gui/releases (upgrade-pack-specific%s.tar.bz2) ) and installed manually here."
+msgstr "Se non hai una connessione l'app specifica può essere scaricata qui ( https://github.com/ZioCook/tch-nginx-gui/releases (upgrade-pack-specific%s.tar.bz2) ) e installata manualmente qui."
 
 msgid "Install Specific App Online"
 msgstr "Installa app specifica online"
@@ -4355,6 +4358,369 @@ msgstr "Rapporto debug e impostazioni avanzate"
 msgid "Change the default page in system-extra to set this GUI as default"
 msgstr "Modifica la pagina predefinita in Funzioni extra di sistema per impostare questa GUI come predefinita"
 
+msgid "Card Settings"
+msgstr "Personalizza schede"
+
+msgid "Network and Connectivity"
+msgstr "Rete e Connettività"
+
+msgid "Security and Routing"
+msgstr "Sicurezza e Routing"
+
+msgid "System and Services"
+msgstr "Sistema e Servizi"
+
+msgid "Choose which cards to display on the main dashboard. Disabling a card will hide it from the home page."
+msgstr "Scegli quali schede visualizzare nella dashboard principale. Disabilitando una scheda verrà nascosta dalla schermata iniziale."
+
+msgid "Show all"
+msgstr "Mostra tutte"
+
+msgid "Hide all"
+msgstr "Nascondi tutte"
+
+msgid "Card settings saved successfully"
+msgstr "Impostazioni schede salvate con successo"
+
+msgid "NAT Helpers (ALG) allow protocols that embed network addresses to traverse NAT. In bridge mode, NAT is bypassed and managed by the upstream router."
+msgstr "Gli helper NAT (ALG) consentono ai protocolli con indirizzi nel payload di attraversare il NAT. In modalità bridge, il NAT è disattivato e gestito dal router a monte."
+
+msgid "No NAT Helpers found"
+msgstr "Nessun helper NAT trovato"
+
+msgid "Turns on the front Wi-Fi LEDs only when at least one client is connected to the radio network."
+msgstr "Accende i LED Wi-Fi sul frontale solo quando almeno un client è connesso alla rete radio."
+
+msgid "Ambient LED enabled"
+msgstr "Ambient LED abilitato"
+
+msgid "Ambient LED disabled"
+msgstr "Ambient LED disabilitato"
+
+msgid "Warning: the QoS service is currently disabled globally. Classification and marking rules will not take effect until the service is enabled."
+msgstr "Attenzione: il servizio QoS è attualmente disattivato globalmente. Le regole di classificazione ed etichettatura non avranno effetto finché il servizio non viene abilitato."
+
+msgid "Active"
+msgstr "Attivo"
+
+msgid "Auto (Dynamic)"
+msgstr "Auto (Dinamico)"
+
+msgid "Bridge / AP Active"
+msgstr "Bridge / AP Attivo"
+
+msgid "Bridge / Access Point"
+msgstr "Bridge / Access Point"
+
+msgid "Bridge Disconnected"
+msgstr "Bridge Disconnesso"
+
+msgid "Bridge Not Configured"
+msgstr "Bridge Non Configurato"
+
+msgid "No lines configured"
+msgstr "Nessuna linea configurata"
+
+msgid "Telephony disabled"
+msgstr "Telefonia disabilitata"
+
+msgid "Telephony enabled"
+msgstr "Telefonia abilitata"
+
+msgid "RAM cache emptied successfully."
+msgstr "Cache RAM svuotata con successo."
+
+msgid "DSL cable not connected"
+msgstr "Cavo DSL non collegato"
+
+msgid "Configure power saving features for the integrated Broadcom switch and physical LAN port transceivers (802.3az)."
+msgstr "Configura le funzioni di risparmio energetico per lo switch integrato Broadcom e i transceiver delle porte LAN fisiche (802.3az)."
+
+msgid "CPU & Performance Configuration"
+msgstr "Configurazione CPU & Prestazioni"
+
+msgid "xDSL Configuration"
+msgstr "Configurazione xDSL"
+
+msgid "Connected (Aligned)"
+msgstr "Connesso (Allineato)"
+
+msgid "DSLAM & Connection Details"
+msgstr "Dettagli DSLAM & Connessione"
+
+msgid "Disabled (DSL circuit off)"
+msgstr "Disattivato (Circuito DSL spento)"
+
+msgid "Dual-Core (2 active cores - Standard)"
+msgstr "Dual-Core (2 core attivi - Standard)"
+
+msgid "Eco & Energy Saving"
+msgstr "Eco & Risparmio Energetico"
+
+msgid "Eco LED enabled"
+msgstr "Eco LED abilitato"
+
+msgid "Eco LED disabled"
+msgstr "Eco LED disattivato"
+
+msgid "Ethernet EEE enabled"
+msgstr "Ethernet EEE abilitato"
+
+msgid "Ethernet EEE disabled"
+msgstr "Ethernet EEE disattivato"
+
+msgid "Maximum CPU Frequency"
+msgstr "Frequenza Massima CPU"
+
+msgid "Minimum CPU Frequency"
+msgstr "Frequenza Minima CPU"
+
+msgid "Default Gateway:"
+msgstr "Gateway Predefinito:"
+
+msgid "RAM & Cache Memory Management"
+msgstr "Gestione Memoria RAM & Cache"
+
+msgid "The internal xDSL and GPON SFP modules have been turned off to save energy and eliminate heat.<br/>"
+msgstr "I moduli interni xDSL e GPON SFP sono stati spenti per risparmiare energia ed azzerare il calore.<br/>"
+
+msgid "Device IP: <strong>%s</strong>"
+msgstr "IP Dispositivo: <strong>%s</strong>"
+
+msgid "The modem router is operating in <strong>Bridge / Access Point Switch Mode</strong>.<br/>"
+msgstr "Il modem router sta operando in <strong>Modalità Bridge / Access Point Switch</strong>.<br/>"
+
+msgid "The QoS service is active. Network traffic is classified and prioritized based on the queues configured below."
+msgstr "Il servizio QoS è attivo. Il traffico di rete viene classificato e prioritizzato in base alle code configurate di seguito."
+
+msgid "The QoS service is currently disabled. All hardware prioritization queues and classification rules are turned off. The interfaces use the standard Linux discipline (fq_codel) for minimum latency and zero CPU overhead."
+msgstr "Il servizio QoS è attualmente disattivato. Tutte le code di prioritizzazione hardware e le regole di classificazione sono spente. Le interfacce utilizzano la disciplina standard Linux (fq_codel) per la minima latenza e zero overhead CPU."
+
+msgid "LED Indicator Settings"
+msgstr "Impostazioni Indicatori LED"
+
+msgid "Basic Settings"
+msgstr "Impostazioni di Base"
+
+msgid "Waiting for signal..."
+msgstr "In attesa di segnale..."
+
+msgid "Detecting..."
+msgstr "In rilevamento..."
+
+msgid "Router/AP IP Address:"
+msgstr "Indirizzo IP Router/AP:"
+
+msgid "DSL interface not in use"
+msgstr "Interfaccia DSL non in uso"
+
+msgid "xDSL Interface"
+msgstr "Interfaccia xDSL"
+
+msgid "SSH access via LAN allows root access on the local network (default port 22). WAN access opens the specified port on the firewall for remote management."
+msgstr "L'accesso SSH via LAN consente l'accesso root sulla rete locale (porta 22 predefinita). L'accesso WAN apre la porta specificata sul firewall per la gestione remota."
+
+msgid "The xDSL interface is currently disabled. This configuration is optimal when the modem operates in Bridge or Access Point mode (Internet connection comes from the Ethernet WAN port). Enable the switch below only if you want to align the modem on the DSL phone line."
+msgstr "L'interfaccia xDSL è attualmente disattivata. Questa configurazione è ottimale quando il modem opera in modalità Bridge o Access Point (la connessione Internet proviene dalla porta WAN Ethernet). Abilitare l'interruttore sottostante solo se si desidera allineare il modem sulla linea telefonica DSL."
+
+msgid "Ambient LED"
+msgstr "LED Ambientale"
+
+msgid "Changing the SNR offset only affects ADSL / ADSL2+ connections. On VDSL2 lines this value is ignored by the DSLAM."
+msgstr "La modifica dell'offset SNR ha effetto solo con connessioni ADSL / ADSL2+. Su linee VDSL2 questo valore viene ignorato dal DSLAM."
+
+msgid "Mask"
+msgstr "Maschera"
+
+msgid "Cache Memory"
+msgstr "Memoria Cache"
+
+msgid "RAM Memory"
+msgstr "Memoria RAM"
+
+msgid "Swap Memory"
+msgstr "Memoria Swap"
+
+msgid "CPU Core Mode"
+msgstr "Modalità Core CPU"
+
+msgid "DSL Mode"
+msgstr "Modalità DSL"
+
+msgid "Eco LED Mode"
+msgstr "Modalità Eco LED"
+
+msgid "Standard Mode"
+msgstr "Modalità standard"
+
+msgid "Supported Modes"
+msgstr "Modalità Supportate"
+
+msgid "Mode: <strong>Bridge / AP</strong>"
+msgstr "Modalità: <strong>Bridge / AP</strong>"
+
+msgid "Modem xDSL / GPON: Disabled"
+msgstr "Modem xDSL / GPON: Disattivato"
+
+msgid "No Ethernet cable connected"
+msgstr "Nessun cavo Ethernet collegato"
+
+msgid "No sensor available"
+msgstr "Nessun sensore disponibile"
+
+msgid "None"
+msgstr "Nessuno"
+
+msgid "Not available (interface disabled)"
+msgstr "Non disponibile (interfaccia disattivata)"
+
+msgid "EOC Serial Number"
+msgstr "Numero Seriale EOC"
+
+msgid "SNR Margin Offset"
+msgstr "Offset Margine SNR"
+
+msgid "Local Network Parameters (AP)"
+msgstr "Parametri Rete Locale (AP)"
+
+msgid "Line Parameters"
+msgstr "Parametri di Linea"
+
+msgid "VDSL DSLAM Port"
+msgstr "Porta DSLAM VDSL"
+
+msgid "Prioritization disabled"
+msgstr "Prioritizzazione disattivata"
+
+msgid "Processor (CPU)"
+msgstr "Processore (CPU)"
+
+msgid "VDSL Profiles"
+msgstr "Profili VDSL"
+
+msgid "VDSL Profile"
+msgstr "Profilo VDSL"
+
+msgid "QoS enabled"
+msgstr "QoS abilitato"
+
+msgid "QoS disabled"
+msgstr "QoS disattivato"
+
+msgid "Broadcom Clock Ratio"
+msgstr "Rapporto Clock Broadcom"
+
+msgid "Demod & PHY Registers"
+msgstr "Registri Demod & PHY"
+
+msgid "Demod / PHY Registers"
+msgstr "Registri Demod / PHY"
+
+msgid "Register"
+msgstr "Registro"
+
+msgid "Adjusts the virtual memory parameters of the Linux kernel. Low swappiness values keep processes active in physical RAM and avoid aggressive swapping."
+msgstr "Regola i parametri di memoria virtuale del kernel Linux. Valori bassi di swappiness mantengono i processi attivi in RAM fisica ed evitano swap aggressivo."
+
+msgid "Adjusts the frequency scaling logic and energy profiles of the ARM Broadcom processor. Conservative profiles reduce heat and consumption, but can introduce slight latency in network flows."
+msgstr "Regola la logica di scalabilità della frequenza e i profili energetici del processore ARM Broadcom. Profili conservativi riducono calore e consumi, ma possono introdurre una lieve latenza nei flussi di rete."
+
+msgid "Guest Network"
+msgstr "Rete Ospite"
+
+msgid "Guest Network (Guest)"
+msgstr "Rete Ospite (Guest)"
+
+msgid "Restore Driver"
+msgstr "Ripristina Driver"
+
+msgid "Restore original driver"
+msgstr "Ripristina driver originale"
+
+msgid "Active Energy Saving"
+msgstr "Risparmio energetico attivo"
+
+msgid "Ethernet Energy Saving"
+msgstr "Risparmio Energetico Ethernet"
+
+msgid "Select which services must be active and verified before turning off the service LEDs:"
+msgstr "Seleziona quali servizi devono essere attivi e verificati prima di spegnere i LED dei servizi:"
+
+msgid "DSLAM Serial"
+msgstr "Seriale DSLAM"
+
+msgid "Local DHCP Server:"
+msgstr "Server DHCP Locale:"
+
+msgid "DNS Server:"
+msgstr "Server DNS:"
+
+msgid "Guest SSID:"
+msgstr "SSID Ospite:"
+
+msgid "Single-Core (1 active core - Saving)"
+msgstr "Single-Core (1 core attivo - Risparmio)"
+
+msgid "Turns off all front LEDs (except the Info LED) when services are operational. Press the Info/Wi-Fi button on the modem to turn them back on temporarily."
+msgstr "Spegne tutti i LED del frontale (tranne il LED Info) quando i servizi sono operativi. Premere il tasto Info/Wi-Fi sul modem per riaccenderli temporaneamente."
+
+msgid "DSL Connection Status"
+msgstr "Stato Connessione DSL"
+
+msgid "Global QoS Status"
+msgstr "Stato Globale QoS"
+
+msgid "Ethernet Ports Status (Switch)"
+msgstr "Stato Porte Ethernet (Switch)"
+
+msgid "QoS Service Status"
+msgstr "Stato Servizio QoS"
+
+msgid "System & Sensors Status"
+msgstr "Stato del Sistema & Sensori"
+
+msgid "Clear RAM Cache (Drop Caches)"
+msgstr "Svuota Cache RAM (Drop Caches)"
+
+msgid "All Ethernet ports and the Wi-Fi network are directly connected to the network bridge (br-lan)."
+msgstr "Tutte le porte Ethernet e la rete Wi-Fi sono collegate direttamente al bridge di rete (br-lan)."
+
+msgid "Value"
+msgstr "Valore"
+
+msgid "Raw value: %s"
+msgstr "Valore grezzo: %s"
+
+msgid "Check Internet Connection"
+msgstr "Verifica Connessione Internet"
+
+msgid "Check IPTV"
+msgstr "Verifica IPTV"
+
+msgid "Check Telephony (VoIP)"
+msgstr "Verifica Telefonia (VoIP)"
+
+msgid "Datapump Version"
+msgstr "Versione Datapump"
+
+msgid "Version not detected"
+msgstr "Versione non rilevata"
+
+msgid "Original system version"
+msgstr "Versione originale di sistema"
+
+msgid "WiFi NSC (Dynamic LEDs)"
+msgstr "WiFi NSC (LED Dinamici)"
+
+msgid "xDSL Connected"
+msgstr "xDSL Connesso"
+
+msgid "xDSL Disconnected"
+msgstr "xDSL Disconnesso"
+
+msgid "xDSL disabled"
+msgstr "xDSL disabilitato"
+
 msgid "An ACS firmware update was blocked. Dismissing this notice does not allow firmware updates; a new request will show it again."
 msgstr "Un aggiornamento firmware richiesto dall'ACS è stato bloccato. Rimuovere questo avviso non autorizza gli aggiornamenti firmware; una nuova richiesta lo farà ricomparire."
 
@@ -4447,3 +4813,274 @@ msgstr "DumaOS"
 
 msgid "Installs the pinned DumaOS UI and QoS stack for ARMv7 Technicolor gateways. Installation replaces core ubus components; reboot the gateway after installation and after removal."
 msgstr "Installa l'interfaccia e lo stack QoS DumaOS verificati per i gateway Technicolor ARMv7. L'installazione sostituisce componenti ubus di base; riavviare il gateway dopo l'installazione e dopo la rimozione."
+
+# EasyMesh Translations
+msgid "EasyMesh"
+msgstr "EasyMesh"
+
+msgid "EasyMesh Info"
+msgstr "Informazioni EasyMesh"
+
+msgid "EasyMesh Configuration"
+msgstr "Configurazione EasyMesh"
+
+msgid "EasyMesh Services"
+msgstr "Servizi EasyMesh"
+
+msgid "EasyMesh Controller/Agent Services"
+msgstr "Servizi EasyMesh"
+
+msgid "Enable EasyMesh"
+msgstr "Attiva EasyMesh"
+
+msgid "Disable EasyMesh"
+msgstr "Disattiva EasyMesh"
+
+msgid "EasyMesh Agent"
+msgstr "Agent EasyMesh"
+
+msgid "Fronthaul Configuration"
+msgstr "Configurazione Rete Mesh (Fronthaul)"
+
+msgid "Backhaul Configuration"
+msgstr "Configurazione Rete di Ritorno (Backhaul)"
+
+msgid "Backhaul SSID"
+msgstr "SSID Backhaul"
+
+msgid "Backhaul Password"
+msgstr "Password Backhaul"
+
+msgid "Preferred Interface"
+msgstr "Banda radio preferita"
+
+msgid "Both"
+msgstr "Entrambe (2.4 GHz e 5 GHz)"
+
+msgid "Both (2.4GHz & 5GHz)"
+msgstr "Entrambe (2.4 GHz e 5 GHz)"
+
+msgid "2.4GHz"
+msgstr "2.4 GHz"
+
+msgid "5GHz"
+msgstr "5 GHz"
+
+msgid "EasyMesh controller MAC Address"
+msgstr "Indirizzo MAC Controller EasyMesh"
+
+msgid "EasyMesh Agent MAC Address"
+msgstr "Indirizzo MAC Agent EasyMesh"
+
+msgid "EasyMesh is disabled.<br> You can safely enable Bandsteering, if needed"
+msgstr "EasyMesh è disattivato.<br>È ora possibile riattivare il Bandsteering, se necessario."
+
+msgid "EasyMesh is enabled.<br> This action will disable Bandsteering"
+msgstr "EasyMesh è attivo.<br>Questa azione disattiverà il Bandsteering."
+
+msgid "Agent List"
+msgstr "Lista ripetitori"
+
+msgid "Extender Info"
+msgstr "Stato ripetitori"
+
+msgid "WiFi Devices"
+msgstr "Dispositivi Wi-Fi"
+
+msgid "EasyMesh standard enables a seamless, synchronized Wi-Fi mesh network between this gateway and compatible extenders."
+msgstr "Lo standard EasyMesh consente di creare una rete Wi-Fi mesh sincronizzata tra il modem e i repeater compatibili, con roaming intelligente."
+
+msgid "Enable EasyMesh controller and agent to manage synchronized Wi-Fi extenders."
+msgstr "Abilita le funzioni di Controller e Agent sul modem per coordinare i ripetitori mesh collegati."
+
+msgid "Network parameters propagated by EasyMesh to all connected extenders."
+msgstr "Parametri di rete wireless propagati automaticamente a tutti i ripetitori collegati."
+
+# Cards Modal translations in webui-core domain
+msgid "Content Sharing"
+msgstr "Condivisione contenuti"
+
+msgid "Printer Sharing"
+msgstr "Condivisione stampante"
+
+msgid "Telephony"
+msgstr "Telefonia"
+
+msgid "Parental Controls"
+msgstr "Controllo genitori"
+
+msgid "CWMP Management"
+msgstr "Telegestione (CWMP)"
+
+msgid "Mobile"
+msgstr "Connessione mobile"
+
+msgid "Remote Assistance"
+msgstr "Assistenza remota"
+
+msgid "General"
+msgstr "Generale"
+
+msgid "Fronthaul"
+msgstr "Fronthaul (Rete Wi-Fi)"
+
+msgid "Backhaul"
+msgstr "Backhaul (Collegamento Ripetitori)"
+
+msgid "Leading and trailing whitespaces are not allowed."
+msgstr "Non sono ammessi spazi all'inizio o alla fine."
+
+msgid "Connected Devices:"
+msgstr "Dispositivi connessi:"
+
+msgid "Wi-Fi Band"
+msgstr "Banda Wi-Fi"
+
+msgid "Download/Upload Link Rate"
+msgstr "Velocità Link Download/Upload"
+
+msgid "Tx/Rx Bytes"
+msgstr "Byte Trasmessi/Ricevuti"
+
+msgid "Extender"
+msgstr "Ripetitore"
+
+msgid "Gateway"
+msgstr "Gateway"
+
+msgid "Load average (1m, 5m, 15m): %s"
+msgstr "Carico medio (1m, 5m, 15m): %s"
+
+msgid "Load average (1m, 5m, 15m):"
+msgstr "Carico medio (1m, 5m, 15m):"
+
+msgid "Beamforming"
+msgstr "Beamforming (Orientamento fascio)"
+
+msgid "Managed automatically by regulatory tables (Quantenna 5GHz)"
+msgstr "Gestito automaticamente dalle tabelle normative (Quantenna 5GHz)"
+
+msgid "Eco Settings"
+msgstr "Impostazioni ECO"
+
+msgid "Force Radio Down"
+msgstr "Forza disattivazione radio"
+
+msgid "Auto (20/40/80/160MHz)"
+msgstr "Auto (20/40/80/160MHz)"
+
+msgid "Auto (20/40/80MHz)"
+msgstr "Auto (20/40/80MHz)"
+
+msgid "Auto (20/40MHz)"
+msgstr "Auto (20/40MHz)"
+
+msgid "Safe Shutdown"
+msgstr "Arresto di sicurezza"
+
+msgid "Shutdown"
+msgstr "Spegni"
+
+msgid "Shutting down..."
+msgstr "Arresto in corso..."
+
+msgid "Are you sure you want to safely shut down the gateway?"
+msgstr "Sei sicuro di voler spegnere il modem in sicurezza?"
+
+msgid "No registered accounts"
+msgstr "Nessun account registrato"
+
+msgid "RAM Usage"
+msgstr "Uso RAM"
+
+msgid "Device IP"
+msgstr "IP dispositivo"
+
+msgid "Default Gateway"
+msgstr "Gateway predefinito"
+
+msgid "Attenuation"
+msgstr "Attenuazione"
+
+msgid "ETH Linespeed"
+msgstr "Velocità porte Ethernet"
+
+msgid "ETH-WAN Linespeed"
+msgstr "Velocità porta WAN"
+
+msgid "ETH-LAN Linespeed"
+msgstr "Velocità porte LAN"
+
+msgid "Back"
+msgstr "Indietro"
+
+msgid "Disabled (All LEDs permanently on)"
+msgstr "Disattivato (Tutti i LED sempre accesi)"
+
+msgid "Eco Mode (Service LEDs off, Power on)"
+msgstr "Attivo (LED di servizio spenti dopo timeout, Power acceso)"
+
+msgid "Stealth Mode (All LEDs off including Power)"
+msgstr "Stealth (Tutti i LED spenti dopo timeout, compreso Power)"
+
+msgid "Kernel & Network"
+msgstr "Kernel & Rete"
+
+msgid "TCP Stack & Socket Buffers"
+msgstr "Stack TCP & Buffer Socket"
+
+msgid "Routing & Network Offload"
+msgstr "Routing & Offload di Rete"
+
+msgid "TCP Congestion Algorithm"
+msgstr "Algoritmo Congestione TCP"
+
+msgid "TCP Max Socket Buffers"
+msgstr "Buffer Socket TCP Max"
+
+msgid "TCP Fast Open"
+msgstr "TCP Fast Open"
+
+msgid "NAT Conntrack Connections"
+msgstr "Connessioni NAT Conntrack"
+
+msgid "Queue Discipline (Bufferbloat)"
+msgstr "Disciplina di Coda (Bufferbloat)"
+
+msgid "Wi-Fi IRQ Core Affinity"
+msgstr "Affinità Core IRQ Wi-Fi"
+
+msgid "Enabled (Client & Server)"
+msgstr "Abilitato (Client & Server)"
+
+msgid "Enabled (Client only)"
+msgstr "Abilitato (solo Client)"
+
+msgid "Enabled (Server only)"
+msgstr "Abilitato (solo Server)"
+
+msgid "Not supported on this kernel"
+msgstr "Non supportato da questo kernel"
+
+msgid "Core 0 (Default)"
+msgstr "Core 0 (Default)"
+
+msgid "Core 1 (Offloaded)"
+msgstr "Core 1 (Offload)"
+
+msgid "Core 0 & Core 1 (Shared)"
+msgstr "Core 0 & Core 1 (Condiviso)"
+
+msgid "EasyMesh enabled"
+msgstr "EasyMesh abilitato"
+
+msgid "EasyMesh disabled"
+msgstr "EasyMesh disabilitato"
+
+msgid "%d extension active"
+msgid_plural "%d extensions active"
+msgstr[0] "%d estensione attiva"
+msgstr[1] "%d estensioni attive"
+
+msgid "No extensions active"
+msgstr "Nessuna estensione attiva"
