@@ -10,7 +10,7 @@ local ui_helper = require("web.ui_helper")
 local content_helper = require("web.content_helper")
 local proxy = require("datamodel")
 local modalPath = "/modals/system-modal.lp"
-syslog_present = "disabled"
+local syslog_present = "disabled"
 
 local Syslog = proxy.get("uci.system.system.@system[0].log_ip", "uci.system.system.@system[0].log_filter_ip")
 if Syslog then

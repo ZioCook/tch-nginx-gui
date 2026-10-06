@@ -55,7 +55,7 @@ local emission_content = {
     emission_state = "rpc.mmpbx.dectemission.state",
 }
 content_helper.getExactContent(emission_content)
-emission_state = format("%s", emission_content.emission_state)
+local emission_state = format("%s", emission_content.emission_state)
 
 local function split(x, sep)
     local sep, fields = sep or ":", {}

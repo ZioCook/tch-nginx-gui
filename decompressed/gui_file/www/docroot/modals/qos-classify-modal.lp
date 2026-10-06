@@ -8,7 +8,7 @@ gettext.textdomain('webui-qos')
 -- Dependencies
 ----------------------------------------------------------------------------------
 local tinsert, smatch, sformat = table.insert, string.match, string.format
-remove = table.remove
+local remove = table.remove
 local untaint = string.untaint
 
 local proxy             = require("datamodel")

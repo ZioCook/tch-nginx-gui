@@ -22,11 +22,11 @@ local mode_options = tabdata.options
 
 local vB = post_helper.validateBoolean
 
-mapParam = {
+local mapParam = {
 	wsens = "uci.wansensing.global.enable"
 }
 
-mapValid = {
+local mapValid = {
 	wsens = vB,
 }
 

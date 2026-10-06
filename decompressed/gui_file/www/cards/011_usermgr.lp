@@ -18,7 +18,7 @@ local content = {
 content_helper.getExactContent(content)
 
 if session:hasAccess("/modals/usermgr-modal.lp") then
-modem_stats_link = 'class="modal-link" data-toggle="modal" data-remote="/modals/modem-stats-modal.lp" data-id="modem-stats-modal"'
+local modem_stats_link = 'class="modal-link" data-toggle="modal" data-remote="/modals/modem-stats-modal.lp" data-id="modem-stats-modal"'
   ngx.print('\
 \
 <div class="span3">\

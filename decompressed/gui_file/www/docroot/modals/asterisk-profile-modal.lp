@@ -9,20 +9,17 @@ local proxy = require("datamodel")
 local ui_helper = require("web.ui_helper")
 local html_escape = require("web.web").html_escape
 
+local lfs = require("lfs")
+
 local function file_exists(path)
-  local file = io.open(path, "r")
-  if file then
-    file:close()
-    return true
-  end
-  return false
+  return lfs.attributes(path, "mode") ~= nil
 end
 
 local function escape_html(value)
   return html_escape(value or "")
 end
 
-local timeout_available = os.execute("command -v timeout >/dev/null 2>&1") == 0
+local timeout_available = file_exists("/usr/bin/timeout") or file_exists("/bin/timeout")
 
 local function command_output(command)
   if not timeout_available then

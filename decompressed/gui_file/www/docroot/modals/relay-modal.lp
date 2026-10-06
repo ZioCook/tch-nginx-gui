@@ -117,7 +117,7 @@ if (ngx.req.get_method() == "POST") then
   proxy.apply()
 end
 
-server_addr = proxy.get("uci.dhcp.relay.@relay.server_addr")
+local server_addr = proxy.get("uci.dhcp.relay.@relay.server_addr")
 
 if not server_addr or ( server_addr[1].value == "" and proxy.get("uci.dhcp.relay.@relay.local_addr")[1].value == "" )  then
   getRelayBackUpValues()

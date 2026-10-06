@@ -211,7 +211,7 @@ local tcpdump_data = {
 
 
 content_helper.getExactContent(tcpdump_data)
-s = untaint(tcpdump_data.intflist)
+local s = untaint(tcpdump_data.intflist)
 for w in gmatch(s, "%S+") do
   tcpdump_intfs[#tcpdump_intfs+1] = {w, w}
 end
