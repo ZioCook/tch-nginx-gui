@@ -26,9 +26,7 @@ content_helper.getExactContent(cui)
     <link href="/css/responsive.css" rel="stylesheet">\
 	<link rel="shortcut icon"    type="image/x-icon"   href="/img/favicon.ico"    />\
 	<link rel="stylesheet" href="/css/font-awesome.css">\
-    <!--[if IE 7]><link rel="stylesheet" href="/css/font-awesome-ie7.css"><![endif]-->\
     <script src="/js/main-min.js" ></script>\
-    <!--[if lt IE 9]> <script src="/js/media-min.js"></script> <![endif]-->\
     <script src="/js/srp-min.js" ></script>\
     <title>');  ngx.print( T"Parental Blocked" ); ngx.print('</title>\
 </head>\
@@ -48,7 +46,7 @@ content_helper.getExactContent(cui)
     <div class="copyright span12">\
         <p>&copy; Technicolor 2019</p>\
         ');  ngx.print( string.format(T'<p>%s GUI Version ', cui.friendly_product_name) );  ngx.print(string.format('%s', cui.gui_version) );  ngx.print( '</p>\
-        ');  ngx.print( T'<p>Coded & Expanded by <font style="color:#0088cc;">Ansuel</font> and <a href="https://github.com/Ansuel/tch-nginx-gui/graphs/contributors">these GitHub users.</a><br/>Unlock Utility by <font style="color:#0088cc;">ADeltaX</font>');  ngx.print('\
+        ');  ngx.print( '<p>Fork & modifiche di <font style="color:#0088cc;">ZioCook</font> &bull; Codice originale di <font style="color:#0088cc;">Ansuel</font> e <a href="https://github.com/ZioCook/tch-nginx-gui/graphs/contributors">questi utenti GitHub.</a><br/>Utility di sblocco di <font style="color:#0088cc;">ADeltaX</font></p>');  ngx.print('\
     </div>\
   </div>\
 </body>\
