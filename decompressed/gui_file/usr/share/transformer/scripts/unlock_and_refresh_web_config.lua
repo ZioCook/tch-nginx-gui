@@ -2,6 +2,8 @@
 
 --Helper script to adds element to web config file
 
+package.path = "/www/lua/?.lua;/usr/lib/lua/?.lua;" .. package.path
+
 local uci = require("uci"):cursor()
 local new_rule
 
@@ -61,6 +63,7 @@ local check_rule = {
 	{ name = 'ecomodal', target = '/modals/eco-modal.lp' },
 	{ name = 'modguimodal', target = '/modals/modgui-modal.lp' },
 	{ name = 'ajaxgatewaytab', target = '/ajax/cpuload.lua' },
+	{ name = 'ajaxdashboardsync', target = '/ajax/dashboard_sync.lua' },
 	{ name = 'ajaxinternet', target = '/ajax/internet.lua' },
 	{ name = 'ajaxinfoconndevicecard', target = '/ajax/connected_device.lua' },
 	{ name = 'ajaxinfoportscard', target = '/ajax/port_status.lua' },
@@ -71,11 +74,89 @@ local check_rule = {
 	{ name = 'diagnosticsledsmodal', target = '/modals/diagnostics-leds-modal.lp' },
 	{ name = 'systeminitmodal', target = '/modals/system-init-modal.lp' },
 	{ name = 'systemcronmodal', target = '/modals/system-cron-modal.lp' },
+	{ name = 'cardsmodal', target = '/modals/cards-modal.lp' },
 	{ name = 'easyMeshConfiguration', target = '/modals/easy-mesh-configuration.lp' },
 	{ name = 'wifiExtender', target = '/modals/wifi-extender-status.lp' },
-	{ name = 'certificateslists', target = '/modals/certificates-list-modal.lp' },
+	{ name = 'agentlistmodal', target = '/modals/agent-list.lp' },
+	{ name = 'agentlist2gmodal', target = '/modals/agent-list-2g.lp' },
+	{ name = 'agentlist5gmodal', target = '/modals/agent-list-5g.lp' },
+	{ name = 'wifidevicesinfomodal', target = '/modals/wifi-devices-info.lp' },
+	{ name = 'gatewaymodal', target = '/modals/gateway-modal.lp' },
+	{ name = 'systemmodal', target = '/modals/system-modal.lp' },
+	{ name = 'broadbandmodal', target = '/modals/broadband-modal.lp' },
+	{ name = 'internetmodal', target = '/modals/internet-modal.lp' },
+	{ name = 'wirelessmodal', target = '/modals/wireless-modal.lp' },
+	{ name = 'wirelessqrcodemodal', target = '/modals/wireless-qrcode-modal.lp' },
+	{ name = 'ethernetmodal', target = '/modals/ethernet-modal.lp' },
+	{ name = 'devicemodal', target = '/modals/device-modal.lp' },
+	{ name = 'ipv6devicemodal', target = '/modals/ipv6devices-modal.lp' },
+	{ name = 'wanservices', target = '/modals/wanservices-modal.lp' },
+	{ name = 'firewallmodal', target = '/modals/firewall-modal.lp' },
+	{ name = 'diagnosticsconnectionmodal', target = '/modals/diagnostics-connection-modal.lp' },
+	{ name = 'diagnosticsnetworkmodal', target = '/modals/diagnostics-network-modal.lp' },
+	{ name = 'diagnosticskernelmodal', target = '/modals/diagnostics-kernel-modal.lp' },
+	{ name = 'diagnosticspingmodal', target = '/modals/diagnostics-ping-modal.lp' },
+	{ name = 'diagnosticsxdslmodal', target = '/modals/diagnostics-xdsl-modal.lp' },
+	{ name = 'diagnosticstcpdumpmodal', target = '/modals/diagnostics-tcpdump-modal.lp' },
+	{ name = 'usermgrmodal', target = '/modals/usermgr-modal.lp' },
+	{ name = 'syslogmodal', target = '/modals/logviewer-modal.lp' },
+	{ name = 'todmodal', target = '/modals/tod-modal.lp' },
+	{ name = 'todwifimodal', target = '/modals/tod_wireless-modal.lp' },
+	{ name = 'wirelessclientmodal', target = '/modals/wireless-client-modal.lp' },
+	{ name = 'cwmpconf', target = '/modals/cwmpconf-modal.lp' },
+	{ name = 'assistancemodal', target = '/modals/assistance-modal.lp' },
+	{ name = 'iproutesmodal', target = '/modals/iproutes-modal.lp' },
+	{ name = 'relaymodal', target = '/modals/relay-modal.lp' },
+	{ name = 'xdsllowmodal', target = '/modals/xdsl-low-modal.lp' },
+	{ name = 'natalghelper', target = '/modals/nat-alg-helper-modal.lp' },
+	{ name = 'hostmapmodal', target = '/modals/hostmap-modal.lp' },
+	{ name = 'bridgegroupingmodal', target = '/modals/bridge-grouping-modal.lp' },
+	{ name = 'bridgemodal', target = '/modals/bridge-modal.lp' },
+	{ name = 'customdnsmodal', target = '/modals/customdns-modal.lp' },
+	{ name = 'qosclassifymodal', target = '/modals/qos-classify-modal.lp' },
+	{ name = 'qosqueuemodal', target = '/modals/qos-queue-modal.lp' },
+	{ name = 'wizardmodal', target = '/modals/wizard-modal.lp' },
+	{ name = 'portmirrormodal', target = '/modals/port-mirror-modal.lp' },
+	{ name = 'changelog', target = '/modals/changelog.lp' },
+	{ name = 'contentsharing', target = '/modals/contentsharing-modal.lp' },
+	{ name = 'parentalmodal', target = '/modals/parental-modal.lp' },
+	{ name = 'printersharing', target = '/modals/printersharing-modal.lp' },
+	{ name = 'trafficmonitor', target = '/modals/traffic-monitor.lp' },
+	{ name = 'mmpbxglobalmodal', target = '/modals/mmpbx-global-modal.lp' },
+	{ name = 'mmpbxprofilemodal', target = '/modals/mmpbx-profile-modal.lp' },
+	{ name = 'mmpbxinoutgoingmodal', target = '/modals/mmpbx-inoutgoingmap-modal.lp' },
+	{ name = 'mmpbxservicemodal', target = '/modals/mmpbx-service-modal.lp' },
+	{ name = 'mmpbxlogmodal', target = '/modals/mmpbx-log-modal.lp' },
+	{ name = 'mmpbxcontactsmodal', target = '/modals/mmpbx-contacts-modal.lp' },
+	{ name = 'mmpbxcodecTImodal', target = '/modals/mmpbx-codec-modal.lp' },
+	{ name = 'mmpbxstatisticsmodal', target = '/modals/mmpbx-statistics-modal.lp' },
+	{ name = 'mmpbxsipdevicemodal', target = '/modals/mmpbx-sipdevice-modal.lp' },
+	{ name = 'ltemodal', target = '/modals/lte-modal.lp' },
+	{ name = 'ltedoctormodal', target = '/modals/lte-doctor.lp' },
+	{ name = 'ltesms', target = '/modals/lte-sms.lp' },
+	{ name = 'lteprofiles', target = '/modals/lte-profiles.lp' },
+	{ name = 'ltesim', target = '/modals/lte-sim.lp' },
+	{ name = 'ltedoctor', target = '/lte-doctor.lua' },
+	{ name = 'logroutingtablemodal', target = '/modals/log-routingtable-modal.lp' },
+	{ name = 'logconnectionsmodal', target = '/modals/log-connections-modal.lp' },
+	{ name = 'wifinursemodal', target = '/modals/wifi-nurse-modal.lp' },
 	{ name = 'datausagemodal', target = '/modals/datausage.lp' },
-	{ name = 'datausageajax', target = '/ajax/datausage.lua' },
+	{ name = 'openvpnservermodal', target = '/modals/openvpn-server-modal.lp' },
+	{ name = 'wireguardmodal', target = '/modals/wireguard-modal.lp' },
+	{ name = 'tailscalemodal', target = '/modals/tailscale-modal.lp' },
+	{ name = 'dumaosmodal', target = '/modals/dumaos-modal.lp' },
+	{ name = 'certificateslists', target = '/modals/certificates-list-modal.lp' },
+	{ name = 'ajaxdatausage', target = '/ajax/datausage.lua' },
+	{ name = 'lteajaxsms', target = '/ajax/sms.lua' },
+	{ name = 'wireguardprofile', target = '/ajax/wireguard_profile.lua' },
+	{ name = 'lteradioparameters', target = '/ajax/radioparameters.lua' },
+	{ name = 'lteajaxmobiletab', target = '/ajax/mobiletab.lua' },
+	{ name = 'ltenetworkscan', target = '/ajax/networkscan.lua' },
+	{ name = 'lteajaxsim', target = '/ajax/sim.lua' },
+	{ name = 'ltedoctorajax', target = '/ajax/lte-doctor.lua' },
+	{ name = 'ethspeedmodal', target = '/modals/ethspeed-modal.lp' },
+	{ name = 'diagnosticsigmpproxymodal', target = '/modals/diagnostics-igmpproxy-modal.lp' },
+	{ name = 'mmpbxajaxvoicetab', target = '/ajax/voicetab.lua' },
 }
 
 --We add telstra rules anyway as nginx will respond 404 if not found
@@ -129,7 +210,7 @@ end
 local cardset = {}
 
 --Pupulate cardset table with card list from config
-uci:foreach('web', 'ruleset', function(s)
+uci:foreach('web', 'card', function(s)
 	cardset[#cardset+1] = s['.name']
   end)
   
@@ -151,30 +232,44 @@ local card_check_rule = {
 	{ name = 'assistance_card', card = '010_assistance.lp', modal = 'assistancemodal' },
 	{ name = 'lte_card', card = '010_lte.lp', modal = 'ltemodal' },
 	{ name = 'usermgr_card', card = '011_usermgr.lp', modal = 'usermgrmodal' },
+	{ name = 'datausage_card', card = '011_datausage.lp', modal = 'datausagemodal', hide = '1' },
 	{ name = 'contentsharing_card', card = '012_contentsharing.lp', modal = 'contentsharing' },
 	{ name = 'printersharing_card', card = '012_printersharing.lp', modal = 'printersharing' },
 	{ name = 'parental_card', card = '013_parental.lp', modal = 'parentalmodal' },
 	{ name = 'iproutes_card', card = '015_iproutes.lp', modal = 'iproutesmodal' },
 	{ name = 'tod_card', card = '015_tod.lp', modal = 'todmodal' },
 	{ name = 'nfc_card', card = '016_nfc.lp', modal = 'nfcmodal' },
+	{ name = 'speedservice_card', card = '016_speedservice.lp', modal = 'speedservicemodal' },
 	{ name = 'relaysetup_card', card = '018_relaysetup.lp', modal = 'relaymodal' },
 	{ name = 'eco_card', card = '020_eco.lp', modal = 'ecomodal' },
+	{ name = 'wifiextender_card', card = '020_wifiExtender.lp', modal = 'easyMeshConfiguration' },
+	{ name = 'certificates_card', card = '021_certificates.lp', modal = 'certificateslists', hide = '1' },
 	{ name = 'cwmpconf_card', card = '090_cwmpconf.lp', modal = 'cwmpconf' },
 	{ name = 'system_card', card = '091_system.lp', modal = 'systemmodal' },
 	{ name = 'natalghelper_card', card = '092_natalghelper.lp', modal = 'natalghelper' },
 	{ name = 'xdsl_card', card = '093_xdsl.lp', modal = 'xdsllowmodal' },
-	{ name = 'datausage_card', card = '011_datausage.lp', modal = 'datausagemodal' },
-	{ name = 'certificates_card', card = '021_certificates.lp', modal = 'certificateslists' },
-	{ name = 'wifiExtender_card', card = '020_wifiExtender.lp', modal = 'easyMeshConfiguration' },
 }
+
+local ok_em, em_helper = pcall(require, "easymesh_helper")
+local easymesh_supported = (ok_em and em_helper and em_helper.is_supported and em_helper.is_supported())
 
 --Check every element in table
 for _ , elem in pairs(card_check_rule) do
+	local target_hide = elem.hide or '0'
+	if elem.name == 'wifiextender_card' and not easymesh_supported then
+		target_hide = '1'
+	end
 	if not contains(elem.name, cardset) then
 		uci:set('web', elem.name ,'card')
 		uci:set('web', elem.name , 'card', elem.card)
 		uci:set('web', elem.name , 'modal', elem.modal)
-		uci:set('web', elem.name , 'hide', '0')
+		uci:set('web', elem.name , 'hide', target_hide)
+	elseif uci:get('web', elem.name, 'hide') == nil then
+		uci:set('web', elem.name, 'hide', target_hide)
+		new_rule = true
+	elseif elem.name == 'wifiextender_card' and not easymesh_supported and uci:get('web', elem.name, 'hide') ~= '1' then
+		uci:set('web', elem.name, 'hide', '1')
+		new_rule = true
 	end
 end
 
@@ -217,4 +312,70 @@ uci:foreach('web', 'rule', function(s)
 if new_rule then
 	uci:set('web','ruleset_main','rules',ruleset)
 	uci:commit('web')
+	os.execute("pgrep nginx >/dev/null && nginx -s reload >/dev/null 2>&1")
 end
+
+-- Ensure essential firewall sections exist for RPC mappings (mode slider and DMZ)
+local fw_cursor = require("uci"):cursor()
+local fwconfig_type = fw_cursor:get("firewall", "fwconfig")
+if not fwconfig_type then
+	fw_cursor:set("firewall", "fwconfig", "fwconfig")
+	fw_cursor:set("firewall", "fwconfig", "defaultoutgoing_lax", "ACCEPT")
+	fw_cursor:set("firewall", "fwconfig", "defaultoutgoing_normal", "ACCEPT")
+	fw_cursor:set("firewall", "fwconfig", "defaultoutgoing_high", "DROP")
+	fw_cursor:set("firewall", "fwconfig", "defaultoutgoing_user", "ACCEPT")
+	fw_cursor:set("firewall", "fwconfig", "defaultincoming_lax", "REJECT")
+	fw_cursor:set("firewall", "fwconfig", "defaultincoming_normal", "DROP")
+	fw_cursor:set("firewall", "fwconfig", "defaultincoming_high", "DROP")
+	fw_cursor:set("firewall", "fwconfig", "defaultincoming_user", "DROP")
+	fw_cursor:set("firewall", "fwconfig", "level", "normal")
+	fw_cursor:set("firewall", "fwconfig", "dmz", "0")
+
+	fw_cursor:set("firewall", "pinholerules", "rulesgroup")
+	fw_cursor:set("firewall", "pinholerules", "enabled", "1")
+	fw_cursor:set("firewall", "pinholerules", "name", "FW rules for opening pinholes")
+	fw_cursor:set("firewall", "pinholerules", "type", "pinholerule")
+
+	fw_cursor:set("firewall", "userredirects", "redirectsgroup")
+	fw_cursor:set("firewall", "userredirects", "enabled", "1")
+	fw_cursor:set("firewall", "userredirects", "name", "FW redirects defined by the user")
+	fw_cursor:set("firewall", "userredirects", "type", "userredirect")
+
+	fw_cursor:set("firewall", "dmzredirects", "redirectsgroup")
+	fw_cursor:set("firewall", "dmzredirects", "enabled", "0")
+	fw_cursor:set("firewall", "dmzredirects", "name", "FW redirects for the DMZ functionality")
+	fw_cursor:set("firewall", "dmzredirects", "type", "dmzredirect")
+
+	fw_cursor:set("firewall", "dmzredirect", "dmzredirect")
+	fw_cursor:set("firewall", "dmzredirect", "name", "DMZ rule")
+	fw_cursor:set("firewall", "dmzredirect", "src", "wan")
+	fw_cursor:set("firewall", "dmzredirect", "dest", "lan")
+	fw_cursor:set("firewall", "dmzredirect", "family", "ipv4")
+	fw_cursor:set("firewall", "dmzredirect", "target", "DNAT")
+	fw_cursor:set("firewall", "dmzredirect", "proto", "tcpudp")
+	fw_cursor:set("firewall", "dmzredirect", "dest_ip", "0.0.0.0")
+	fw_cursor:set("firewall", "dmzredirect", "enabled", "0")
+
+	fw_cursor:set("firewall", "normalrules", "rulesgroup")
+	fw_cursor:set("firewall", "normalrules", "enabled", "1")
+	fw_cursor:set("firewall", "normalrules", "name", "FW rules for normal level")
+	fw_cursor:set("firewall", "normalrules", "type", "normalrule")
+
+	fw_cursor:set("firewall", "laxrules", "rulesgroup")
+	fw_cursor:set("firewall", "laxrules", "enabled", "0")
+	fw_cursor:set("firewall", "laxrules", "name", "FW rules for lax level")
+	fw_cursor:set("firewall", "laxrules", "type", "laxrule")
+
+	fw_cursor:set("firewall", "highrules", "rulesgroup")
+	fw_cursor:set("firewall", "highrules", "enabled", "0")
+	fw_cursor:set("firewall", "highrules", "name", "FW rules for high level")
+	fw_cursor:set("firewall", "highrules", "type", "highrule")
+
+	fw_cursor:set("firewall", "userrules", "rulesgroup")
+	fw_cursor:set("firewall", "userrules", "enabled", "0")
+	fw_cursor:set("firewall", "userrules", "name", "FW rules for user level")
+	fw_cursor:set("firewall", "userrules", "type", "userrule")
+
+	fw_cursor:commit("firewall")
+end
+fw_cursor:close()

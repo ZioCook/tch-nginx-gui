@@ -22,6 +22,38 @@ local mapParams = {
 }
 content_helper.getExactContent(mapParams)
 
+if not mapParams["localdevIP"] or mapParams["localdevIP"] == "" then
+    local rpc_ip = proxy.get("rpc.network.interface.@lan.ipaddr")
+    mapParams["localdevIP"] = rpc_ip and rpc_ip[1] and rpc_ip[1].value or ""
+end
+
+if not mapParams["localdevmask"] or mapParams["localdevmask"] == "" then
+    local rpc_mask = proxy.get("rpc.network.interface.@lan.netmask")
+    local mask_val = rpc_mask and rpc_mask[1] and rpc_mask[1].value or ""
+    if mask_val == "" then
+        local rpc_pfx = proxy.get("rpc.network.interface.@lan.ipmask")
+        local pfx = rpc_pfx and rpc_pfx[1] and tonumber(rpc_pfx[1].value)
+        if pfx then
+            if pfx <= 0 then
+                mask_val = "0.0.0.0"
+            elseif pfx >= 32 then
+                mask_val = "255.255.255.255"
+            else
+                local bit = require("bit")
+                local m = bit.bnot(bit.lshift(1, 32 - pfx) - 1)
+                local ret = bit.band(m, 255)
+                m = bit.rshift(m, 8)
+                for i = 1, 3 do
+                    ret = bit.band(m, 255) .. "." .. ret
+                    m = bit.rshift(m, 8)
+                end
+                mask_val = ret
+            end
+        end
+    end
+    mapParams["localdevmask"] = mask_val
+end
+
 if mapParams["dhcpIgnore"] == "1" or mapParams["dhcpv4State"] == "disabled" then
   dhcpState_text = T"DHCP disabled"
   dhcpState = "0"

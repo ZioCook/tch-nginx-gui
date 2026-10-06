@@ -33,11 +33,17 @@ end
 
 local IPv6State = "none"
 
+content_helper.getExactContent(cs)
+
+cs.ipaddr = cs.ipaddr or ""
+cs.ip6addr = cs.ip6addr or ""
+cs.ip6prefix = cs.ip6prefix or ""
+
 if content.wan_ipv6 ~= "1" then
 	IPv6State = "disabled"
-elseif content.ip6prefix ~= "" then
+elseif cs.ip6prefix ~= "" then
 	IPv6State = "prefix"
-elseif content.ip6prefix == "" then
+else
 	IPv6State = "noprefix"
 end
 
@@ -55,8 +61,6 @@ local ipv6_light_map = {
      prefix = "1",--"green",
 }
 setmetatable(ipv6_light_map, untaint_mt)
-
-content_helper.getExactContent(cs)
 
 -- Figure out interface state
 local dhcp_state = "connecting"

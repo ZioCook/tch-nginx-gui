@@ -7,8 +7,8 @@ gettext.textdomain('webui-core')
 local proxy = require("datamodel")
 local ui_helper = require("web.ui_helper")
 local ngx, string = ngx, string
-local ok_entries, pairingNumberOfEntries = pcall(proxy.get, "sys.generic_app.PairingNumberOfEntries")
-pairingNumberOfEntries = ok_entries and pairingNumberOfEntries and pairingNumberOfEntries[1] and pairingNumberOfEntries[1].value or 0
+local ok_count, pairingNumberOfEntries = pcall(proxy.get, "sys.generic_app.PairingNumberOfEntries")
+pairingNumberOfEntries = ok_count and pairingNumberOfEntries and pairingNumberOfEntries[1] and pairingNumberOfEntries[1].value or "0"
 local ok_pairing, pairing = pcall(proxy.get, "sys.generic_app.Pairing.")
 pairing = ok_pairing and pairing or {}
 local name, certificates, indexes = {}, {}, {}
@@ -31,11 +31,7 @@ end
 
 if ngx.var.request_method == "POST" then
   local postargs = ngx.req.get_post_args()
-  local index = type(postargs.index) == "string" and postargs.index:match("^%d+$") and postargs.index
-  local success = false
-  if index then
-    success = proxy.del("sys.generic_app.Pairing." .. untaint(index) .. ".")
-  end
+  local success = proxy.del("sys.generic_app.Pairing." ..untaint(postargs.index) ..".")
   if success then
     proxy.apply()
   end
@@ -50,7 +46,7 @@ end
     <div id="success_msg" class="alert  hide alert-success">');  ngx.print(T"Changes saved successfully"); ngx.print('</div>\
     <div id="error_msg" class="alert  hide alert-error">');  ngx.print(T"The request could not be performed due to some error"); ngx.print('</div>\
     <legend>');  ngx.print( T"Certificates Lists" ); ngx.print('</legend>\
-    <form class="form-horizontal" method="post" id="certificate_form" action="/modals/certificates-list-modal.lp">\
+    <form class="form-horizontal" method="post" id="certificate_form" action="');  ngx.print(ngx.var.request_uri); ngx.print('">\
       <table id="certificateslist" style="width:100%;">\
         <tr style="text-align:left;font-size:15px;">\
           <th>');  ngx.print(T"Name"); ngx.print('</th>\
@@ -60,8 +56,8 @@ end
           ');  if pairingNumberOfEntries ~= 0 then   ngx.print('\
             ');  for index, names  in ipairs (name) do   ngx.print('\
               <tr id="row');  ngx.print(indexes[index]); ngx.print('"class="table table-striped" style="background-color:#f9f9f9;word-break:break-all;">\
-                <td style="width:12%;">');  ngx.print(html_escape(names or "")); ngx.print('</td>\
-                <td style="width:80%;">');  ngx.print(html_escape(certificates[index] or "")); ngx.print('</td>\
+                <td style="width:12%;">');  ngx.print(names); ngx.print('</td>\
+                <td style="width:80%;">');  ngx.print(certificates[index]); ngx.print('</td>\
                 <td>\
                   <div class="btn btn-mini tooltip-on" data-placement="top" data-original-title="Delete">\
                     <i class="icon-remove-sign icon-large" onclick="deleterow(');  ngx.print(indexes[index]); ngx.print(');"></i>\

@@ -360,7 +360,7 @@ end
     margin-right: 5px;\
   }\
   .datausage_image {\
-    background: linear-gradient(90deg, transparent 48%, #3a87ad 48%, #3a87ad 52%, transparent 52%);\
+    background: url("img/datausage-updown.png");\
     height: 128px;\
     width:128px;\
   }\
@@ -546,4 +546,4 @@ end
     tch.loadModal("/modals/datausage.lp?selected_interface=" + encodeURIComponent($(this).val()));\
   });\
 </script>\
-');
+'); 

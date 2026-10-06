@@ -14,33 +14,58 @@ local cputype = proxy.get("rpc.system.modgui.CPUtype")[1].value
 local extension_supported = 0
 
 local function kernel_has_tun()
-	local command = io.popen("[ -c /dev/net/tun ] || zcat /proc/config.gz 2>/dev/null | grep -q '^CONFIG_TUN=y$'; echo $?", "r")
+	if _G.__kernel_has_tun ~= nil then
+		return _G.__kernel_has_tun
+	end
+	local f = io.open("/dev/net/tun", "r")
+	if f then
+		f:close()
+		_G.__kernel_has_tun = true
+		return true
+	end
+	local command = io.popen("zcat /proc/config.gz 2>/dev/null | grep -q '^CONFIG_TUN=y$'; echo $?", "r")
 	if not command then
+		_G.__kernel_has_tun = false
 		return false
 	end
 	local result = command:read("*line")
 	command:close()
-	return result == "0"
+	_G.__kernel_has_tun = (result == "0")
+	return _G.__kernel_has_tun
 end
 
 local function tun_install_supported()
 	if kernel_has_tun() then return true end
-	local command = io.popen("[ \"$(uname -r)\" = 4.1.52 ] && [ \"$(uci -q get version.@version[0].kernel)\" = ac8d9a0575131475c4002132bf4995cb96c6f99d ]; echo $?", "r")
-	if not command then return false end
+	if _G.__tun_install_supported ~= nil then
+		return _G.__tun_install_supported
+	end
+	local command = io.popen("[ \"$(uname -r)\" = 4.1.52 ] && { k=\"$(uci -q get version.@version[0].kernel)\"; [ \"$k\" = ac8d9a0575131475c4002132bf4995cb96c6f99d ] || [ \"$k\" = 5c1688dc9cc0c60e2e5534d702efa8c262815dae ]; }; echo $?", "r")
+	if not command then
+		_G.__tun_install_supported = false
+		return false
+	end
 	local result = command:read("*line")
 	command:close()
-	return result == "0"
+	_G.__tun_install_supported = (result == "0")
+	return _G.__tun_install_supported
 end
 
-if marketing_version then
-	marketing_version = tonumber(marketing_version[1].value:sub(1,4))
+local m_ver = 0
+if marketing_version and marketing_version[1] and marketing_version[1].value then
+	local v_str = marketing_version[1].value
+	local maj, min = v_str:match("^(%d+)%.(%d+)")
+	if maj and min then
+		m_ver = tonumber(maj .. "." .. min) or 0
+	else
+		m_ver = tonumber(v_str:match("^(%d+)")) or 0
+	end
 end
 
 local mapParams = {
 	telstra_webui = "uci.modgui.app.telstra_webui"
 }
 
-if marketing_version >= 16.3 then
+if m_ver >= 16.3 or (m_ver >= 2.0 and m_ver < 10.0) then
 	mapParams.luci_webui = "uci.modgui.app.luci_webui"
 	mapParams.blacklist_application = "uci.modgui.app.blacklist_app"
 end
@@ -75,7 +100,7 @@ end
 if cputype:match("^armv7") then
 	mapParams.dumaos_application = "uci.modgui.app.dumaos_app"
 end
-if marketing_version >= 17.3 then
+if m_ver >= 17.3 or (m_ver >= 2.0 and m_ver < 10.0) then
 	mapParams.xupnp_application = "uci.modgui.app.xupnp_app"
 end
 
@@ -132,24 +157,21 @@ ngx.print('\
       ');
 local html = {}
 
+local active_count = 0
 for _, item in ipairs(extension_items) do
-	if StateParams[item.key] ~= nil then
-		html[#html + 1] = ui_helper.createSimpleLight(
-			StateParams[item.key],
-			item.title,
-			{ span = { class = "simple-desc extension-status" } },
-			nil
-		)
+	if StateParams[item.key] == "1" then
+		active_count = active_count + 1
 	end
 end
 
 if extension_supported == 0 then
-	html[#html + 1] = '<span class="simple-desc">'
-	html[#html + 1] =	"<strong>"
-	html[#html + 1] =		"No Extensions are supported on this device<br/>"
-	html[#html + 1] =	"</strong>"
-	html[#html + 1] = "</span>"
+	html[#html + 1] = ui_helper.createSimpleLight("0", T"Not supported", { span = { class = "simple-desc extension-status" } }, nil)
+else
+    local status_light = active_count > 0 and "1" or "0"
+    local status_text = active_count > 0 and format(N("%d extension active", "%d extensions active", active_count), active_count) or T"No extensions active"
+    html[#html + 1] = ui_helper.createSimpleLight(status_light, status_text, { span = { class = "simple-desc extension-status" } }, "fa-puzzle-piece")
 end
+
 ngx.print(html)
 ngx.print('\
 \

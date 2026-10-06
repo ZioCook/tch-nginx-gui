@@ -1,6 +1,12 @@
 --pretranslated: do not change this file
 gettext.textdomain('webui-wireguard')
 
+local proxy = require("datamodel")
+local app_state = proxy.get("uci.modgui.app.wireguard_app")
+if not app_state or app_state[1].value ~= "1" then
+  return
+end
+
 local ui_helper = require("web.ui_helper")
 local content_helper = require("web.content_helper")
 local format = string.format

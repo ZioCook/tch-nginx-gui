@@ -6,46 +6,82 @@ gettext.textdomain('webui-core')
 local ui_helper = require("web.ui_helper")
 local proxy = require("datamodel")
 local content_helper = require("web.content_helper")
+local eco_helper = require("eco_helper")
+local untaint = string.untaint or function(x) return x end
+local format = string.format
 
 local prod_friendly_name = proxy.get("uci.env.var.prod_friendly_name")
+local prod_name = prod_friendly_name and untaint(prod_friendly_name[1].value) or ""
 
 local content = {
 	cpuspeed = "uci.power.cpu.cpuspeed",
 	eee = "uci.power.ethernet.eee",
 }
-if prod_friendly_name[1].value:match("DGA4131") then
+if prod_name:match("DGA4131") then
 	content.eco_led = "uci.ledfw.ambient.active"
 else
 	content.eco_led = "uci.ledfw.status_led.enable"
+	content.eco_led_stealth = "uci.ledfw.status_led.stealth"
 end
 
 content_helper.getExactContent(content)
 
-if prod_friendly_name[1].value:match("DGA4131") then
+if prod_name:match("DGA4131") then
 	if content.eco_led == "1" then
-		content.eco_led_text = T"Ambient LED".." ".."enabled"
+		content.eco_led_text = T"Ambient LED enabled"
 	else
-		content.eco_led_text = T"Ambient LED".." ".."disabled"
+		content.eco_led_text = T"Ambient LED disabled"
 	end
 else
 	if content.eco_led == "1" then
-		content.eco_led_text = T"Eco LED enabled"
+		if content.eco_led_stealth == "1" then
+			content.eco_led_text = T"Eco LED (Stealth) enabled"
+		else
+			content.eco_led_text = T"Eco LED enabled"
+		end
 	else
 		content.eco_led_text = T"Eco LED disabled"
 	end
 end
 
-if content.cpuspeed == "256" then
-	content.cpuspeed_status = "1"
+if content.eee == "1" then
+	content.eee_text = T"Ethernet EEE enabled"
 else
-	content.cpuspeed_status = "0"
+	content.eee_text = T"Ethernet EEE disabled"
 end
 
-if content.eee == "1" then
-	content.eee_text = T"Energy Efficent Ethernet enabled"
+local cpu_status = eco_helper.getCpuStatus()
+local cpu_label
+if cpu_status.has_cpufreq and cpu_status.governor ~= "N/A" then
+	cpu_label = format("CPU: %s (%s, %d core)", cpu_status.cur_freq, cpu_status.governor:lower(), cpu_status.cores_online)
 else
-	content.eee_text = T"Energy Efficent Ethernet disabled"
+	cpu_label = format("CPU: %s (%d core)", cpu_status.cur_freq, cpu_status.cores_online)
 end
+
+local temps = eco_helper.getTemperatures()
+local temp_text = nil
+local temp_status = 1
+if #temps > 0 then
+	local parts = {}
+	for _, t in ipairs(temps) do
+		if t.chip == "wl0" then
+			parts[#parts+1] = format("2.4G: %d°C", t.temp)
+		elseif t.chip == "qtn-rfic" or t.chip == "wl1" then
+			parts[#parts+1] = format("5G: %d°C", t.temp)
+		end
+		if t.temp >= 80 then
+			temp_status = 0
+		end
+	end
+	if #parts > 0 then
+		temp_text = "Temp: " .. table.concat(parts, " | ")
+	else
+		temp_text = format("Temp: %d°C", temps[1].temp)
+	end
+end
+
+local overall_eco = (content.eee == "1" or content.eco_led == "1") and "1" or "0"
+local overall_text = (overall_eco == "1") and T"Active Energy Saving" or T"Standard Mode"
 
 local modalPath = nil
 local switchName = nil
@@ -54,25 +90,11 @@ if session:hasAccess("/modals/eco-modal.lp") then
 	modalPath = "/modals/eco-modal.lp"
 end
 
-if content.cpuspeed == "256" then
-	content.cpuspeed = T"CPU Frequency Auto Scaling"
-elseif content.cpuspeed == "0" then
-	content.cpuspeed = T"100% of max Frequency in SYNC mode"
-elseif content.cpuspeed == "1" then
-	content.cpuspeed = T"100% of max Frequency in ASYNC mode"
-elseif content.cpuspeed == "2" then
-	content.cpuspeed = T"50% of max Frequency in ASYNC mode"
-elseif content.cpuspeed == "4" then
-	content.cpuspeed = T"25% of max Frequency in ASYNC mode"
-elseif content.cpuspeed == "8" then
-	content.cpuspeed = T"10% of max Frequency in ASYNC mode"
-end
-
 ngx.print('\
 <div class="span3">\
   <div class="smallcard" data-aos="zoom-in" data-aos-anchor-placement="center-bottom" data-aos-easing="ease-in-back">\
 \
-    ');  ngx.print( ui_helper.createCardHeader(T"Eco Settings", modalPath, switchName, nil) ); ngx.print('\
+    ');  ngx.print( ui_helper.createCardHeader(T"Eco", modalPath, switchName, nil) ); ngx.print('\
 \
     <div class="content card_bg" data-bg-text="&#xf06c;">\
 	  <div class="divtable">\
@@ -80,9 +102,7 @@ ngx.print('\
       ');
 local html = {}
 
-	html[#html + 1] = ui_helper.createSimpleLight(content.eco_led, content.eco_led_text, nil, "fas fa-leaf"  )
-	html[#html + 1] = ui_helper.createSimpleLight(content.cpuspeed_status, content.cpuspeed, nil, "fas fa-microchip"  )
-	html[#html + 1] = ui_helper.createSimpleLight(content.eee, content.eee_text, nil, "fas fa-exchange-alt"  )
+html[#html + 1] = ui_helper.createSimpleLight(overall_eco, overall_text, nil, "fas fa-leaf")
 
 ngx.print(html)
 ngx.print('\

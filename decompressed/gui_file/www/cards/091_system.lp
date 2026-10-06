@@ -7,23 +7,18 @@ local ngx = ngx
 local session = ngx.ctx.session
 local format = string.format
 local ui_helper = require("web.ui_helper")
+local content_helper = require("web.content_helper")
 local proxy = require("datamodel")
 local modalPath = "/modals/system-modal.lp"
 syslog_present = "disabled"
 
--- Check availability of file, return true if found, else false
-local function file_check(file_name)
-  local file_found=io.open(file_name, "rb")
-  if file_found==nil then
-    return false
-  else
-    return true
-  end
-end
-
 local Syslog = proxy.get("uci.system.system.@system[0].log_ip", "uci.system.system.@system[0].log_filter_ip")
-if Syslog and (Syslog[1].value ~= "" or Syslog[2].value ~= "") then
-    syslog_present = "enabled"
+if Syslog then
+    local log_ip = (Syslog[1] and Syslog[1].value) or ""
+    local log_filter = (Syslog[2] and Syslog[2].value) or ""
+    if log_ip ~= "" or log_filter ~= "" then
+        syslog_present = "enabled"
+    end
 end
 
 local syslog_state_map = {
@@ -37,17 +32,14 @@ local syslog_light_map = {
 }
 
 local ssh_enable = "disabled"
-local SSH_legacy = proxy.get("uci.dropbear.dropbear.@dropbear[0].enable")
-local SSH_lan = proxy.get("uci.dropbear.dropbear.@lan.enable")
-local SSH_wan = proxy.get("uci.dropbear.dropbear.@wan.enable")
-if SSH_legacy and (SSH_legacy[1].value == "1") then
-    ssh_enable = "enabled"
-end
-if SSH_lan and (SSH_lan[1].value == "1") then
-    ssh_enable = "enabled"
-end
-if SSH_wan and (SSH_wan[1].value == "1") then
-    ssh_enable = "enabled"
+local dbvalues = proxy.get("uci.dropbear.dropbear.")
+if dbvalues then
+  for _, v in ipairs(dbvalues) do
+    if v.param == "enable" and v.value == "1" then
+      ssh_enable = "enabled"
+      break
+    end
+  end
 end
 
 local SSH_state_map = {
@@ -60,12 +52,12 @@ local SSH_light_map = {
   enabled = "1",--"green"
 }
 
-local telnet_available = file_check("/bin/busybox_telnet")
+local telnet_available = content_helper.fileExists("/bin/busybox_telnet") or content_helper.fileExists("/usr/sbin/telnetd")
 local telnet_state = "NotAvailable"
 
 if telnet_available then
 	local TELNET = proxy.get("uci.telnet.general.enable")
-	if TELNET and (TELNET[1].value == "1") then
+	if TELNET and TELNET[1] and (TELNET[1].value == "1") then
 		telnet_state = "enabled"
 	else
 		telnet_state = "disabled"

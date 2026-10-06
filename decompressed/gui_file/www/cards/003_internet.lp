@@ -67,7 +67,9 @@ local modalPath = nil
 
 local session = ngx.ctx.session
 if session:hasAccess("/modals/internet-modal.lp") then
-    switchName = "uci_wan_auto"
+    if mode_active ~= "bridge" then
+        switchName = "uci_wan_auto"
+    end
     modalPath = "/modals/internet-modal.lp"
 end
   ngx.print('\
@@ -78,8 +80,9 @@ end
     <div class="content card_bg" data-bg-text="&#xf0ac;">\
       <div class="divtable">\
 ');
+    local snippet_card = (mode_data[mode_active] and mode_data[mode_active].card) or (mode_data["dhcp"] and mode_data["dhcp"].card) or "003_internet_default.lp"
     lp.setpath("/www/cards/snippets/")
-    lp.include(mode_data[mode_active].card)
+    lp.include(snippet_card)
     -- have to bring it back to original value ... singleton
     lp.setpath("/www/cards/")
     if mobile_ip then
@@ -99,4 +102,4 @@ $(document).ready(function () {\
 	new modgui.createAjaxUpdateCard("internet-card","/ajax/internet.lua","InternetCardInterval",3000);\
 })\
 </script>\
-'); 
+');

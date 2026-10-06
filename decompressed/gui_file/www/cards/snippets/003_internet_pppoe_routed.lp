@@ -33,13 +33,17 @@ end
 
 content_helper.getExactContent(content_rpc)
 
+content_rpc.ipaddr = content_rpc.ipaddr or ""
+content_rpc.ip6addr = content_rpc.ip6addr or ""
+content_rpc.ip6prefix = content_rpc.ip6prefix or ""
+
 local IPv6State = "none"
 
 if content_uci.wan_ipv6 ~= "1" then
     IPv6State = "disabled"
 elseif content_rpc.ip6prefix ~= "" then
 	IPv6State = "prefix"
-elseif content_rpc.ip6prefix == "" then
+else
 	IPv6State = "noprefix"
 end
 

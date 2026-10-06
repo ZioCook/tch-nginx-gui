@@ -11,11 +11,11 @@ local post_helper = require("web.post_helper")
 local session = ngx.ctx.session
 
 local function is_datausage_enabled()
-  local ok, datausage_info = pcall(proxy.get, "uci.datausage.interface.")
+  local ok, datausage_info = pcall(proxy.get, "rpc.datausage.interface.")
   if not ok or type(datausage_info) ~= "table" then
     return false
   end
-  local datausage_interfaces = content_helper.convertResultToObject("uci.datausage.interface.", datausage_info) or {}
+  local datausage_interfaces = content_helper.convertResultToObject("rpc.datausage.interface.", datausage_info) or {}
   for _, interface in ipairs(datausage_interfaces) do
     if interface.enabled == "1" then
       return true
@@ -81,4 +81,4 @@ if (data_usage){\
   var stopUpdateLink = setInterval(updatelink, 3000);\
 }\
 </script>\
-');
+'); 

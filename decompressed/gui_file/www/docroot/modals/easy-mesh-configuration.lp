@@ -335,10 +335,10 @@
                 local cIndex = data.paramindex
                 local fTitle = fronthaulString and T"Fronthaul Configuration" or string.upper(string.sub(cIndex, 2, -1))
                 ngx.print('\
-                <legend>' .. fTitle .. '</legend>\
-                <div class="control-group" style="margin-top: -8px; margin-bottom: 15px;">\
+                <legend style="margin-top: 24px;">' .. fTitle .. '</legend>\
+                <div class="control-group" style="margin-top: 8px; margin-bottom: 16px;">\
                   <div class="controls">\
-                    <span class="help-block" style="font-size: 12px; color: #777;">\
+                    <span class="help-block" style="font-size: 12px; color: #777; line-height: 1.4;">\
                       ' .. T"Network parameters propagated by EasyMesh to all connected extenders." .. '\
                     </span>\
                   </div>\
