@@ -70,7 +70,9 @@ html[#html + 1] = [[
     })
     .then(function(text) {
       if (text && text.length > 50) {
-        preEl.textContent = text;
+        if (preEl.textContent !== text) {
+          preEl.textContent = text;
+        }
         if (sourceEl) sourceEl.textContent = "Online (GitHub master)";
         if (statusEl) statusEl.textContent = "Aggiornato";
       }
