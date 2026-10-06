@@ -1,4 +1,5 @@
 #!/bin/bash
+shopt -s dotglob
 
 declare -a modular_dir=(
 	"base"
@@ -16,43 +17,50 @@ declare -a modular_dir=(
 	"ledfw_support-specificDGA"
 	"ledfw_support-specificDGA4131"
 	"ledfw_support-specificDGA4331"
+	"upgrade-pack-hw18"
+	"upgrade-pack-hw19"
 )
 
-if [ "$1" == "dev" ]; then
+if [ "$1" = "dev" ]; then
 	echo "Dev build detected"
 	type="_dev"
 fi
 
-if [ "$CI" == "true" ]; then
-	TYPE="$(cat $HOME/gui_build/data/type)"
-	if [ $TYPE == "PREVIEW" ]; then
+if [ "$CI" = "true" ] && [ -f "$HOME/gui_build/data/type" ]; then
+	TYPE="$(cat "$HOME/gui_build/data/type")"
+	if [ "$TYPE" = "PREVIEW" ]; then
 		type="_preview"
-	elif [ $TYPE == "DEV" ]; then
+	elif [ "$TYPE" = "DEV" ]; then
 		type="_dev"
-	elif [ $TYPE != "STABLE" ]; then
+	elif [ -n "$TYPE" ] && [ "$TYPE" != "STABLE" ]; then
 		type="_"$TYPE
 	fi
 fi
 
 mkdir -p compressed
+rm -f compressed/GUI*.tar.bz2 compressed/GUI*.zip
+
+commit_epoch=$(git log -1 --format=%ct 2>/dev/null || echo 1700000000)
+commit_date=$(date -u -d "@$commit_epoch" +"%Y-%m-%d %H:%M:%S" 2>/dev/null || echo "2026-10-05 00:00:00")
+echo "Using archive mtime: $commit_date ($commit_epoch)"
 
 for index in "${modular_dir[@]}"; do
-
 	cd decompressed/$index
 
 	#Creating md5sum file for status led eventing
-	if [[ $index == "gui_file" ]]; then
+	if [ "$index" = "gui_file" ]; then
 		md5sum tmp/status-led-eventing.lua_new > tmp/status-led-eventing.md5sum
 	fi
 
 	#Creating md5sum for every ledfw_support modular dir
-	if [[ $index == *"ledfw_support"* ]]; then
-		md5sum etc/ledfw/stateMachines.lua > stateMachines.md5sum
-	fi
+	case "$index" in
+		*ledfw_support*)
+			md5sum etc/ledfw/stateMachines.lua > stateMachines.md5sum
+			;;
+	esac
 
-	BZIP2=-9 tar --mtime='2018-01-01' -cjf ../../compressed/$index.tar.bz2 * --owner=0 --group=0
+	BZIP2=-9 tar --mtime="$commit_date" -cjf ../../compressed/$index.tar.bz2 * --owner=0 --group=0
 	cd ../../
-
 done
 
 echo "Creating GUI dir"
@@ -71,14 +79,36 @@ fi
 
 for index in "${modular_dir[@]}"; do
 
-	if [ $index == "base" ] || [ $index == "gui_file" ] || [ $index == "traffic_mon" ]; then
+	if [ "$index" = "base" ] || [ "$index" = "gui_file" ] || [ "$index" = "traffic_mon" ]; then
 		echo "Copying file from "$index" to GUI dir"
 		cp -dr decompressed/$index/* total
-	elif [ -z "$(echo $index | grep upgrade-pack-)" ]; then
+	elif [ -z "$(echo "$index" | grep upgrade-pack-)" ]; then
 		cp compressed/$index.tar.bz2 total/tmp
 		echo "Adding specific file from "$index" to tmp virtual dir"
 	fi
 done
 
-cd total && BZIP2=-9 tar -cjf ../compressed/GUI$type.tar.bz2 * --owner=0 --group=0
+# Inject build version into rootdevice
+short_commit=$(git rev-parse --short HEAD 2>/dev/null || echo "dev")
+if [ -z "$version" ] && [ -f "data/version" ]; then version="$(cat data/version)"; fi
+build_ver="${version:-9.9.1}"
+# If VERSION already contains a hyphen/commit hash, do not append short_commit again
+if [[ "$build_ver" =~ -[0-9a-fA-F]{7,8}$ ]] || [[ "$build_ver" =~ -dev$ ]]; then
+	stamp_ver="$build_ver"
+elif [ "$TYPE" = "STABLE" ] || [ -z "$type" ]; then
+	stamp_ver="$build_ver"
+else
+	stamp_ver="$build_ver-$short_commit"
+fi
+echo "Stamping GUI version $stamp_ver..."
+if [ -f total/etc/init.d/rootdevice ]; then
+	sed -i "s#version_gui=.*#version_gui=$stamp_ver#" total/etc/init.d/rootdevice
+fi
+
+cd total
+BZIP2=-9 tar --mtime="$commit_date" -cjf ../compressed/GUI$type.tar.bz2 * --owner=0 --group=0
+if command -v zip >/dev/null 2>&1; then
+	zip -q -r -9 ../compressed/GUI$type.zip *
+fi
 cd ../
+

@@ -22,7 +22,6 @@ concurrency:
 
 env:
   BUILD_IMAGE: ansuel/gui-autobuild-image:4@sha256:b2a001505945a1c703ca2840b64d521515f5785f38f596a1866fead88578b19c
-  MINIFY_IMAGE: thekevjames/minify:latest@sha256:936addc1a5c96f5c94b55e0889f5606a159a777d7c22afda20755e9be8f1f3a2
 
 jobs:
   build:
@@ -38,6 +37,11 @@ jobs:
         with:
           path: gui_build
           persist-credentials: false
+
+      - name: Lint Lua syntax
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq lua5.1
+          bash scripts/1-lint_lua_syntax.sh decompressed
 
       - name: Test release updates and archive verification
         run: python3 -m unittest discover -s tests -v
@@ -63,11 +67,18 @@ jobs:
           cd data
           bash ../scripts/1-increment_autobuild_ver.sh
 
+      - name: Setup Node.js for asset minification
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - name: Install Node asset optimization tools
+        run: npm install --no-audit --no-fund
+
       - name: Minify CSS and JavaScript
         run: |
-          docker run --rm --user "$(id -u):$(id -g)" \
-            -v "$GITHUB_WORKSPACE:/workspace" -w /workspace/gui_build/data \
-            --entrypoint sh "$MINIFY_IMAGE" -e ../scripts/1-compress_css_javascript.sh
+          cd data
+          bash -e ../scripts/1-compress_css_javascript.sh
 
       - name: Minify Lua
         run: |
@@ -98,7 +109,7 @@ jobs:
 
   publish:
     needs: build
-    if: github.repository == 'Ansuel/tch-nginx-gui' && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish))
+    if: (github.repository == 'Ansuel/tch-nginx-gui' || github.repository == 'ZioCook/tch-nginx-gui') && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.publish))
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     permissions:

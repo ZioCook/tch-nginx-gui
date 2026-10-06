@@ -4,4 +4,12 @@ total/*
 .DS_Store
 *.DS_Store
 .idea
+compressed/*.zip
+tar_tmp/
+modular/*.tar.bz2
+compressed/*.tar.bz2
+!compressed/GUI.tar.bz2
+!compressed/GUI_dev.tar.bz2
+data/
 __pycache__/
+scratch/

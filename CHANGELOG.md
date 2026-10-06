@@ -1,27 +1,84 @@
 
-# Unreleased
+9.10.0 (Current Release Series)
+---------------------------------------------------------------------------
+- (Suite di Ripristino di Emergenza - Standalone Rescue Suite v3)
+  - Standalone Rescue Server (rescue_server.lua): server HTTP ultra-leggero e resiliente basato su LuaSocket puro (porta 8088), funzionante in modalità Out-of-Band (OOB) senza alcuna dipendenza da Nginx, LuaJIT o Transformer.
+  - Architettura Asincrona & Multi-Tasking: loop select() non bloccante con gestione sicura di streaming upload per archivi .tar.bz2 fino a 128 MB, job di estrazione e verifica in background (bzcat + tar) e lock anti-concorrenza (/tmp/rescue.busy).
+  - Sicurezza LAN & Protezione Avanzata: restrizione accessi a indirizzi privati RFC1918/loopback, verifica rigida delle intestazioni Host e Origin (protezione totale contro attacchi CSRF e DNS rebinding) e intestazioni di sicurezza anti-framing/clickjacking.
+  - Console Web Responsive & Shell Root Interattiva: interfaccia a schede in stile Technicolor autentico con tema verde, filigrana globo, font FontAwesome locali e selettore lingua (IT/EN). Include tab dedicata per shell root con memoria cronologia comandi, timeout di sicurezza e log operativo live a streaming incrementale (/log).
+  - Motore di Ripristino Zero-Touch USB (rescue-usb.sh): modulo di rilevamento ed estrazione automatica di archivi di ripristino (.tar.bz2) da chiavette USB (FAT, FAT32, NTFS, ext4) con notifica LED hardware e validazione checksum.
+  - Demone Watchdog Intelligente (rescue-watchdog.sh): monitoraggio proattivo dello stato dei servizi web primari (Nginx, Transformer), avvio automatico del server di emergenza in caso di crash e spegnimento automatico al ritorno della piena funzionalità.
+  - Informazioni di Sistema Reali e Dinamiche: rilevamento autentico del modello (/etc/config/env prod_friendly_name), versione reale del kernel (/proc/version es. 4.1.52), RAM attiva e uptime.
+- (Gestione Energetica & Controllo LED Hardware)
+  - Menu Unificato 3-Way LED: controllo centralizzato con opzioni Normale, Eco (LED di stato attenuati o spenti) e Stealth (spegnimento totale di tutti i LED, inclusi power, wifi, internet e LED blu su TG789vac v2).
+  - Persistenza dello Stato LED: integrazione profonda con i demoni di gestione hardware (power, ledfw, rootdevice) per preservare e ripristinare le impostazioni Stealth/Eco attraverso riavvii di servizio, reboot e aggiornamenti della GUI.
+  - Arresto Sicuro Hardware (Safe Poweroff): supporto alla pressione prolungata (15s) del tasto fisico WPS con countdown visivo a LED rosso lampeggiante rapido e arresto sicuro del sistema operativo; pulsante dedicato per lo spegnimento sicuro all'interno della modale Gateway.
+- (Frontend, Performance & UBUS Aggregator BFF)
+  - UBUS Aggregator BFF (ubus_aggregator.lua): endpoint batch per l'aggregazione di chiamate UBUS multiple in una singola richiesta HTTP, con sanificazione stringhe taint e timeout rigoroso, riducendo drasticamente i tempi di caricamento del cruscotto.
+  - Nuova Pipeline CI/CD con Minificazione Asset: compilazione automatica e minificazione CSS/JS con CleanCSS e Terser, conversione e ottimizzazione automatica delle immagini in formato WebP, e linting sintassi Lua automatizzato via GitHub Actions.
+- (Supporto Hardware, Modem & Nuovi Firmware)
+  - Pieno Supporto DGA4331 (TIM HUB+) & DGA4132 (TIM HUB): compatibilità ottimizzata per SoC Broadcom BCM963138 e distribuzioni Homeware 19.4 basate su kernel Linux 4.1.52.
+  - Integrazione Upstream DGA4331: merge dei transformer mappings, guardie sulle capability hardware e gestione avanzata dei moduli SFP.
+  - Modalità Bridge / Dumb-AP Perfezionata: isolamento delle interfacce, rilevamento affidabile di IP/DNS e disattivazione selettiva dei servizi per minimizzare l'uso di memoria e CPU.
+  - Diagnostica di Rete & Modale Velocità Ethernet: reintroduzione e ottimizzazione delle modali M-ABR, IGMP Proxy e configurazione velocità di linea Ethernet (10/100/1000 Mbps) con indicatori di link badge.
+  - Miglioramenti Responsive & Mobile: ottimizzazione edge-to-edge di layout, toolbar, tabelle statistiche e modali per smartphone e tablet.
 
-- Add a WireGuard management card and modal for the pinned userspace runtime: tunnel interface, peer table, gateway/client keypair generation, status and opt-in firewall rules applied through a dedicated netifd interface
-- Add a checksum-verified DumaOS 2.0-32 extension for ARMv7 gateways with automatic upgrades, service controls and an authenticated UI card
-- Add a pinned, checksum-verified Tailscale extension for ARM gateways with an asynchronous cold-start/login flow, native status card, login link, subnet-router, exit-node, route-acceptance and Tailscale SSH controls
-- Share the checksum-verified TUN module lifecycle across WireGuard, OpenVPN and Tailscale, allowing any of them to bootstrap a clean supported DGA4130
-- Generate complete WireGuard client peers from the modal with automatic address allocation, `.conf` download and QR import
-- Add an installable OpenVPN extension with server/client tabs, dynamically discovered isolated Wi-Fi SSIDs for optional client routing, profile export, TUN/runtime safety checks and a state-coupled WAN firewall rule
-- Add a standalone Asterisk PBX card for SIP accounts and status, with guarded Voipblock integration
-- Integrate Adblock, rsyncd, Ookla Speedtest and AdGuard Home in the Extensions card
-- Add a pinned and checksum-verified OpenSpeedTest LAN/Wi-Fi server on port 5678
-- Detect ARM-only extensions and keep AdGuard Home isolated from dnsmasq during first-run setup
-- Add a pinned, checksum-verified WireGuard userspace runtime with kernel-TUN capability gating and no automatic network or firewall changes
-- Integrate the legacy L2TP/IPsec VPN card with safe dependency ownership, persistent GUI repair, Android retry mitigation and a non-blocking IPsec restart path
-- Add TG-1/VANT-5 nginx compatibility for legacy Lua and non-SSL builds, with validation and automatic rollback
-- Fix FGA221DFWB (NeXXt One) dashboard crash by skipping the xDSL info card and guarding all its values on devices without xDSL hardware https://github.com/Ansuel/tch-nginx-gui/issues/1220
-- Port getULAPrefixBackup/getULAEnable/getSTS and the vpn.device host merge from the 22.2 firmware lib to keep the stock device2 IP maps loading on newer firmwares https://github.com/Ansuel/tch-nginx-gui/issues/1220
-- Fix wireless security info on firmwares exposing it through the wireless.accesspoint ubus object instead of wireless.accesspoint.security https://github.com/Ansuel/tch-nginx-gui/issues/1220
-- Guard xdslctl transformer getters on devices without the xdslctl binary to stop the periodic transformer errors https://github.com/Ansuel/tch-nginx-gui/issues/1220
-- Fallback to a known gateway picture when the device model has no dedicated image (eg. NeXXt One)
+9.8.0
+---------------------------------------------------------------------------
+- (Supporto Nuovi Firmware & Compatibilità)
+- Supporto Totale TIM HUB 2.4.4: Aggiunto il pieno supporto ad Homeware 19.4 (Linux 4.1.52) per DGA4132
+- Risoluzione Rilevamento Modello: Fixati i problemi di rilevamento per i device della serie TIM 2.x
+- Compatibilità Pacchetti (OPKG): Risolti i problemi di installazione per pacchetti del ramo 18.x su firmware 19.x aggiungendo --force-depends
+- Protezione Flash (TG789vac v2): Migliorata la gestione dell'OBP per i firmware dual-bank
+- (Nuove Funzionalità & Interfaccia UI)
+- Modalità Bridge (Dumb-AP): Supporto esteso per la modalità Bridge con orchestrazione intelligente dei servizi di rete
+- Miglioramenti Scheda Broadband: Aggiornato il design della scheda Broadband e l'interfaccia della relativa modale
+- Gestore Schede (Cards): Introdotta una nuovissima modale che permette all'utente di nascondere o mostrare le schede sulla homepage a piacimento
+- Reti Ospiti (Guest Network): Aggiunto un interruttore per accendere/spegnere la rete ospiti direttamente dalla modale Wi-Fi. Le reti ospiti disattivate vengono ora nascoste
+- Nuovo Pannello Eco & Monitoraggio: Migliorata la scheda Eco per includere governor della CPU, monitoraggio termico (temperature) e i settaggi della Virtual Machine
+- QoS (Quality of Service): Aggiunto lo switch globale per il QoS e una spia di stato dinamica sulla scheda (con fallback automatico ad fq_codel)
+- Update Link: Tutti i collegamenti interni per l'aggiornamento puntano ora al nuovo fork ufficiale ZioCook
+- (Bug Fixes & Stabilità)
+- Aggiornamento GUI dal Menu: Risolto errore 'aggiornamento fallito' quando si provava ad aggiornare la GUI offline via web
+- Gestore Servizi (System Init): Ripristinata la corretta gestione dei servizi di sistema e risolti i crash causati da apici non escapati
+- Slider Livello Firewall: Risolto un bug Javascript nel parsing dello slider noUiSlider del firewall (ora non serve ricaricare la pagina)
+- Fix Errore DMZ: Investigati e risolti messaggi d'errore transitori di salvataggio ('Exact data not found')
+- Stato SSH LAN: Risolto un bug in system-extras che riportava un falso stato sulla LAN per dropbear
+- Stringhe Tainted: Utilizzata la funzione untaint() al posto di tostring() per prevenire la comparsa della scritta visiva 'tainted string' 
+- Core BusyBox: Migliorata la compliance POSIX degli script ash interni
+- Merge Ansuel (Bugfix): Inclusi gli ultimissimi due fix upstream (PR 1222 e 1223) per correggere rari crash 'nil' sulle pagine Wireless e Bridge Grouping
+- (GitHub Actions & CI/CD)
+- Build Automatica (CI): Introdotto un workflow completo per compilare automaticamente gli archivi al push di nuovi tag
+- Auto-Changelog: Script in Python dedicato per generare automaticamente note di rilascio ricche ed esplicative
+- Azioni Aggiornate: Aggiornate tutte le dipendenze per l'infrastruttura GitHub Actions a Node.js 24
+- Documentazione: README.md riorganizzato e migliorato
+
 
 ---------------------------------------------------------------------------
 # Mainline 18.3 Cobalt
+
+9.7.9
+---------------------------------------------------------------------------
+- Card e Modale Eco completamente rinnovate con monitoraggio hardware e controlli avanzati
+- Monitoraggio termico in tempo reale: lettura sensori Wi-Fi 2.4 GHz (Broadcom), Wi-Fi 5 GHz (Quantenna RFIC/BBIC o Broadcom) e sensori SoC
+- Gestione CPU & Scaling Governor: selezione governor Linux (Interactive, Ondemand, Userspace), frequenze minime e massime (200 MHz - 1.0 GHz), controllo clock Broadcom e stato WFI (CPU Wait)
+- Controllo Cores CPU: opzione per disattivare il secondo core (CPU1) per il massimo risparmio energetico
+- Risparmio Energetico Ethernet: controllo avanzato di EEE (802.3az), AutoGrEEEn (SF2 Deep Green Mode), Auto Power Down (APD) e PHY Power Down
+- Ottimizzazione Memoria & VM: regolazione vm.swappiness (0-100), vm.vfs_cache_pressure (0-200), visualizzazione stato Swap e pulsante rapido per svuotare la cache RAM (drop_caches)
+- Aggiunta spiegazione chiara e dettagliata per ogni singola opzione all'interno del pannello Eco
+- Card Eco in Dashboard arricchita con frequenza/governor CPU live, temperature correnti e stato risparmio energetico
+- Personalizzazione footer con attribuzione al fork di ZioCook e aggiornamento link contributori
+
+9.7.8
+---------------------------------------------------------------------------
+- Modalità Bridge / Dumb AP Switch: card Banda Larga riprogettata con parametri di rete locale AP (IP, Subnet, Gateway, DNS, Lease DHCP) senza sezioni GPON/SFP superflue
+- Rilevazione sicura interfaccia SFP per prevenire errori quando non configurata
+- Correzione rilevazione ed estrazione dei server DNS attivi
+- Orchestrazione intelligente dei servizi (apply_service_modes.sh): arresto automatico dei demoni non necessari (pppd, firewall/NAT, CWMP, QoS, IGMP proxy, cupsd) al cambio modalità, con risparmio di oltre 50-70 MB di RAM
+- Gestione QoS: interruttore master ON/OFF nella card e nella modale con fallback a disciplina nativa Linux fq_codel a zero carico CPU
+- Gestione Wi-Fi Guest: controllo attivazione/disattivazione e visibilità dinamica delle reti guest (scompaiono dalla card del cruscotto e dalla modale quando disattivate)
+- Risoluzione problema OpenResty Lua con stringhe tainted ("tainted string") nei campi di configurazione e nelle tabelle di lookup
+- Pipeline CI/CD GitHub Actions per build automatica e rilascio pacchetti (tar.bz2 e zip)
 
 9.6.65
 ---------------------------------------------------------------------------

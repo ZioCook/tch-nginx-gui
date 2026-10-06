@@ -1,0 +1,13 @@
+{
+  "name": "tch-gui-optimizer",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Asset optimization pipeline (Terser + Clean-CSS) for tch-nginx-gui",
+  "scripts": {
+    "minify": "node scripts/1-compress_assets_node.js"
+  },
+  "devDependencies": {
+    "clean-css": "^5.3.3",
+    "terser": "^5.37.0"
+  }
+}
