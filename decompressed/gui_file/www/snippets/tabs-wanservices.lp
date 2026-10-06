@@ -11,4 +11,10 @@ local items = {
 	{"dmz-modal.lp", T"DMZ"},
 }
 
+local proxy = require("datamodel")
+local mabr_check = proxy.get("rpc.X_TELECOMITALIA_IT_MABRAgent.Status")
+if mabr_check and mabr_check[1] then
+    table.insert(items, {"mabr-agentinfo-modal.lp", T"M-ABR"})
+end
+
 require("sharedModalTabHelper").createModalTab(items)

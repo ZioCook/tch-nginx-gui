@@ -14,6 +14,7 @@ local match, format, find, upper = string.match, string.format, string.find, str
 
 -- Process POST query
 local post_helper = require("web.post_helper")
+local internethelper = require("internethelper")
 local session = ngx.ctx.session
 local role = session:getrole()
 
@@ -145,6 +146,7 @@ local mapParams = {
   uci_wan_password = "uci.network.interface.@wan.password",
   uci_wan_masq = "uci.firewall.zone."..zonenum..".masq",
   uci_wan_ipv6 = "uci.network.interface.@wan.ipv6",
+  uci_wan_mtu = "uci.network.interface.@wan.mtu",
   uci_wan_peerdns = "uci.network.interface.@wan.peerdns",
 }
 
@@ -165,6 +167,18 @@ local dns_options = {
     createMsg = T"Add new DNS server",
     minEntries = 0,
     maxEntries = 3,
+    onAdd = function()
+        local peerdns = proxy.get("uci.network.interface.@wan.peerdns")
+        internethelper.syncWanDns(peerdns and peerdns[1] and peerdns[1].value)
+    end,
+    onModify = function()
+        local peerdns = proxy.get("uci.network.interface.@wan.peerdns")
+        internethelper.syncWanDns(peerdns and peerdns[1] and peerdns[1].value)
+    end,
+    onDelete = function()
+        local peerdns = proxy.get("uci.network.interface.@wan.peerdns")
+        internethelper.syncWanDns(peerdns and peerdns[1] and peerdns[1].value)
+    end,
 }
 
 local dns_columns = {
@@ -240,22 +254,39 @@ end
 local function IPv6andUsername(value, object, key)
   local valid, msg = vB(value)
 
-  local ipv6_state = proxy.get("uci.network.interface.@wan.ipv6")[1].value
+  local ipv6_state_raw = proxy.get("uci.network.interface.@wan.ipv6")
+  local ipv6_state = ipv6_state_raw and ipv6_state_raw[1] and ipv6_state_raw[1].value or "0"
   if valid and ipv6_state ~= value then
-    local ipv6_realm = proxy.get("uci.env.var.ppp_realm_ipv6")[1].value
-    local ipv4_realm = proxy.get("uci.env.var.ppp_realm_ipv4")[1].value
+    local ipv6_realm_raw = proxy.get("uci.env.var.ppp_realm_ipv6")
+    local ipv4_realm_raw = proxy.get("uci.env.var.ppp_realm_ipv4")
+    local ipv6_realm = ipv6_realm_raw and ipv6_realm_raw[1] and ipv6_realm_raw[1].value or ""
+    local ipv4_realm = ipv4_realm_raw and ipv4_realm_raw[1] and ipv4_realm_raw[1].value or ""
     if value == "1" then
       proxy.set("uci.network.interface.@wan6.auto", "1")
-      proxy.set("uci.network.interface.@wan.username", ipv6_realm)
+      -- Only overwrite username if ISP has a specific IPv6 realm configured
+      if ipv6_realm ~= "" then
+        proxy.set("uci.network.interface.@wan.username", ipv6_realm)
+      end
       proxy.set("uci.network.device.@waneth4.ipv6", "1")
       proxy.set("uci.network.device.@wanptm0.ipv6", "1")
     else
       proxy.set("uci.network.interface.@wan6.auto", "0")
-      proxy.set("uci.network.interface.@wan.username", ipv4_realm)
+      -- Only overwrite username if ISP has a specific IPv4 realm configured
+      if ipv4_realm ~= "" then
+        proxy.set("uci.network.interface.@wan.username", ipv4_realm)
+      end
       proxy.set("uci.network.device.@waneth4.ipv6", "0")
       proxy.set("uci.network.device.@wanptm0.ipv6", "0")
     end
     proxy.apply()
+  end
+  return valid, msg
+end
+
+local function validatePeerDNS(value, object, key)
+  local valid, msg = vB(value, object, key)
+  if valid then
+    internethelper.syncWanDns(value)
   end
   return valid, msg
 end
@@ -268,7 +299,8 @@ local mapValid = {
   uci_wan_password = gCV(isWanEnabled, gVP(vNES), gVP()),
   uci_wan_masq = validateNat,
   uci_wan_ipv6 = IPv6andUsername,
-  uci_wan_peerdns = vB,
+  uci_wan_mtu = gOV(post_helper.getValidateNumberInRange(576, 9200)),
+  uci_wan_peerdns = validatePeerDNS,
 }
 
 local content, helpmsg = post_helper.handleQuery(mapParams, mapValid)
@@ -292,27 +324,34 @@ local content_rpc = {
     dns_loopback = "rpc.network.interface.@loopback.dnsservers", -- Added to include static dns servers configured on loopback interface (for TI custo)
 }
 
-local internethelper = require("internethelper")
-
 for v6Key, v6Value in pairs(internethelper.getIpv6Content()) do
 	content_rpc[v6Key] = v6Value
 end
 
 ajax_helper.handleAjaxQuery(content_rpc, function(c)
     -- this will add the HTML for the light
-    local ds = get_dhcp_state(content["uci_wan_auto"], proxy.get("rpc.network.interface.@wan.ppp.state")[1].value, proxy.get("rpc.network.interface.@wan.ppp.error")[1].value, c["ipaddr"])
-	local dnstab = split(proxy.get("rpc.network.interface.@loopback.dnsservers")[1].value, "[^%,]+")
-	local dnsv4, dnsv6 = dns_filter(dnstab)
+    local ppp_state = proxy.get("rpc.network.interface.@wan.ppp.state")
+    local ppp_state_val = ppp_state and ppp_state[1] and ppp_state[1].value or ""
+    local ppp_err = proxy.get("rpc.network.interface.@wan.ppp.error")
+    local ppp_err_val = ppp_err and ppp_err[1] and ppp_err[1].value or ""
+    local ds = get_dhcp_state(content["uci_wan_auto"], ppp_state_val, ppp_err_val, c["ipaddr"])
+    local loop_dns = proxy.get("rpc.network.interface.@loopback.dnsservers")
+    local dnstab = split(loop_dns and loop_dns[1] and loop_dns[1].value or "", "[^%,]+")
+    local dnsv4, dnsv6 = dns_filter(dnstab)
     ajax_attr_light.light.class = ppp_light_map[ds]
     c.wan_status = ui_helper.createSimpleLight(nil, ppp_state_map[ds], ajax_attr_light)
-    if proxy.get("rpc.network.interface.@wan.ppp.state")[1].value == "connected" then
-	c.dns = content_helper.getMergedList(proxy.get("rpc.network.interface.@wan.dnsservers")[1].value, dnsv4)
+    local wan_dns = proxy.get("rpc.network.interface.@wan.dnsservers")
+    local wan_dns_val = wan_dns and wan_dns[1] and wan_dns[1].value or ""
+    if ppp_state_val == "connected" then
+        c.dns = content_helper.getMergedList(wan_dns_val, dnsv4)
     else
         c.dns = dnsv4
     end
     local ipv6_enabled = proxy.get("uci.network.interface.@wan.ipv6")
-    if ipv6_enabled and ipv6_enabled[1].value == "1" then
-        c.dnsv6 = dnsv6
+    if ipv6_enabled and ipv6_enabled[1] and ipv6_enabled[1].value == "1" then
+        local wan6_dns = proxy.get("rpc.network.interface.@wan6.dnsservers")
+        local wan6_dns_val = wan6_dns and wan6_dns[1] and wan6_dns[1].value or ""
+        c.dnsv6 = content_helper.getMergedList(wan6_dns_val, dnsv6)
     end
 end)
 
@@ -416,6 +455,7 @@ ngx.print(ui_helper.createMessages(message_helper.popMessages()))
     -- PPP password
     local class_password = class_username
     html[#html + 1] = ui_helper.createInputText(T"Password", "uci_wan_password", content["uci_wan_password"], class_username, helpmsg["uci_wan_password"])
+    html[#html + 1] = ui_helper.createInputText(T"MTU", "uci_wan_mtu", content["uci_wan_mtu"], nil, helpmsg["uci_wan_mtu"])
 end
 ajax_attr.span.id = "ipaddr"
 html[#html+1] = ui_helper.createLabel(T"IP address", content_rpc["ipaddr"],ajax_attr)
