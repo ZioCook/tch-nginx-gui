@@ -35,7 +35,7 @@ local function wait_for_completion(base_path)
 end
 
 local function receive_file(filename, match)
-        function do_receive(outfile, match)
+        local function do_receive(outfile, match)
                 local upload = require("web.fileupload")
                 local form, err = upload.fromstream()
                 if not form then
@@ -50,11 +50,8 @@ local function receive_file(filename, match)
                                 return false, 2, "read failed: " .. err
                         end
                         if token == "header" then
-                                if not discard and not file and find(data[2], match, 1, true) then
+                                if not discard and not file and type(data) == "table" and data[2] and find(data[2], match, 1, true) then
                                         file = outfile
-                                end
-                                if not discard and not file then
-                                        return false, 3, "failed to start receiving file"
                                 end
                         elseif token == "body" then
                                 if file then
@@ -70,91 +67,115 @@ local function receive_file(filename, match)
                                 break
                         end
                 end
+                if totalsize == 0 then
+                        return false, 3, "failed to receive file or file empty"
+                end
                 return true
         end
 
-        local file = io.open(filename, "w")
+        local file = io.open(filename, "wb")
         local result, err_code, err_msg
         if file then
                 result, err_code, err_msg = do_receive(file, match)
+                file:close()
         else
-                file = io.open("/dev/null", "w")
-                do_receive(file, match)
+                file = io.open("/dev/null", "wb")
+                if file then
+                        do_receive(file, match)
+                        file:close()
+                end
                 result = false
                 err_code = 4
-                err_msg = "internal error"
+                err_msg = "internal error: cannot open destination file"
         end
-
-        file:close()
 
         return result, err_code, err_msg
 end
 
 local function sendcmd(cmd)
         proxy.set("rpc.system.modgui.utility.sendcmd", cmd)
+        ngx.header.content_type = "application/json"
         ngx.print('{"success":"true"}')
         ngx.timer.at(0, function()
                 proxy.apply()
         end)
-        ngx.exit(ngx.HTTP_OK)
+        ngx.exit(ngx.OK)
 end
 
 local function upgradeguifile()
-
-        local update_branch = proxy.get("uci.modgui.gui.update_branch")
-        local filename
-        if update_branch and update_branch[1].value ~= "stable" and update_branch[1].value ~= "" then
-                filename = "GUI_"..untaint(update_branch[1].value)..".tar.bz2"
-        else
-                filename = "GUI.tar.bz2"
-        end
-
-        local fwupgrade_location = "/tmp/"
-
         -- flush the web template cache
         lp.flush()
-        local dl = untaint(fwupgrade_location) .. filename
+        local dl = "/tmp/GUI_upload.tar.bz2"
         local rcv_ok, rcv_errno, rcv_errmsg = receive_file(dl, 'name="upgradefile"')
         if rcv_ok then
+                os.execute("rm -f /tmp/GUI.tar.bz2 /tmp/GUI_dev.tar.bz2 /tmp/GUI_preview.tar.bz2 2>/dev/null && mv -f /tmp/GUI_upload.tar.bz2 /tmp/GUI.tar.bz2 && ln -sf /tmp/GUI.tar.bz2 /tmp/GUI_dev.tar.bz2 && ln -sf /tmp/GUI.tar.bz2 /tmp/GUI_preview.tar.bz2")
+                ngx.header.content_type = "text/html"
                 ngx.print('{"success":"true"}')
-                ngx.exit(ngx.HTTP_OK)
+                ngx.exit(ngx.OK)
         else
-                ngx.print('{"error":"'..rcv_errmsg..'"}')
-                ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
+                ngx.status = ngx.HTTP_INTERNAL_SERVER_ERROR
+                ngx.header.content_type = "text/html"
+                ngx.print('{"error":"'..(rcv_errmsg or "Upload failed")..'"}')
+                ngx.exit(ngx.OK)
         end
 end
 
 local function getSupportedModel()
 
-        local friendly_name = proxy.get("uci.env.var.prod_friendly_name")[1].value
-        local marketing_version = proxy.get("uci.version.version.@version[0].marketing_version")
-        local cputype = proxy.get("rpc.system.modgui.CPUtype")[1].value
-        if marketing_version then
-                marketing_version = tonumber(marketing_version[1].value:sub(1,4))
+        local friendly_name_data = proxy.get("uci.env.var.prod_friendly_name")
+        local friendly_name = friendly_name_data and friendly_name_data[1] and friendly_name_data[1].value or ""
+        local marketing_version_data = proxy.get("uci.version.version.@version[0].marketing_version")
+        local cputype_data = proxy.get("rpc.system.modgui.CPUtype")
+        local cputype = cputype_data and cputype_data[1] and cputype_data[1].value or ""
+
+        -- First check friendly_name: DGA4130, DGA4132, AGTHP, AGTEF are always DGA
+        if friendly_name:match("DGA413") or friendly_name:match("AGTHP") or friendly_name:match("AGTEF") then
+                return "DGA"
         end
 
-        if marketing_version < 16.3 then
+        if friendly_name:match("DGA4331") or friendly_name:match("AGMY2020") or friendly_name:match("AGTHF") then
+                return "DGA4331"
+        end
+
+        if friendly_name:match("TG800") or friendly_name:match("DGA0130") then
+                return "TG800"
+        end
+
+        local m_ver = 0
+        if marketing_version_data and marketing_version_data[1] and marketing_version_data[1].value then
+                m_ver = tonumber(marketing_version_data[1].value:sub(1,4)) or 0
+        end
+
+        if m_ver >= 16.0 and m_ver < 16.3 then
                 if cputype:match("armv7l") then
                         return "TG789Xtream35B"
                 elseif cputype:match("mips") then
                         return "TG789"
                 end
-        elseif marketing_version < 18 then
+        elseif m_ver >= 16.3 and m_ver < 19.0 then
                 if cputype:match("armv7l") then
                         if friendly_name:match("TG800") then
                                 return "TG800"
+                        elseif friendly_name:match("DGA4331") or friendly_name:match("AGMY2020") or friendly_name:match("AGTHF") then
+                                return "DGA4331"
                         else
                                 return "DGA"
                         end
                 elseif cputype:match("mips") then
                         return "TG789"
                 end
-        elseif marketing_version < 19 then
+        elseif m_ver >= 19.0 or (m_ver >= 2.0 and m_ver < 10.0) then
                 if cputype:match("armv7l") then
-                        return "DGA"
-                elseif cputype:match("mips") then
-                        return friendly_name --Unknown package
+                        if friendly_name:match("DGA4331") or friendly_name:match("AGMY2020") or friendly_name:match("AGTHF") then
+                                return "DGA4331"
+                        else
+                                return "DGA"
+                        end
                 end
+        end
+
+        if cputype:match("mips") then
+                return "TG789"
         end
 
         return friendly_name --Unknown package
@@ -174,11 +195,14 @@ local function installspecificapp()
         local rcv_ok, rcv_errno, rcv_errmsg = receive_file(dl, 'name="specificapp_file"')
 
         if rcv_ok then
+                ngx.header.content_type = "text/html"
                 ngx.print('{"success":"true"}')
-                ngx.exit(ngx.HTTP_OK)
+                ngx.exit(ngx.OK)
         else
-                ngx.print('{"error":"'..rcv_errmsg..'"}')
-                ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
+                ngx.status = ngx.HTTP_INTERNAL_SERVER_ERROR
+                ngx.header.content_type = "text/html"
+                ngx.print('{"error":"'..(rcv_errmsg or "Upload failed")..'"}')
+                ngx.exit(ngx.OK)
         end
 end
 
@@ -194,8 +218,10 @@ local function restoreFromSysupgradeBackup()
         if rcv_ok then
                 sendcmd("restoreSysupgradeBackup")
         else
-                ngx.print('{"error":"'..rcv_errmsg..'"}')
-                ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
+                ngx.status = ngx.HTTP_INTERNAL_SERVER_ERROR
+                ngx.header.content_type = "text/html"
+                ngx.print('{"error":"'..(rcv_errmsg or "Upload failed")..'"}')
+                ngx.exit(ngx.OK)
         end
 end
 
@@ -220,7 +246,7 @@ local function genSysupgradeBackup()
                         os.remove("/tmp/"..filename)
 
                         -- and we're done
-                        ngx.exit(ngx.HTTP_OK)
+                        ngx.exit(ngx.OK)
                 end
         end
 
@@ -264,7 +290,7 @@ if ngx.req.get_method() == "POST" then
                 ngx.timer.at(0, function()
                         proxy.apply()
                 end)
-                ngx.exit(ngx.HTTP_OK)
+                ngx.exit(ngx.OK)
         end
         if action == "system_remove_root" then
                 return sendcmd("removeroot")
@@ -282,13 +308,18 @@ if ngx.req.get_method() == "POST" then
                 return sendcmd("checkver")
         end
         if action == "getVendor" then
-                ngx.print(call_popen(untaint("! grep -q " .. post_args.mac:gsub('_.*','') .. " /tmp/mac_cache && (curl -fksm 2 https://api.maclookup.app/v2/macs/" .. post_args.mac:gsub('_.*','') .. "/company/name >> /tmp/mac_cache && echo '|" .. post_args.mac:gsub('_.*','') .. "' >> /tmp/mac_cache); grep " .. post_args.mac:gsub('_.*','') .. " /tmp/mac_cache | cut -d'|' -f1"), "r"))
-                ngx.exit(ngx.HTTP_OK)
+                ngx.print(call_popen(untaint("touch /tmp/mac_cache 2>/dev/null; ! grep -qs " .. post_args.mac:gsub('_.*','') .. " /tmp/mac_cache && (curl -fksm 2 https://api.maclookup.app/v2/macs/" .. post_args.mac:gsub('_.*','') .. "/company/name >> /tmp/mac_cache && echo '|" .. post_args.mac:gsub('_.*','') .. "' >> /tmp/mac_cache); grep -s " .. post_args.mac:gsub('_.*','') .. " /tmp/mac_cache | cut -d'|' -f1"), "r"))
+                ngx.exit(ngx.OK)
                 return
         end
-        if proxy.get("uci.web.sessionmgr.@default.force_https")[1].value ~= post_args.gui_forcehttps then
-                local mngr = require("web.sessioncontrol").loadmgr("default")
-                mngr.force_https = post_args.gui_forcehttps
+        if post_args.gui_forcehttps then
+                local cur_force = proxy.get("uci.web.sessionmgr.@default.force_https")
+                if cur_force and cur_force[1] and cur_force[1].value ~= post_args.gui_forcehttps then
+                        local mngr = require("web.sessioncontrol").loadmgr("default")
+                        if mngr then
+                                mngr.force_https = post_args.gui_forcehttps
+                        end
+                end
         end
         if action == "debug_report" then
 
@@ -319,7 +350,7 @@ if ngx.req.get_method() == "POST" then
                         os.remove(fname)
 
                         -- and we're done
-                        ngx.exit(ngx.HTTP_OK)
+                        ngx.exit(ngx.OK)
                 else
                         ngx.exit(ngx.HTTP_INTERNAL_SERVER_ERROR)
                 end
@@ -344,7 +375,6 @@ content_helper.getExactContent(content)
 
 local update_branch_option = {
         { "stable", T'Stable'},
-        { "preview", T'Preview'},
         { "dev", T'Dev'},
 }
 
@@ -374,16 +404,22 @@ local spoof_mode_enum = {
         { "manual" , T"Set the version to comunicate to cwmp manually"},
 }
 local function validateVersionSpoofMode(value, object, key)
+        if value == nil or value == "" then
+                return true
+        end
 
-        local valid, msg = post_helper.getValidateInEnumSelect(spoof_mode_enum)
+        local validator = post_helper.getValidateInEnumSelect(spoof_mode_enum)
+        local valid, msg = validator(value)
 
         if valid then
                 local version_path="uci.versioncusto.override.fwversion_override"
-                local version_real=proxy.get(version_path.."_real")[1].value
-                if value == "disabled" then
-                        proxy.set(version_path, version_real)
+                local version_real=proxy.get(version_path.."_real")
+                if version_real and version_real[1] and version_real[1].value then
+                        if value == "disabled" then
+                                proxy.set(version_path, version_real[1].value)
+                        end
+                        proxy.apply()
                 end
-                proxy.apply()
         end
 
         return valid, msg
@@ -417,7 +453,7 @@ local mapValid = {
         gui_forcehttps = vB,
         gui_animation = vB,
         disable_cwmp_update = vB,
-        modem_serial = post_helper.validateNonEmptyString,
+        modem_serial = gOV(post_helper.validateNonEmptyString),
         fwversion_override = gOV(post_helper.validateNonEmptyString),
         version_spoof_mode = validateVersionSpoofMode,
         check_obp = vB
@@ -452,6 +488,10 @@ end
 
 local modgui_settings, helpmsg = post_helper.handleQuery(mapParams, mapValid)
 
+if ngx.var.request_method == "POST" and not next(helpmsg) then
+    proxy.set("uci.modgui.var.reboot_reason_msg", "")
+end
+
 ngx.print(ui_helper.createHeader(T"GUI Settings & Utility", false, false))
 ngx.print('\
 <div class="modal-body update">\
@@ -468,6 +508,11 @@ if isBlockedACSNotice(reboot_notice.message) then
 end
 
 
+local info_box = {
+        alert = {
+                class = "alert alert-info",
+        }
+}
 local basic = {
         span = {
                 class = "span5"
@@ -535,7 +580,7 @@ html[#html + 1] = ui_helper.createSwitch(T"GUI Auto Update", "update_autoupgrade
 html[#html + 1] = ui_helper.createInputText(T"Update Hours", "update_autoupgrade_hour", modgui_settings["update_autoupgrade_hour"],autoupgrade_mon_1)
 if content["outdated_ver"] == "1" then
         html[#html + 1] = ui_helper.createLabel(T"State", T"Update Found", basic)
-        html[#html + 1] = ui_helper.createLabel(T"New Version", format("<a target=\"_blank\" href=https://github.com/Ansuel/tch-nginx-gui/releases/tag/%s>%s</a>", content["new_ver"], content["new_ver"]), basic)
+        html[#html + 1] = ui_helper.createLabel(T"New Version", format("<a target=\"_blank\" href=\"https://github.com/ZioCook/tch-nginx-gui/releases\">%s</a>", content["new_ver"]), basic)
         html[#html + 1] = ui_helper.createButton(T"Update GUI", T"Update", "icon-refresh", upgrade_gui)
 else
         html[#html + 1] = ui_helper.createLabel(T"State", T"No Update found", basic)
@@ -562,6 +607,7 @@ html[#html + 1] = ui_helper.createInputSelect(T"GUI Skin", "gui_skin", gui_skin_
 html[#html + 1] = ui_helper.createInputSelect(T"GUI First Page", "gui_skin_firstpage", gui_skin_firstpage_page, modgui_settings["gui_skin_firstpage"])
 html[#html + 1] = ui_helper.createSwitch(T"Random Color", "gui_randomcolor", modgui_settings["gui_randomcolor"])
 html[#html + 1] = ui_helper.createSwitch(T"Force HTTPS to access the GUI", "gui_forcehttps", modgui_settings["gui_forcehttps"])
+html[#html + 1] = ui_helper.createAlertBlock(T"Note: In case of SSL certificate or browser connection issues, HTTP access can be regained by appending ?http=1 to the URL.", info_box)
 html[#html + 1] = ui_helper.createSwitch(T"Always show advanced options", "gui_alwaysadvanced", modgui_settings["gui_alwaysadvanced"])
 html[#html + 1] = ui_helper.createSwitch(T"GUI animations", "gui_animation", modgui_settings["gui_animation"])
 html[#html + 1] = '</form>'
@@ -603,35 +649,40 @@ if content.specific_app ~= "" and (not marketing_major or marketing_major < 19) 
         html[#html + 1] = ui_helper.createAlertBlock(T"Specific App are package that adds additional function to the modem, like telnet support or some fix to default package", info_box)
         if content.specific_app == "1" then
                 html[#html + 1] = ui_helper.createLabel(T"State", T"Specific App are already Installed", basic)
+                html[#html + 1] = ui_helper.createButton(T"Reinstall", T"Reinstall Specific App Online", "icon-refresh", install_specificapp)
         else
                 html[#html + 1] = ui_helper.createButton(T"Install", T"Install Specific App Online", "icon-refresh", install_specificapp)
-
-                local device = getSupportedModel()
-
-                html[#html + 1] = ui_helper.createAlertBlock(format(T"If you don't have connection, specific app can be downloaded here ( https://github.com/Ansuel/tch-nginx-gui/releases (upgrade-pack-specific%s.tar.bz2) ) and installed manually here.", device), info_box)
-                html[#html + 1] = '<div class="control-group">'
-                html[#html + 1] = format('<label class="control-label">%s</label>', T"Upload Specific App")
-                html[#html + 1] = '<div class="controls">'
-                html[#html + 1] = '<input type="file" name="specificapp_file" id="file-specificapp" accept=".bz2">&nbsp;'
-                html[#html + 1] = ui_helper.createSimpleButton(T"Install", "icon-shield", upload_specific_app)
-                html[#html + 1] = ui_helper.createAlertBlock(T"Uploading file. Please wait...", upload_specificapp_alert)
-                html[#html + 1] = ui_helper.createAlertBlock(T"Update failed. Please try again.", upload_specificapp_fail)
-                html[#html + 1] = '</div></div>'
-                html[#html + 1] = '</form>'
         end
+
+        local device = getSupportedModel()
+
+        html[#html + 1] = ui_helper.createAlertBlock(format(T"If you don't have connection, specific app can be downloaded here ( https://github.com/ZioCook/tch-nginx-gui/releases (upgrade-pack-specific%s.tar.bz2) ) and installed manually here.", device), info_box)
+        html[#html + 1] = '<div class="control-group">'
+        html[#html + 1] = format('<label class="control-label">%s</label>', T"Upload Specific App")
+        html[#html + 1] = '<div class="controls">'
+        html[#html + 1] = '<input type="file" name="specificapp_file" id="file-specificapp" accept=".bz2">&nbsp;'
+        html[#html + 1] = ui_helper.createSimpleButton(T"Install", "icon-shield", upload_specific_app)
+        html[#html + 1] = ui_helper.createAlertBlock(T"Uploading file. Please wait...", upload_specificapp_alert)
+        html[#html + 1] = ui_helper.createAlertBlock(T"Update failed. Please try again.", upload_specificapp_fail)
+        html[#html + 1] = '</div></div>'
+        html[#html + 1] = '</form>'
 
 end
 
 html[#html + 1] = '<form class="form-horizontal" method="post" action="modals/modgui-modal.lp">'
 html[#html + 1] = '<legend>'.. T"CWMP Spoof Settings" ..'</legend>'
-local info_box = {
-        alert = {
-                class = "alert alert-info",
-        }
-}
 html[#html + 1] = ui_helper.createAlertBlock(T"Disable CWMP Update. Any firmware update from CWMP will be rejected and not flashed. "..
                         "Consider that CWMP that request a firmware update will keep requesting it until the update is actually installed. "..
                         "Autoconfiguration won't work. Manually set the version in the System Extra tab to spoof a version or upgrade the firmware.")
+local blocked_msg = proxy.get("uci.modgui.var.reboot_reason_msg")
+if blocked_msg and blocked_msg[1] and blocked_msg[1].value ~= "" then
+    local alert_info = {
+        alert = {
+            class = "alert alert-warning",
+        }
+    }
+    html[#html + 1] = ui_helper.createAlertBlock(format(T"Blocked Firmware Update Alert: <strong>%s</strong> (Saving this form will clear the alert)", blocked_msg[1].value), alert_info)
+end
 html[#html + 1] = ui_helper.createSwitch(T"Disable CWMP Update", "disable_cwmp_update", modgui_settings["disable_cwmp_update"])
 html[#html + 1] = ui_helper.createAlertBlock(T"Change the Modem Serial. Consider that the modem serial is the Factory ID + Serial.", info_box)
 html[#html + 1] = ui_helper.createInputText(T"Modem Serial", "modem_serial", modgui_settings["modem_serial"])
@@ -898,7 +949,6 @@ ngx.print('\
   $("#gui_skin").on("change", function() {\
         var theme = $(this).val();\
         if ( theme.indexOf("Fritz") === -1 ) {\
-                event.preventDefault();\
                 var restyled = theme+"/style.css";\
                 modgui.freshStyle(restyled);\
         }\
@@ -973,10 +1023,23 @@ ngx.print('\
         $.fileUpload($("#form-import-gui"), {\
           params: { CSRFtoken: $("meta[name=CSRFtoken]").attr("content") },\
           completeCallback: function(form, response) {\
-                if (response.success) {\
+                var res = response;\
+                if (typeof res === "string") {\
+                  try {\
+                    res = JSON.parse(res.replace(/<[^>]*>/g, "").trim());\
+                  } catch (e) {\
+                    if (res.indexOf("success") !== -1 && res.indexOf("true") !== -1) {\
+                      res = { success: true };\
+                    }\
+                  }\
+                }\
+                if (res && (res.success === true || res.success === "true")) {\
                   modgui.postAction("system_upgrade_gui",1);\
                 } else {\
                   importing_msg.addClass("hide");\
+                  if (res && res.error) {\
+                    $("#upgrade-gui-fail").text(res.error);\
+                  }\
                   $("#upgrade-gui-fail").removeClass("hide");\
                 }\
           }\
@@ -1016,10 +1079,23 @@ ngx.print('\
         $.fileUpload($("#form-import-specificapp"), {\
           params: { CSRFtoken: $("meta[name=CSRFtoken]").attr("content") },\
           completeCallback: function(form, response) {\
-                if (response.success) {\
+                var res = response;\
+                if (typeof res === "string") {\
+                  try {\
+                    res = JSON.parse(res.replace(/<[^>]*>/g, "").trim());\
+                  } catch (e) {\
+                    if (res.indexOf("success") !== -1 && res.indexOf("true") !== -1) {\
+                      res = { success: true };\
+                    }\
+                  }\
+                }\
+                if (res && (res.success === true || res.success === "true")) {\
                   modgui.postAction("system_install_specificapp",1);\
                 } else {\
                   importing_msg.addClass("hide");\
+                  if (res && res.error) {\
+                    $("#upgrade-specificapp-fail").text(res.error);\
+                  }\
                   $("#upgrade-specificapp-fail").removeClass("hide");\
                 }\
           }\
@@ -1055,7 +1131,17 @@ $(".import-backup").on("click", function() {\
         $.fileUpload($("#form-import-backup"), {\
           params: { CSRFtoken: $("meta[name=CSRFtoken]").attr("content") },\
           completeCallback: function(form, response) {\
-                if (response.success) {\
+                var res = response;\
+                if (typeof res === "string") {\
+                  try {\
+                    res = JSON.parse(res.replace(/<[^>]*>/g, "").trim());\
+                  } catch (e) {\
+                    if (res.indexOf("success") !== -1 && res.indexOf("true") !== -1) {\
+                      res = { success: true };\
+                    }\
+                  }\
+                }\
+                if (res && (res.success === true || res.success === "true")) {\
                   importing_msg.addClass("hide");\
                   tch.showProgress("');  ngx.print(T'Rebooting'); ngx.print('...");\
                   modgui.clearKoInterval(); \

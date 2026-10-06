@@ -85,7 +85,6 @@ end
 	<script src="/js/jquery.min.js?version='); ngx.print(cui.gui_version); ngx.print('" ></script>');
 	--ngx.print('<script src="/js/jquery-migrate.js?version='); ngx.print(cui.gui_version); ngx.print('" ></script>')
     ngx.print('<script src="/js/main-min-nojquery.js?version='); ngx.print(cui.gui_version); ngx.print('" ></script>\
-    <!--[if lt IE 9]> <script src="/js/media-min.js?version='); ngx.print(cui.gui_version); ngx.print('"></script> <![endif]-->\
     <script src="/js/srp-min.js" ></script>');
 	local script_file_presence = io.open(string.format("/www/docroot/theme/%s/script.js",cui.gui_skin),"r")
 	if script_file_presence then
@@ -127,7 +126,9 @@ end
 	<a href="'); ngx.print(cui.nsplink); ngx.print('" target="_blank">\
 	  <picture>');
 		if cui.gui_skin == "TIM" then
-			ngx.print('<img width="168px" height="39px" src="/img/TIM.png">');
+			ngx.print('<source srcset="/img/TIM.webp" type="image/webp">\
+				<source srcset="/img/TIM.png" type="image/png">\
+				<img width="168px" height="39px" src="/img/TIM.png">');
 		elseif cui.gui_skin == "Fritz" or string.match(cui.gui_skin, "[dD][aA][rR][kK]") then
 			ngx.print('<source srcset="/img/logo_white.webp" type="image/webp">\
 				<source srcset="/img/logo_white.png" type="image/png">\

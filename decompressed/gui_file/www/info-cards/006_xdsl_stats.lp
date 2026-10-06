@@ -48,39 +48,45 @@ if not xdslAvailable then
 	return
 end
 
-local function formatRate(rate)
-	local value = tonumber(rate)
-	if not value then
-		return "Can't recover data"
-	end
-	return floor(value / 10) / 100 .. " Mbps"
+local function format_rate(rate)
+    local num = tonumber(rate)
+    if num then
+        return floor(num / 10) / 100 .. " Mbps"
+    end
+    return "0 Mbps"
 end
 
-if not ( content.dsl_linerate_down == "0" ) then
-content.max_upstream = nil
-content.dsl_linerate_up = formatRate(content.dsl_linerate_up)
-content.dsl_linerate_down = formatRate(content.dsl_linerate_down)
-content.dsl_linerate_up_max = formatRate(content.dsl_linerate_up_max)
-content.dsl_linerate_down_max = formatRate(content.dsl_linerate_down_max)
+if content.dsl_linerate_down and content.dsl_linerate_down ~= "0" and content.dsl_linerate_down ~= "" then
+    content.max_upstream = nil
+    content.dsl_linerate_up = format_rate(content.dsl_linerate_up)
+    content.dsl_linerate_down = format_rate(content.dsl_linerate_down)
+    content.dsl_linerate_up_max = format_rate(content.dsl_linerate_up_max)
+    content.dsl_linerate_down_max = format_rate(content.dsl_linerate_down_max)
+else
+    content.dsl_linerate_up = "0 Mbps"
+    content.dsl_linerate_down = "0 Mbps"
+    content.dsl_linerate_up_max = "0 Mbps"
+    content.dsl_linerate_down_max = "0 Mbps"
+end
 
-if not ( (content.dsl_type or ""):match("ADSL") ) then
+if content.dsl_type and content.dsl_type ~= "" and not content.dsl_type:match("ADSL") then
 	content.dsl_margin_down = content.dsl_margin_SNRM_down
 	content.dsl_margin_up = content.dsl_margin_SNRM_up
 end
 
-content.dslam_chipset = content.dslam_chipset or ""
-if content.dslam_chipset:match("BDCM") then
+if content.dslam_chipset and content.dslam_chipset:match("BDCM") then
 	content.dslam_chipset = "Broadcom" .. " ( " .. content.dslam_chipset .. " )"
-elseif content.dslam_chipset:match("IFTN") then
+elseif content.dslam_chipset and content.dslam_chipset:match("IFTN") then
 	content.dslam_chipset = "Infineon" .. " ( " .. content.dslam_chipset .. " )"
 end
 
-if (content["status"] or ""):match("Showtime") then
+local dsl_status = content["status"] or ""
+if dsl_status:match("Showtime") then
 	content["status"] = T"Connected"
-elseif (content["status"] or "") == "" then
+elseif dsl_status == "" then
 	content["status"] = T"Disconnected"
 else
-	content["status"] = T(content.status or "")
+	content["status"] = T(dsl_status)
 end
 
   ngx.print('\
@@ -101,19 +107,26 @@ end
 	
 	local html = {}
 	
+	local is_dsl_up = (content.status == "Up")
+	local status_text = is_dsl_up and T"Connected" or (content.status ~= "" and content.status or T"Not Connected")
+	local status_light = is_dsl_up and "1" or "0"
+
 	basic.span["data-bind"] = "text: status"
-	html[#html + 1] = ui_helper.createLabel(T"Status", content["status"], basic)
+	html[#html + 1] = ui_helper.createLabel(T"Status", ui_helper.createSimpleLight(status_light, status_text), basic)
+
+	if is_dsl_up then
 	basic.span["data-bind"] = nil
 	html[#html + 1] = ui_helper.createLabel(T"xDSL Version", content["version"], basic)
 	basic.span["data-bind"] = "text: dslam_chipset"
 	html[#html + 1] = ui_helper.createLabel(T"DSLAM Chipset",content.dslam_chipset, basic )
 	basic.span["data-bind"] = "text: dslam_version"
-	if (content.dslam_version_raw or ""):sub(0,2) == "0x" then
-		html[#html + 1] = ui_helper.createLabel(T"DSLAM Firmware",format("%s ( %s )", content.dslam_version , content.dslam_version_raw) , basic )
-	elseif content.dslam_version_raw == "" then
+	local dslam_raw = content.dslam_version_raw or ""
+	if dslam_raw:sub(0,2) == "0x" then
+		html[#html + 1] = ui_helper.createLabel(T"DSLAM Firmware",format("%s ( %s )", content.dslam_version , dslam_raw) , basic )
+	elseif dslam_raw == "" then
 		html[#html + 1] = ui_helper.createLabel(T"DSLAM Firmware",T"Can't recover DSLAM version." , basic )
 	else
-		html[#html + 1] = ui_helper.createLabel(T"DSLAM Firmware",format(T"Invalid version, can't convert. Raw value: %s", content.dslam_version_raw) , basic )
+		html[#html + 1] = ui_helper.createLabel(T"DSLAM Firmware",format(T"Invalid version, can't convert. Raw value: %s", dslam_raw) , basic )
 	end
 	if (content.dsl_profile ~= "Not Found") then
 		basic.span["data-bind"] = "text: dsl_profile"
@@ -182,6 +195,10 @@ end
 	html[#html + 1] =	  '</span>'
 	html[#html + 1] =   '</div>'
 	html[#html + 1] = '</div>'
+	else
+		basic.span["data-bind"] = nil
+		html[#html + 1] = ui_helper.createLabel(T"xDSL Line", T"Not Connected", basic)
+	end
 	
 	ngx.print(html)
 ngx.print('\
@@ -196,5 +213,4 @@ $(document).ready(function () {\
 	new modgui.createAjaxUpdateCard("xdsltab","/ajax/internet.lua?datatype=xdsl","InfoXdslCardInterval",5000);\
 })\
 </script>\
-'); 
-end
+');

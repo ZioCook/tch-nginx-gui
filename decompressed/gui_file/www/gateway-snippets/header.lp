@@ -36,6 +36,13 @@ if ngx.req.get_method() == "POST" then
         proxy.apply()
       end
     end
+  elseif post_args.action == "dismiss_reboot_reason" then
+    if proxy.set("uci.modgui.var.reboot_reason_msg", "") then
+      proxy.apply()
+    end
+    ngx.header.content_type = "application/json"
+    ngx.print('{ "success":"true" }')
+    ngx.exit(ngx.HTTP_OK)
   end
 end
 
@@ -83,7 +90,9 @@ ngx.print('\
       <picture>');
 
     if cui.gui_skin == "TIM" then
-      ngx.print('<img width="168px" height="39px" src="/img/TIM.png">');
+      ngx.print('<source srcset="/img/TIM.webp" type="image/webp">\
+        <source srcset="/img/TIM.png" type="image/png">\
+        <img width="168px" height="39px" src="/img/TIM.png">');
     elseif cui.gui_skin == "Fritz" or string.match(cui.gui_skin, "[dD][aA][rR][kK]") then
       ngx.print('<source srcset="/img/logo_white.webp" type="image/webp">\
         <source srcset="/img/logo_white.png" type="image/png">\
@@ -102,11 +111,11 @@ ngx.print('\
 
     html[#html + 1] = [[<div class="header-button">]]
     if not ( session:getusername() == "guest" ) then
-      html[#html + 1] = '<div class="header-sub-button">'
       local hideUpdateButton = ""
       if cui.outdated_ver == "0" then
         hideUpdateButton = "hide"
       end
+      html[#html + 1] = '<div class="header-sub-button sub-upgrade ' .. hideUpdateButton .. '">'
       html[#html + 1] = '<div id="upgradebtn" class="btn someInfos '.. hideUpdateButton  ..'"'
       if not ( cui.gui_skin == "Fritz" ) then
         html[#html + 1] = ' rel="tooltip" data-placement="bottom" data-original-title="'
@@ -119,30 +128,32 @@ ngx.print('\
       html[#html + 1] = '</span>'
       html[#html + 1] = '</div>'
       html[#html + 1] = '</div>'
-      html[#html + 1] = '<div class="header-sub-button">'
-      html[#html + 1] = '<div class="btn" id="wizard-btn" data-toggle="modal" data-remote="modals/wizard-modal.lp">' .. T"Setup Wizard" .. '</div>'
+      html[#html + 1] = '<div class="header-sub-button sub-wizard">'
+      html[#html + 1] = '<div class="btn" id="wizard-btn" data-toggle="modal" data-remote="modals/wizard-modal.lp"><i class="icon-magic"></i> <span class="wizard-text">' .. T"Setup Wizard" .. '</span></div>'
       html[#html + 1] = '</div>'
-      html[#html + 1] = '<div class="header-sub-button">'
+      html[#html + 1] = '<div class="header-sub-button sub-switch">'
       html[#html + 1] =   '<div class="btn" id="switchViewButton">'
       html[#html + 1] =     '<span id="refresh-cards"></span>'
       html[#html + 1] =     '<span id="cards-text">' .. pageselector.text .. '</span>'
       html[#html + 1] =   '</div>'
       html[#html + 1] = '</div>'
         end
-      html[#html + 1] = '<div class="header-sub-button">'
+      html[#html + 1] = '<div class="header-sub-button sub-lang">'
       html[#html + 1] = ui_helper.createLanguageSelect('webui-core', gettext.language())
       html[#html + 1] = '</div>'
-    html[#html + 1] = '<div class="header-sub-button">'
+    html[#html + 1] = '<div class="header-sub-button sub-user">'
     if session:isdefaultuser() then
             html[#html + 1] = '<a href="login.lp" class="btn" id="signin">'
             html[#html + 1] = T"Sign in"
             html[#html + 1] = '</a>'
         else
             html[#html + 1] = [[          <div class="btn-group" id="logged">
-                    <button class="btn"> ]]
+                    <button class="btn dropdown-toggle" data-toggle="dropdown" id="logged-user-btn">
+                      <i class="icon-user"></i> <span class="logged-username">]]
             html[#html + 1] = session:getusername()
-            html[#html + 1] = [[ </button>
-                    <button class="btn dropdown-toggle" data-toggle="dropdown"><span class="caret"></span> ]]
+            html[#html + 1] = [[</span> <span class="caret mobile-caret"></span>
+                    </button>
+                    <button class="btn dropdown-toggle desktop-advanced-btn" data-toggle="dropdown"><span class="caret"></span> ]]
       html[#html + 1] = T"Advanced "
             html[#html + 1] = [[
                     </button>
@@ -151,11 +162,16 @@ ngx.print('\
                 html[#html + 1] = [[ <li><a tabindex="-1" href="/password.lp" id="changepass"> ]]
                 html[#html + 1] = T"Profile Settings"
                 html[#html + 1] = [[ </a></li><li class="divider"></li> ]]
+                if session:hasAccess("/modals/cards-modal.lp") then
+                    html[#html + 1] = string.format([[ <li><a tabindex="-1" id="cards-settings-btn" style="cursor: pointer;" data-toggle="modal" data-remote="/modals/cards-modal.lp?_=%s" data-id="cards-modal"> ]], ngx.time())
+                    html[#html + 1] = T"Card Settings"
+                    html[#html + 1] = [[ </a></li><li class="divider"></li> ]]
+                end
             end
         html[#html + 1] = [[ <li><a tabindex="-1" href="https://www.ilpuntotecnico.com/forum/index.php/topic,81461.0.html" target="_blank"> ]]
         html[#html + 1] = T"Support Forum"
         html[#html + 1] = [[ </a></li><li class="divider"></li> ]]
-        html[#html + 1] = [[ <li><a tabindex="-1" href="https://github.com/Ansuel/tch-nginx-gui" target="_blank"> ]]
+        html[#html + 1] = [[ <li><a tabindex="-1" href="https://github.com/ZioCook/tch-nginx-gui" target="_blank"> ]]
         html[#html + 1] = T"GitHub GUI"
         html[#html + 1] = [[ </a></li><li class="divider"></li> ]]
       if not ( session:getusername() == "guest" ) then
@@ -208,7 +224,10 @@ ngx.print('\
       alert_style_upper.alert.class = "alert hide"
     end
     alert_style_upper.alert.id = "upgrade-alert"
-    html[#html + 1] = ui_helper.createAlertBlock(format(T'Update available! Version: <strong id="new-version-text"><a target=\"_blank\" href=https://github.com/Ansuel/tch-nginx-gui/releases/tag/%s>%s</a></strong>',cui.new_ver,cui.new_ver),alert_style_upper)
+    local new_ver_str = cui.new_ver or ""
+    local new_ver_tag = string.match(new_ver_str, "^(%S+)") or new_ver_str
+    local new_ver_link = format('<a target="_blank" href="https://github.com/ZioCook/tch-nginx-gui/releases/tag/%s">%s</a>', new_ver_tag, new_ver_str)
+    html[#html + 1] = ui_helper.createAlertBlock(format(T'Update available! Version: <strong id="new-version-text">%s</strong>', new_ver_link), alert_style_upper)
 
     local autoupgrade_view = cui.autoupgrade_view
     if not ( autoupgrade_view == "none" ) and not ( autoupgrade_view == "" ) then
@@ -280,6 +299,10 @@ ngx.print('\
 	gui_outdated : "'); ngx.print(T"GUI is outdated"); ngx.print('",\
 	gui_updated : "'); ngx.print(T"GUI is updated"); ngx.print('"\
   };\
+\
+  $(document).on("click", "#dismiss-reboot-msg", function() {\
+    $.post("/gateway.lp", [{name: "action", value: "dismiss_reboot_reason"}, tch.elementCSRFtoken()]);\
+  });\
 \
 </script>\
 <script src="/js/shared-script.js?version='); ngx.print(cui.gui_version); ngx.print('" ></script>\

@@ -97,16 +97,19 @@ function themescript() {
 $(document).ready(
     function() {
 	
-    document.querySelector('.apprise-overlay').style.opacity = "";
+    var appriseOverlay = document.querySelector('.apprise-overlay');
+    if (appriseOverlay) {
+        appriseOverlay.style.opacity = "";
+    }
     $(document).off("touchend", '[data-toggle\x3d"modal"]');
     $(document).off("touchend", ".smallcard");
 
 	themescript();
 	closeNav();
       
-      document.querySelector('.apprise-overlay').addEventListener('click', function (e) {
+    $(document).on('click', '.apprise-overlay', function (e) {
         closeNav();
-      });
+    });
   
 	//
 	$("#switchViewButton").on("switchcard", function() {

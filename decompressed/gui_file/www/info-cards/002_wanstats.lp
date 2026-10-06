@@ -44,9 +44,11 @@ elseif content_uci.wan_proto ~="" then
     mode_active = content_uci.wan_proto
 end
 
+local is_bridge = (mode_active == "bridge" or content_uci.wan_proto == "none")
+
 local wan_interface = "wan"
 	
-if wan_mode == "bridge" then
+if is_bridge then
 	wan_interface = content_uci.wan_ifname
 end
 
@@ -70,11 +72,51 @@ end
 
 content_helper.getExactContent(content)
 
+local lan_data = {}
+local dns_val = ""
+if is_bridge then
+	lan_data = {
+		ipaddr = "uci.network.interface.@lan.ipaddr",
+		gateway = "uci.network.interface.@lan.gateway",
+		operstate = "sys.class.net.@br-lan.operstate",
+	}
+	content_helper.getExactContent(lan_data)
+
+	if not lan_data.gateway or lan_data.gateway == "" then
+		local rpc_gw = proxy.get("rpc.network.interface.@lan.nexthop")
+		if rpc_gw and rpc_gw[1] and rpc_gw[1].value ~= "" then
+			lan_data.gateway = rpc_gw[1].value
+		end
+	end
+
+	if not lan_data.ipaddr or lan_data.ipaddr == "" then
+		local rpc_ip = proxy.get("rpc.network.interface.@lan.ipaddr")
+		if rpc_ip and rpc_ip[1] and rpc_ip[1].value ~= "" then
+			lan_data.ipaddr = rpc_ip[1].value
+		end
+	end
+
+	local rpc_dns = proxy.get("rpc.network.interface.@lan.dnsservers")
+	if rpc_dns and rpc_dns[1] and rpc_dns[1].value ~= "" then
+		dns_val = rpc_dns[1].value
+	else
+		local uci_dns = proxy.get("uci.network.interface.@lan.dns.@1.value")
+		if uci_dns and uci_dns[1] and uci_dns[1].value ~= "" then
+			dns_val = uci_dns[1].value
+		elseif lan_data.gateway ~= "" then
+			dns_val = lan_data.gateway
+		end
+	end
+	if dns_val:match(",") then
+		dns_val = dns_val:gsub(",", ", ")
+	end
+end
+
 if not ( content["uptime"] == "" ) then
 	content["uptime"] = post_helper.secondsToTime(content["uptime"])
 end
 
-if content.dns_wan:match(",") then
+if content.dns_wan and content.dns_wan:match(",") then
 	content.dns_wan = content.dns_wan:gsub(","," , ")
 end
 
@@ -96,14 +138,22 @@ end
 	
 	local html = {}
 	
-	if mode_active ~= "bridge" then
+	if not is_bridge then
 		basic.span["data-bind"] = "text: status"
 		html[#html + 1] = ui_helper.createLabel(T"Status", ui_helper.createSimpleLight(content.up, content.up == "1" and T"Connected" or T"Disconnected", nil, "fa fa-at"), basic)
+	else
+		local lan_up = proxy.get("rpc.network.interface.@lan.up")
+		local is_up = (lan_data.operstate == "up") or (lan_up and lan_up[1] and lan_up[1].value == "1")
+		local is_connected = is_up and (lan_data.gateway ~= "" or lan_data.ipaddr ~= "")
+		basic.span["data-bind"] = "text: status"
+		html[#html + 1] = ui_helper.createLabel(T"Status", ui_helper.createSimpleLight(is_connected and "1" or "4", is_connected and T"Connected" or T"Disconnected", nil, "fas fa-network-wired"), basic)
 	end
 	basic.span["data-bind"] = nil
-	html[#html + 1] = ui_helper.createLabel(T"Broadband Connection", tabdata.current.description , basic)
-	html[#html + 1] = ui_helper.createLabel(T"Connection Type", mode_data[mode_active].description , basic)
-	if mode_active ~= "bridge" then
+	local bb_desc = (tabdata and tabdata.current and tabdata.current.description) or T"Broadband"
+	local mode_desc = (mode_data[mode_active] and mode_data[mode_active].description) or (is_bridge and T"Bridge mode" or mode_active)
+	html[#html + 1] = ui_helper.createLabel(T"Broadband Connection", bb_desc , basic)
+	html[#html + 1] = ui_helper.createLabel(T"Connection Type", mode_desc , basic)
+	if not is_bridge then
 		basic.span["data-bind"] = "text: WAN_IP"
 		html[#html+1] = ui_helper.createLabel(T"IPv4 address", content["ipaddr"], basic)
 		basic.span["data-bind"] = "text: WAN_IPv6"
@@ -113,11 +163,18 @@ end
 			html[#html+1] = ui_helper.createLabel(T"Concentrator Name", content["concentrator_name"], basic)
 		end
 		basic.span["data-bind"] = "text: wangateway"
-		html[#html+1] = ui_helper.createLabel(T"Gateway", content["nexthop"], basic)
+		html[#html+1] = ui_helper.createLabel(T"Default Gateway", content["nexthop"], basic)
 		basic.span["data-bind"] = "text: wandns"
 		html[#html+1] = ui_helper.createLabel(T"DNS servers", content["dns_wan"], basic)
 		basic.span["data-bind"] = "text: wan_uptime_extended"
 		html[#html + 1] = ui_helper.createLabel(T"Uptime", content["uptime"],  basic)
+	else
+		basic.span["data-bind"] = "text: WAN_IP"
+		html[#html+1] = ui_helper.createLabel(T"Device IP", lan_data["ipaddr"], basic)
+		basic.span["data-bind"] = "text: wangateway"
+		html[#html+1] = ui_helper.createLabel(T"Default Gateway", lan_data["gateway"], basic)
+		basic.span["data-bind"] = "text: wandns"
+		html[#html+1] = ui_helper.createLabel(T"DNS servers", dns_val, basic)
 	end
 	
 	ngx.print(html)

@@ -37,6 +37,7 @@ local function file_check(file_name)
   if file_found==nil then
     return false
   else
+    file_found:close()
     return true
   end
 end
@@ -68,15 +69,30 @@ end
 local dbpath = "uci.dropbear.dropbear."
 local dbvalues = proxy.get(dbpath)
 local data = content_helper.convertResultToObject(dbpath, dbvalues)
+local ssh_lan_fallback_index = nil  -- first non-WAN section without explicit Interface
 
 for _,v in pairs(data) do
-  if v.Interface == "lan" then
-    ssh_lan = v.enable
+  -- Normalize enable field: missing enable defaults to "1" (dropbear enabled by default)
+  local enable_val = v.enable ~= nil and v.enable or "1"
+  if v.paramindex == "@afg" then
+    ssh_lan = enable_val
+    ssh_lan_index = "@afg"
+  elseif (v.Interface == "lan" or v.interface == "lan") and ssh_lan_index ~= "@afg" then
+    ssh_lan = enable_val
     ssh_lan_index = v.paramindex
-  elseif v.Interface == "wan" then
-    ssh_wan = v.enable
+  elseif v.Interface == "wan" or v.interface == "wan" then
+    ssh_wan = enable_val
     ssh_wan_index = v.paramindex
+  elseif ssh_lan_fallback_index == nil and ssh_lan_index == "-1" then
+    -- No explicit interface set: treat as LAN (dropbear default)
+    ssh_lan_fallback_index = v.paramindex
+    ssh_lan = enable_val
   end
+end
+
+-- Use fallback if no LAN section was found via known identifiers
+if ssh_lan_index == "-1" and ssh_lan_fallback_index then
+  ssh_lan_index = ssh_lan_fallback_index
 end
 
 local Syslog = proxy.get("uci.system.system.@system[0].log_ip","uci.system.system.@system[0].log_filter_ip")
@@ -99,7 +115,12 @@ if ngx.var.request_method == "POST" then
     -- set lan
     if ssh_lan_new ~= ssh_lan then
        ssh_lan = ssh_lan_new
-       proxy.set(dbpath..ssh_lan_index.. ".enable", ssh_lan)
+       if ssh_lan_index ~= "-1" then
+         proxy.set(dbpath..ssh_lan_index.. ".enable", ssh_lan)
+         if ssh_lan_index == "@afg" and proxy.get("uci.dropbear.dropbear.@lan.enable") then
+            proxy.set("uci.dropbear.dropbear.@lan.enable", "0")
+         end
+       end
        -- Log  that someone has changed SSH access
        ngx.log(ngx.ALERT, "Local Setting of SSH on lan to "..ssh_lan)
     end
@@ -107,7 +128,9 @@ if ngx.var.request_method == "POST" then
     -- set wan
       if (ssh_wan_new ~= ssh_wan or ssh_wan_port_new ~= ssh_wan_port) and fwversion_override_helpmsg["ssh_wan_port"] == nil then
        ssh_wan = ssh_wan_new
-       proxy.set(dbpath..ssh_wan_index.. ".enable", ssh_wan)
+       if ssh_wan_index ~= "-1" then
+         proxy.set(dbpath..ssh_wan_index.. ".enable", ssh_wan)
+       end
        if ssh_wan == "1" then
            set_firewall("ACCEPT", ssh_wan_port_new)
        else
@@ -119,8 +142,10 @@ if ngx.var.request_method == "POST" then
 
     syslog_present = vars["syslog_present"]
     syslog_filter_sw = vars["syslog_filter_sw"]
-    proxy.set("uci.system.system.@system[0].log_ip","")
-    proxy.set("uci.system.system.@system[0].log_filter_ip","")
+    if syslog_present == "0" then
+       proxy.set("uci.system.system.@system[0].log_ip","")
+       proxy.set("uci.system.system.@system[0].log_filter_ip","")
+    end
     proxy.apply()
   end
 end
@@ -194,7 +219,7 @@ local syslog_valid = {
 }
 local syslog_Params, helpmsg = post_helper.handleQuery(syslog_Params, syslog_valid)
 
-local telnet_available = file_check("/bin/busybox_telnet")
+local telnet_available = file_check("/bin/busybox_telnet") or file_check("/usr/sbin/telnetd")
 local telnet_content
 
 if telnet_available then
@@ -330,9 +355,10 @@ ngx.print('\
   <legend>');  ngx.print( T"SSH Access" ); ngx.print('</legend>\
     ');
       local html = {}
+      html[#html + 1] = ui_helper.createAlertBlock(T"SSH access via LAN allows root access on the local network (default port 22). WAN access opens the specified port on the firewall for remote management.", info_box)
       html[#html + 1] = ui_helper.createSwitch(T"LAN", "ssh_lan", ssh_lan)
       html[#html + 1] = ui_helper.createSwitch(T"WAN", "ssh_wan", ssh_wan)
-html[#html + 1] = ui_helper.createInputText(T "WAN SSH Port", "ssh_wan_port", fwversion_override_content["ssh_wan_port"], nil, fwversion_override_helpmsg["ssh_wan_port"])
+      html[#html + 1] = ui_helper.createInputText(T"WAN SSH Port", "ssh_wan_port", fwversion_override_content["ssh_wan_port"], nil, fwversion_override_helpmsg["ssh_wan_port"])
       ngx.print(html)
       ngx.print('\
 </fieldset>\

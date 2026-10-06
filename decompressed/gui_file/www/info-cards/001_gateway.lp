@@ -9,6 +9,7 @@ local post_helper = require("web.post_helper")
 local ui_helper = require("web.ui_helper")
 
 local find, sub, format = string.find, string.sub, string.format
+local floor = math.floor
 
 
 local content = {
@@ -42,23 +43,32 @@ if content["friendly_product_name"] and content["friendly_product_name"] == "AGH
 end
 
 if not ( content.friendly_product_name == "" ) and not ( content.friendly_product_name == content.product_name ) then
-	content.product_name = format("%s ( %s )",content.product_name,content.friendly_product_name)
+	if content.friendly_product_name:find(content.product_name, 1, true) then
+		content.product_name = content.friendly_product_name
+	elseif content.product_name:find(content.friendly_product_name, 1, true) then
+		content.product_name = content.product_name
+	else
+		content.product_name = format("%s ( %s )", content.product_name, content.friendly_product_name)
+	end
 end
 
-local nf_conntrack_count = io.popen("sysctl -n -e net.nf_conntrack_max net.ipv4.netfilter.ip_conntrack_max")
+local max_conn = content_helper.readfile("/proc/sys/net/netfilter/nf_conntrack_max")
+	or content_helper.readfile("/proc/sys/net/ipv4/netfilter/ip_conntrack_max")
+	or "65536"
+if type(max_conn) == "string" then
+	max_conn = max_conn:match("%d+") or max_conn
+end
 
 content["uptime"] = content_helper.readfile("/proc/uptime","number",floor)
 content["connection"] = content_helper.readfile("/proc/sys/net/netfilter/nf_conntrack_count")
-content["total_connection"] = nf_conntrack_count:read()
+content["total_connection"] = tostring(max_conn)
 content["system_time"] = os.date("%d/%m/%Y %Hh:%Mm:%Ss",os.time())
-
-nf_conntrack_count:close()
 
   ngx.print('\
 \
 <div class="infocard" id="gatewaytab">\
   <div class="smallcard">\
-    ');  ngx.print( ui_helper.createCardHeader(T"Gateway", nil, nil, nil, nil) ); ngx.print('\
+    ');  ngx.print( ui_helper.createCardHeader(T"Modem Gateway", nil, nil, nil, nil) ); ngx.print('\
     <div class="content card_bg" data-bg-text="&#xf129;">\
 	<div class="divtable">\
 	<form class="form-horizontal">\
@@ -77,18 +87,19 @@ nf_conntrack_count:close()
 	html[#html + 1] = ui_helper.createLabel(T"Software Version", format("%s %s",content["software_version"],content["software_name"]), basic)
 	html[#html + 1] = ui_helper.createLabel(T"GUI Version", content["gui_version"], basic)
 	html[#html + 1] = '<div class="control-group">'
-	html[#html + 1] =   '<label class="control-label"><span class="gui_version_status fas fa-cog '..content.outdated_ver..'"></span></label>'
+	html[#html + 1] =   '<label class="control-label">' .. T"Status" .. '</label>'
 	html[#html + 1] =   '<div class="controls">'
 	html[#html + 1] =     '<span class="simple-desc span3 gui_version_status_text">'
+	html[#html + 1] =       '<span class="gui_version_status fas fa-cog ' .. content.outdated_ver .. '"></span> '
 	html[#html + 1] = 		content.outdated_ver_text
 	html[#html + 1] =	  '</span>'
 	html[#html + 1] =   '</div>'
 	html[#html + 1] = '</div>'
 	html[#html + 1] = '<div class="control-group">'
-	html[#html + 1] =   '<label class="control-label"><span class="fa fa-sync check_update_spinner"></span></label>'
+	html[#html + 1] =   '<label class="control-label">' .. T"Check Update" .. '</label>'
 	html[#html + 1] =   '<div class="controls">'
 	html[#html + 1] =     '<span class=" simple-desc span3">'
-	html[#html + 1] = 		format('<a class="check_update" style="cursor: pointer;">%s</a>',T"Check Update")
+	html[#html + 1] = 		format('<a class="check_update" style="cursor: pointer;"><span class="fa fa-sync check_update_spinner"></span> %s</a>', T"Check Update")
 	html[#html + 1] =	  '</span>'
 	html[#html + 1] =   '</div>'
 	html[#html + 1] = '</div>'
