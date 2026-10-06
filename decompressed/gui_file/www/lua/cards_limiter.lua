@@ -34,6 +34,7 @@ function M.get_limit_info()
 			interfaces.wan6_proto == 'mobiled' then
 		isLTEBoard = true
 	end
+
 	local hasEasyMesh = false
 	local ok_em, em = pcall(require, "easymesh_helper")
 	if ok_em and em and em.is_supported then

@@ -8,7 +8,7 @@ local power_ethernet  = {
     config = config_power,
     section = "ethernet",
     type = "ethernet",
-    options = { "eee", "autogreeen", "ethapd" },
+    options = { "eee", "autogreeen", "ethapd", "phy_down", "net_down" },
 }
 
 mapper("uci_1to1").registerSimpleMap(power_ethernet)
@@ -18,7 +18,17 @@ local power_cpu  = {
     config = config_power,
     section = "cpu",
     type = "cpu",
-    options = { "wait", "cpuspeed" },
+    options = { "wait", "cpuspeed", "governor", "min_freq", "max_freq", "cores" },
 }
 
 mapper("uci_1to1").registerSimpleMap(power_cpu)
+
+-- uci.power.vm
+local power_vm  = {
+    config = config_power,
+    section = "vm",
+    type = "vm",
+    options = { "swappiness", "vfs_cache_pressure" },
+}
+
+mapper("uci_1to1").registerSimpleMap(power_vm)

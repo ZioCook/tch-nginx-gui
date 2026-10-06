@@ -5,14 +5,14 @@
 check_gui_tmp() {
 	if [ -f /tmp/GUI_dev.tar.bz2 ]; then
 		logecho "Found GUI_dev in tmp dir... Cleaning..."
-		rm /tmp/GUI_dev.tar.bz2
+		rm -f /tmp/GUI_dev.tar.bz2
 	fi
 	if [ -f /tmp/GUI.tar.bz2 ]; then
 		logecho "Found GUI in tmp dir... Cleaning..."
-		rm /tmp/GUI.tar.bz2
+		rm -f /tmp/GUI.tar.bz2
 	fi
 	if [ -d /total ]; then
-		rm -r /total
+		rm -rf /total
 	fi
 }
 
@@ -20,7 +20,7 @@ start_stop_nginx() {
 	while [ "$(pgrep "nginx")" ]; do
 		if [ -f /var/run/nginx.pid ]; then
 			kill -KILL "$(cat /var/run/nginx.pid)"
-			rm /var/run/nginx.pid
+			rm -f /var/run/nginx.pid
 		fi
 		for pid in $(pgrep nginx); do
 			kill -KILL "$pid"
@@ -33,7 +33,7 @@ start_stop_nginx() {
 		if [ $nginx_count -gt 3 ]; then
 			if [ -f /var/run/nginx.pid ]; then
 				kill -KILL "$(cat /var/run/nginx.pid)"
-				rm /var/run/nginx.pid
+				rm -f /var/run/nginx.pid
 			fi
 			for pid in $(pgrep nginx); do
 				kill -KILL "$pid"
@@ -46,22 +46,30 @@ start_stop_nginx() {
 	done
 }
 
-if [ "$(cat /proc/banktable/booted)" = "bank_1" ] && [ ! "$(uci get -q modgui.var.check_obp)" ]; then
+if [ -f /proc/banktable/booted ] && [ "$(cat /proc/banktable/booted)" = "bank_1" ] && [ ! "$(uci get -q modgui.var.check_obp)" ]; then
 	#this set check_obp bit if not present ONLY IN BANK_1, bank_2 value is set based on bank_1 value
 	uci set modgui.var.check_obp="1"
 fi
 
 logecho "Applying modifications"
-uci commit
+uci commit modgui
 
 check_gui_tmp
+logecho "Ensuring permissions on safe-poweroff scripts"
+chmod 755 /usr/bin/safe-poweroff.sh 2>/dev/null
+chmod 755 /usr/bin/wps-poweroff-monitor.sh 2>/dev/null
+chmod 755 /etc/hotplug.d/button/50-safe-poweroff 2>/dev/null
+chmod 755 /usr/bin/rescue-usb.sh /usr/bin/rescue-watchdog.sh /www/lua/rescue_server.lua /etc/init.d/rescue-server 2>/dev/null
+chmod 4755 /usr/bin/sudo 2>/dev/null
+/etc/init.d/rescue-server enable 2>/dev/null
+/etc/init.d/rescue-server start 2>/dev/null
 logecho "Resetting cwmp and watchdog"
 /etc/init.d/watchdog-tch start > /dev/null
 
 #This should comunicate the gui that the upgrade has finished.
 if [ -f /root/.install_gui ]; then
   logecho "Removing .install_gui flag"
-	rm /root/.install_gui
+	rm -f /root/.install_gui
 fi
 logecho "Process complete, restarting services."
 
@@ -80,3 +88,8 @@ lua -e "require('datamodel').get('uci.env.var.oui')" > /dev/null
 
 logecho "Stopping nginx"
 start_stop_nginx
+
+logecho "Restoring configured Eco/Stealth LED state..."
+if [ -x /usr/share/transformer/scripts/check_ecoled.sh ]; then
+	/usr/share/transformer/scripts/check_ecoled.sh >/dev/null 2>&1
+fi

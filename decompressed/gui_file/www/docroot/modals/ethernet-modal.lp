@@ -68,9 +68,13 @@ local clear_network_stats = {
 local pIPV = post_helper.isPublicIP
 
 local hosts_mac = {}
+local seen_mac = {}
 for k, v in pairs(hosts_ac) do
-    local mac = match(k, "%[(.*)%]")
-    hosts_mac[#hosts_mac+1] = {mac, mac}
+    local mac = match(k, "%[(.-)%]")  -- non-greedy to stop at first ]
+    if mac and mac ~= "" and not seen_mac[mac] then
+        seen_mac[mac] = true
+        hosts_mac[#hosts_mac+1] = {mac, mac}
+    end
 end
 
 hosts_mac[#hosts_mac+1] = {"custom",T"custom"}
@@ -87,6 +91,14 @@ local function num2ipv4(ip)
         ip = bit.rshift(ip,8)
     end
     return ret
+end
+
+local function cidr2netmask(bits)
+    local b = tonumber(bits) or 24
+    if b <= 0 then return "0.0.0.0" end
+    if b >= 32 then return "255.255.255.255" end
+    local mask = bit.bnot(bit.lshift(1, 32 - b) - 1)
+    return num2ipv4(mask)
 end
 
 local getargs = ngx.req.get_uri_args()
@@ -419,6 +431,22 @@ local function sleases_ip_validation(value, object, key)
       localdevmask = "uci.network.interface.@" .. curintf .. ".netmask",
     }
     content_helper.getExactContent(contentdata)
+    if not contentdata.localdevIP or contentdata.localdevIP == "" then
+        local rpc_ip = proxy.get("rpc.network.interface.@" .. curintf .. ".ipaddr")
+        contentdata.localdevIP = rpc_ip and rpc_ip[1] and rpc_ip[1].value or ""
+    end
+    if not contentdata.localdevmask or contentdata.localdevmask == "" then
+        local rpc_mask = proxy.get("rpc.network.interface.@" .. curintf .. ".netmask")
+        local mask_val = rpc_mask and rpc_mask[1] and rpc_mask[1].value or ""
+        if mask_val == "" then
+            local rpc_pfx = proxy.get("rpc.network.interface.@" .. curintf .. ".ipmask")
+            local pfx = rpc_pfx and rpc_pfx[1] and rpc_pfx[1].value
+            if pfx then
+                mask_val = cidr2netmask(pfx)
+            end
+        end
+        contentdata.localdevmask = mask_val
+    end
     return post_helper.staticLeaseIPValidation(value, contentdata)
 end
 
@@ -524,6 +552,13 @@ if cur_dhcp_intf == "STB" then
     cur_dhcp_intf = "lan"
 end
 
+local dnsmasq_instance = proxy.get("uci.dhcp.dhcp.@" .. cur_dhcp_intf .. ".instance")
+if dnsmasq_instance and dnsmasq_instance[1] and dnsmasq_instance[1].value and dnsmasq_instance[1].value ~= "" then
+    dnsmasq_instance = dnsmasq_instance[1].value
+else
+    dnsmasq_instance = "dnsmasq"
+end
+
 local sfp_presence = proxy.get("uci.env.rip.sfp")
 
 --Support ethernet mode for devices with no eth4 port
@@ -538,6 +573,11 @@ local mapParSFP = {}
 local mapValSFP = {}
 
 local sfpintf = "sfp"
+local has_sfp_intf = false
+local sfp_check = proxy.get("uci.network.interface.@" .. sfpintf .. ".ipaddr")
+if sfp_check and sfp_check[1] and sfp_check[1].value and sfp_check[1].value ~= "" then
+    has_sfp_intf = true
+end
 
 if sfp_presence and  (sfp_presence[1].value == "1") then
     mapParSFP.ethsfp = "uci.ethernet.globals.eth4lanwanmode"
@@ -551,7 +591,7 @@ local content_sfp, helpmsg = post_helper.handleQuery(mapParSFP, mapValSFP)
 
 -- Standard parameters
 local mapParams = {
-    domainName = "uci.dhcp.dnsmasq.@dnsmasq.domain",
+    domainName = "uci.dhcp.dnsmasq.@" .. dnsmasq_instance .. ".domain",
     dhcpStart = "uci.dhcp.dhcp.@" .. cur_dhcp_intf .. ".start",
     dhcpLimit = "uci.dhcp.dhcp.@" .. cur_dhcp_intf .. ".limit",
     --dhcpv4State = "uci.dhcp.dhcp.@" .. cur_dhcp_intf .. ".dhcpv4",
@@ -563,9 +603,10 @@ local mapParams = {
     eth0 = "uci.ethernet.port.@eth0.enable",
 }
 
-if sfp_presence and  (sfp_presence[1].value == "1") then
+if sfp_presence and (sfp_presence[1].value == "1") and has_sfp_intf then
     mapParams["sfplocalip"] = "uci.network.interface.@"..sfpintf..".ipaddr"
 end
+
 
 local ethports = {
     {"eth0", T"Port" .. " 1"},
@@ -739,7 +780,12 @@ end
 local function GWIPChanged()
     local post_data = ngx.req.get_post_args()
     local localdevIP = proxy.get("uci.network.interface.@" .. curintf .. ".ipaddr")
-    if localdevIP and not ( localdevIP[1].value == post_data["localdevIP"] ) then
+    local cur_ip = localdevIP and localdevIP[1] and localdevIP[1].value or ""
+    if cur_ip == "" then
+        local rpc_ip = proxy.get("rpc.network.interface.@" .. curintf .. ".ipaddr")
+        cur_ip = rpc_ip and rpc_ip[1] and rpc_ip[1].value or ""
+    end
+    if cur_ip ~= "" and post_data["localdevIP"] and cur_ip ~= post_data["localdevIP"] then
         return true
     end
     return false
@@ -751,7 +797,7 @@ end
 -- has to be done for the new limit.
 local function validateLimit(value, object)
     local dhcpIgnore = proxy.get(mapParams["dhcpIgnore"])
-    if GWIPChanged() or ( dhcpIgnore and dhcpIgnore[1].value == "1") then --we bypass validation as the gateway ip has changed
+    if GWIPChanged() or (object and object["dhcpIgnore"] == "1") or ( dhcpIgnore and dhcpIgnore[1].value == "1") then --we bypass validation as the gateway ip has changed or dhcp is disabled
         return true
     end
     if match(value, "^[0-9]*$") then
@@ -799,7 +845,7 @@ end
 -- from the new DHCP Range with respect to the subnet mask & Network Address
 local function validateDHCPStart(value, object)
     local dhcpIgnore = proxy.get(mapParams["dhcpIgnore"])
-    if GWIPChanged() or ( dhcpIgnore and dhcpIgnore[1].value == "1") then --we bypass validation as the gateway ip has changed
+    if GWIPChanged() or (object and object["dhcpIgnore"] == "1") or ( dhcpIgnore and dhcpIgnore[1].value == "1") then --we bypass validation as the gateway ip has changed or dhcp is disabled
         return true
     end
     if match(value, "^[0-9]*$") then
@@ -843,6 +889,12 @@ local function validateDHCPStart(value, object)
     end
 end
 
+local function to_uint(n)
+    if not n then return nil end
+    if n < 0 then return n + 4294967296 end
+    return n
+end
+
 -- This function will validate the Modem IP Address and check for
 -- Valid IP Format, Limited Broadcast Address, Public IP Range, Multicast Address Range
 local function validateGWIP(value, object, key)
@@ -865,44 +917,65 @@ local function validateGWIP(value, object, key)
             ipmaxvalue = bit.bor(ipnetwork, bit.bnot(ipnetmask))
         end
         --NG-100782>
+        local sfplocalip_data = proxy.get("uci.network.interface.@"..sfpintf..".ipaddr")
+        local sfplocalip = sfplocalip_data and sfplocalip_data[1] and sfplocalip_data[1].value
+        local sfplocalip_num = sfplocalip and post_helper.validateStringIsIP(sfplocalip) and ipv42num(sfplocalip)
+
+        local u_ip = to_uint(ip)
+        local u_ipnet = to_uint(ipnetwork)
+        local u_ipmaxval = to_uint(ipmaxvalue)
+
         for _,intf in pairs(all_intfs) do
             if intf.paramindex ~= curintf then
-                local ipaddr = proxy.get("uci.network.interface.@" .. intf.paramindex .. ".ipaddr")[1].value
-                local mask = proxy.get("uci.network.interface.@" .. intf.paramindex .. ".netmask")[1].value
-                local baseip = post_helper.validateStringIsIP(ipaddr) and ipv42num(ipaddr)
-                local netmask = post_helper.validateStringIsIP(mask) and ipv42num(mask)
-                local sfplocalip = proxy.get("uci.network.interface.@"..sfpintf..".ipaddr")
+                local auto_data = proxy.get("uci.network.interface.@" .. intf.paramindex .. ".auto")
+                local enabled_data = proxy.get("uci.network.interface.@" .. intf.paramindex .. ".enabled")
+                local is_disabled = (auto_data and auto_data[1] and auto_data[1].value == "0") or
+                                    (enabled_data and enabled_data[1] and enabled_data[1].value == "0")
 
-                if sfplocalip and sfplocalip[1].value then
-                    sfplocalip = sfplocalip[1].value
-                end
+                if not is_disabled then
+                    local ip_data = proxy.get("uci.network.interface.@" .. intf.paramindex .. ".ipaddr")
+                    local mask_data = proxy.get("uci.network.interface.@" .. intf.paramindex .. ".netmask")
+                    local ipaddr = ip_data and ip_data[1] and ip_data[1].value
+                    local mask = mask_data and mask_data[1] and mask_data[1].value
 
-                local network, ipmax
-                if baseip and netmask then
-                    network = bit.band(baseip, netmask)
-                    ipmax = bit.bor(network, bit.bnot(netmask))
-                end
-
-                if network and ipmax then
-                    if ip == sfplocalip then
-                        return nil, T"Gateway IP should not be in SFP interface IP Range, change that first"
-                    end
-                    if ip >= network and ip <= ipmax then
-                        if intf.name ~= "" then
-                            return nil, T"Gateway IP should not be in " .. intf.name .. T" IP Range"
-                        else
-                            return nil, T"Gateway IP should not be in " .. intf.paramindex .. T" IP Range"
+                    if ipaddr and not mask and ipaddr:find("/") then
+                        local cidrip, cidrmask = ipaddr:match("([^/]+)/(%d+)")
+                        if cidrip and cidrmask then
+                            ipaddr = cidrip
+                            local pfx = tonumber(cidrmask)
+                            if pfx and pfx >= 0 and pfx <= 32 then
+                                mask = num2ipv4(bit.lshift(bit.bnot(0), 32 - pfx))
+                            end
                         end
                     end
-                    --<NG-100782
-                    if ipnetwork <= network and network <= ipmaxvalue then
-                        if intf.name ~= "" then
-                            return nil, T"The IP address is part of the "..intf.name.." IP Range"
-                        else
-                            return nil, T"The IP address is part of the "..intf.paramindex.." IP Range"
+
+                    local baseip = ipaddr and post_helper.validateStringIsIP(ipaddr) and ipv42num(ipaddr)
+                    local netmask = mask and post_helper.validateStringIsIP(mask) and ipv42num(mask)
+
+                    local network, ipmax
+                    if baseip and netmask then
+                        network = bit.band(baseip, netmask)
+                        ipmax = bit.bor(network, bit.bnot(netmask))
+                    end
+
+                    if network and ipmax then
+                        if sfplocalip_num and ip == sfplocalip_num then
+                            return nil, T"Gateway IP should not be in SFP interface IP Range, change that first"
+                        end
+                        local intf_label = (intf.name and intf.name ~= "") and intf.name or intf.paramindex
+                        local u_net = to_uint(network)
+                        local u_max = to_uint(ipmax)
+
+                        if u_ip >= u_net and u_ip <= u_max then
+                            return nil, format(T"Gateway IP should not be in %s IP Range", intf_label)
+                        end
+                        -- Subnet overlap check: only active LAN interfaces cannot share overlapping IP address spaces
+                        if intf.type == "lan" and u_ipnet and u_ipmaxval then
+                            if u_ipnet <= u_max and u_net <= u_ipmaxval then
+                                return nil, format(T"[netmask] Subnet overlaps with %s IP Range", intf_label)
+                            end
                         end
                     end
-                    --NG-100782>
                 end
             end
         end
@@ -932,44 +1005,65 @@ local function validateSFPIP(value, object, key)
             ipmaxvalue = bit.bor(ipnetwork, bit.bnot(ipnetmask))
         end
         --NG-100782>
+        local lanip_data = proxy.get("uci.network.interface.@lan.ipaddr")
+        local lanip = lanip_data and lanip_data[1] and lanip_data[1].value
+        local lanip_num = lanip and post_helper.validateStringIsIP(lanip) and ipv42num(lanip)
+
+        local u_ip = to_uint(ip)
+        local u_ipnet = to_uint(ipnetwork)
+        local u_ipmaxval = to_uint(ipmaxvalue)
+
         for _,intf in pairs(all_intfs) do
             if intf.paramindex ~= sfpintf then
-                local ipaddr = proxy.get("uci.network.interface.@" .. intf.paramindex .. ".ipaddr")[1].value
-                local mask = proxy.get("uci.network.interface.@" .. intf.paramindex .. ".netmask")[1].value
-                local baseip = post_helper.validateStringIsIP(ipaddr) and ipv42num(ipaddr)
-                local netmask = post_helper.validateStringIsIP(mask) and ipv42num(mask)
-                local lanip = proxy.get("uci.network.interface.@lan.ipaddr")
+                local auto_data = proxy.get("uci.network.interface.@" .. intf.paramindex .. ".auto")
+                local enabled_data = proxy.get("uci.network.interface.@" .. intf.paramindex .. ".enabled")
+                local is_disabled = (auto_data and auto_data[1] and auto_data[1].value == "0") or
+                                    (enabled_data and enabled_data[1] and enabled_data[1].value == "0")
 
-                if lanip and lanip[1].value then
-                    lanip = lanip[1].value
-                end
+                if not is_disabled then
+                    local ip_data = proxy.get("uci.network.interface.@" .. intf.paramindex .. ".ipaddr")
+                    local mask_data = proxy.get("uci.network.interface.@" .. intf.paramindex .. ".netmask")
+                    local ipaddr = ip_data and ip_data[1] and ip_data[1].value
+                    local mask = mask_data and mask_data[1] and mask_data[1].value
 
-                local network, ipmax
-                if baseip and netmask then
-                    network = bit.band(baseip, netmask)
-                    ipmax = bit.bor(network, bit.bnot(netmask))
-                end
-
-                if network and ipmax then
-                    if ip == lanip then
-                        return nil, T"SFP IP should not be in Gateway interface IP Range, change that first"
-                    end
-                    if ip >= network and ip <= ipmax then
-                        if intf.name ~= "" then
-                            return nil, T"SFP IP should not be in " .. intf.name .. T" IP Range"
-                        else
-                            return nil, T"SFP IP should not be in " .. intf.paramindex .. T" IP Range"
+                    if ipaddr and not mask and ipaddr:find("/") then
+                        local cidrip, cidrmask = ipaddr:match("([^/]+)/(%d+)")
+                        if cidrip and cidrmask then
+                            ipaddr = cidrip
+                            local pfx = tonumber(cidrmask)
+                            if pfx and pfx >= 0 and pfx <= 32 then
+                                mask = num2ipv4(bit.lshift(bit.bnot(0), 32 - pfx))
+                            end
                         end
                     end
-                    --<NG-100782
-                    if ipnetwork <= network and network <= ipmaxvalue then
-                        if intf.name ~= "" then
-                            return nil, T"The IP address is part of the "..intf.name.." IP Range"
-                        else
-                            return nil, T"The IP address is part of the "..intf.paramindex.." IP Range"
+
+                    local baseip = ipaddr and post_helper.validateStringIsIP(ipaddr) and ipv42num(ipaddr)
+                    local netmask = mask and post_helper.validateStringIsIP(mask) and ipv42num(mask)
+
+                    local network, ipmax
+                    if baseip and netmask then
+                        network = bit.band(baseip, netmask)
+                        ipmax = bit.bor(network, bit.bnot(netmask))
+                    end
+
+                    if network and ipmax then
+                        if lanip_num and ip == lanip_num then
+                            return nil, T"SFP IP should not be in Gateway interface IP Range, change that first"
+                        end
+                        local intf_label = (intf.name and intf.name ~= "") and intf.name or intf.paramindex
+                        local u_net = to_uint(network)
+                        local u_max = to_uint(ipmax)
+
+                        if u_ip >= u_net and u_ip <= u_max then
+                            return nil, format(T"SFP IP should not be in %s IP Range", intf_label)
+                        end
+                        -- Subnet overlap check: only active LAN interfaces cannot share overlapping IP address spaces
+                        if intf.type == "lan" and u_ipnet and u_ipmaxval then
+                            if u_ipnet <= u_max and u_net <= u_ipmaxval then
+                                return nil, format(T"[netmask] Subnet overlaps with %s IP Range", intf_label)
+                            end
                         end
                     end
-                    --NG-100782>
                 end
             end
         end
@@ -1018,7 +1112,7 @@ local function validatedhcpIgnore(value, object, key)
 end
 
 local mapValid = {
-    domainName = vNES,
+    domainName = post_helper.getOptionalValidation(post_helper.validateStringIsDomainName),
     localdevIP = validateGWIP,
     --localIPv6 = validateIPv6,
     dnsServer = validateDNS,
@@ -1032,9 +1126,10 @@ local mapValid = {
     ethports = validateEthports,
 }
 
-if sfp_presence and  (sfp_presence[1].value == "1") then
+if sfp_presence and (sfp_presence[1].value == "1") and has_sfp_intf then
     mapValid["sfplocalip"] = validateSFPIP
 end
+
 
 if curintf == "lan" then
     mapParams.localIPv6 = "uci.network.interface.@" .. curintf .. ".ipv6"
@@ -1051,39 +1146,105 @@ end
 -- in the end we only add the parameter to the parameters list if:
 --    - it exists (get or post)
 --    - we're doing a post -> in this case, we add an entry and delete it if validation fails
-if (dnsIndex < #dhcp.options +1) or ( (ngx.var.request_method == "POST") and (ngx.req.get_post_args().action == "SAVE") ) then
+local post_data_save = (ngx.var.request_method == "POST") and (ngx.req.get_post_args().action == "SAVE")
+local post_dns = post_data_save and ngx.req.get_post_args().dnsServer
+if (dnsIndex < #dhcp.options + 1) then
     mapParams["dnsServer"] = baseDHCPOptions .. "@" .. dnsIndex .. ".value"
-end
-if (dnsIndex == #dhcp.options + 1) and (ngx.var.request_method == "POST") and (ngx.req.get_post_args().action == "SAVE") then
+elseif post_data_save and post_dns and post_dns ~= "" then
+    mapParams["dnsServer"] = baseDHCPOptions .. "@" .. dnsIndex .. ".value"
     proxy.add(baseDHCPOptions)
+else
+    mapValid["dnsServer"] = nil
 end
 
+local rpc_ip_data = proxy.get("rpc.network.interface.@" .. curintf .. ".ipaddr")
+local live_ip = rpc_ip_data and rpc_ip_data[1] and rpc_ip_data[1].value or ""
+local rpc_mask_data = proxy.get("rpc.network.interface.@" .. curintf .. ".netmask")
+local live_mask = rpc_mask_data and rpc_mask_data[1] and rpc_mask_data[1].value or ""
+if live_mask == "" then
+    local rpc_pfx_data = proxy.get("rpc.network.interface.@" .. curintf .. ".ipmask")
+    local pfx = rpc_pfx_data and rpc_pfx_data[1] and rpc_pfx_data[1].value
+    if pfx then
+        live_mask = cidr2netmask(pfx)
+    end
+end
+
+local uci_ip_data = proxy.get("uci.network.interface.@" .. curintf .. ".ipaddr")
+local uci_ip = uci_ip_data and uci_ip_data[1] and uci_ip_data[1].value or ""
+local uci_mask_data = proxy.get("uci.network.interface.@" .. curintf .. ".netmask")
+local uci_mask = uci_mask_data and uci_mask_data[1] and uci_mask_data[1].value or ""
+
+local proto_data = proxy.get("uci.network.interface.@" .. curintf .. ".proto")
+local current_proto = proto_data and proto_data[1] and proto_data[1].value or "static"
+
 if ngx.var.request_method == "POST" then
-local post_data = ngx.req.get_post_args()
-	if post_data["action"] == "RESET" then
-	local lanip, lanmask, ipstart, iplimit, ltime, dhcpig = restdhcp()
-		proxy.set("uci.network.interface.@"..curintf..".ipaddr",lanip)
-		proxy.set("uci.network.interface.@"..curintf..".netmask",lanmask)
-		proxy.set("uci.dhcp.dhcp.@"..curintf..".start", ipstart)
-		proxy.set("uci.dhcp.dhcp.@"..curintf..".limit", iplimit)
-		proxy.set("uci.dhcp.dhcp.@"..curintf..".leasetime", ltime)
-		proxy.set("uci.dhcp.dhcp.@"..curintf..".ignore", dhcpig)
-		if (dnsIndex < #dhcp.options +1) then
-			proxy.set(baseDHCPOptions .. "@" .. dnsIndex .. ".value", "6,"..lanip)
-		end
-	proxy.apply()
-	end
+    local post_data = ngx.req.get_post_args()
+    if post_data["action"] == "RESET" then
+        local lanip, lanmask, ipstart, iplimit, ltime, dhcpig = restdhcp()
+        proxy.set("uci.network.interface.@"..curintf..".ipaddr",lanip)
+        proxy.set("uci.network.interface.@"..curintf..".netmask",lanmask)
+        proxy.set("uci.dhcp.dhcp.@"..curintf..".start", ipstart)
+        proxy.set("uci.dhcp.dhcp.@"..curintf..".limit", iplimit)
+        proxy.set("uci.dhcp.dhcp.@"..curintf..".leasetime", ltime)
+        proxy.set("uci.dhcp.dhcp.@"..curintf..".ignore", dhcpig)
+        if (dnsIndex < #dhcp.options +1) then
+            proxy.set(baseDHCPOptions .. "@" .. dnsIndex .. ".value", "6,"..lanip)
+        end
+        proxy.apply()
+    elseif current_proto == "dhcp" and post_data["action"] == "SAVE" then
+        local ip_unchanged = (not post_data["localdevIP"]) or
+                             (live_ip ~= "" and post_data["localdevIP"] == live_ip) or
+                             (uci_ip ~= "" and post_data["localdevIP"] == uci_ip)
+        local mask_unchanged = (not post_data["localdevmask"]) or
+                               (live_mask ~= "" and post_data["localdevmask"] == live_mask) or
+                               (uci_mask ~= "" and post_data["localdevmask"] == uci_mask)
+        if ip_unchanged and mask_unchanged then
+            mapParams["localdevIP"] = nil
+            mapParams["localdevmask"] = nil
+            mapValid["localdevIP"] = nil
+            mapValid["localdevmask"] = nil
+        else
+            proxy.set("uci.network.interface.@" .. curintf .. ".proto", "static")
+        end
+    end
 end
 
 content, helpmsg = post_helper.handleQuery(mapParams, mapValid)
 
 if (ngx.var.request_method == "POST")  and not next(helpmsg) then
+   local post_data = ngx.req.get_post_args()
+   if post_data["domainName"] then
+      if post_data["domainName"] ~= "" then
+         proxy.set("uci.dhcp.dnsmasq.@" .. dnsmasq_instance .. ".local", "/" .. post_data["domainName"] .. "/")
+      else
+         proxy.set("uci.dhcp.dnsmasq.@" .. dnsmasq_instance .. ".local", "")
+      end
+   end
    local dhcp_options_path = "uci.dhcp.dhcp.@"..cur_dhcp_intf..".dhcp_option."
    local dhcp_options = content_helper.convertResultToObject(dhcp_options_path,proxy.get(dhcp_options_path))
     for _,v in ipairs(dhcp_options) do
-      if v.value:match("^3,") then
+      if v.value == "" or v.value:match("^3,") or v.value:match("^15,") then
         proxy.del(dhcp_options_path..v.paramindex..".")
       end
+    end
+end
+
+if not content["localdevIP"] or content["localdevIP"] == "" then
+    content["localdevIP"] = (live_ip ~= "" and live_ip) or uci_ip
+end
+if not content["localdevmask"] or content["localdevmask"] == "" then
+    content["localdevmask"] = (live_mask ~= "" and live_mask) or uci_mask
+end
+
+if not content["domainName"] or content["domainName"] == "" then
+    local d = proxy.get("uci.dhcp.dnsmasq.@" .. dnsmasq_instance .. ".domain")
+    if d and d[1] and d[1].value and d[1].value ~= "" then
+        content["domainName"] = d[1].value
+    else
+        local d2 = proxy.get("uci.dhcp.dnsmasq.@dnsmasq.domain")
+        if d2 and d2[1] and d2[1].value and d2[1].value ~= "" then
+            content["domainName"] = d2[1].value
+        end
     end
 end
 
@@ -1116,7 +1277,11 @@ if dnsRemoved then
     content["dnsServer"] = ""
 end
 if content["dnsServer"] == nil then
-    local localIP = proxy.get("uci.network.interface.@" .. curintf .. ".ipaddr")[1].value
+    local localIP_data = proxy.get("uci.network.interface.@" .. curintf .. ".ipaddr")
+    local localIP = localIP_data and localIP_data[1] and localIP_data[1].value or ""
+    if localIP == "" then
+        localIP = content["localdevIP"] or ""
+    end
     content["dnsServer"] = localIP
 else
     if content["dnsServer"]:find("^6,") == 1 then
@@ -1140,7 +1305,7 @@ local start = tonumber(content["dhcpStart"])
 local numips = tonumber(content["dhcpLimit"])
 local ipstart,ipend,network, modemIPChangeState
 
-if start and numips and not helpmsg["localdevIP"] and not helpmsg["localdevmask"] and not helpmsg["dhcpStart"] and not helpmsg["dhcpLimit"] then
+if baseip and netmask and start and numips and not helpmsg["localdevIP"] and not helpmsg["localdevmask"] and not helpmsg["dhcpStart"] and not helpmsg["dhcpLimit"] then
     ipstart , ipend , network = calculateDHCPStartAddress(baseip,netmask,start,numips)
     session:store("dhcpStartAddr",ipstart)
     session:store("dhcpEndAddr",ipend)
@@ -1153,6 +1318,15 @@ else
     ipstart,ipend,network = "Error","Error","Error"
 end
 
+if (not network or network == "Error") and baseip and netmask then
+    network = num2ipv4(bit.band(baseip, netmask))
+end
+if (not ipstart or ipstart == "Error") and baseip and netmask and start and numips then
+    local s, e = calculateDHCPStartAddress(baseip, netmask, start, numips)
+    ipstart = s or ipstart
+    ipend = e or ipend
+end
+
 if ngx.var.request_method == "POST" and helpmsg["leaseTime"] then
     content["leaseTime"] = ngx.req.get_post_args().leaseTime
 end
@@ -1160,20 +1334,41 @@ end
 
 if ngx.var.request_method == "POST" then
     local gwIP = session:retrieve("old_ip")
-    if curintf == "lan" and content["localdevIP"]~= gwIP and not next(helpmsg) then
+    if not gwIP or gwIP == "" then
+        gwIP = (live_ip ~= "" and live_ip) or uci_ip
+    end
+
+    local target_ip = content["localdevIP"]
+    local ip_really_changed = false
+    if curintf == "lan" and target_ip and target_ip ~= "" and not next(helpmsg) then
+        if gwIP and gwIP ~= "" and target_ip ~= gwIP then
+            local is_same_as_current = (live_ip ~= "" and target_ip == live_ip) or (uci_ip ~= "" and target_ip == uci_ip)
+            if not is_same_as_current then
+                ip_really_changed = true
+            end
+        end
+    end
+
+    if ip_really_changed then
         modemIPChangeState = "1"
     end
-    session:store("old_ip",(content["localdevIP"]))
+    session:store("old_ip", (target_ip and target_ip ~= "" and target_ip) or gwIP)
 
-    -- Redirect the GUI only if the local GW device IP address is changed for the "lan" interface
-    if curintf == "lan" and content["localdevIP"]~= gwIP and not next(helpmsg) then  ngx.print('\
-    <script type="text/javascript">\
-      window.location="http://');  ngx.print(content["localdevIP"]); ngx.print('";\
-    </script>\
-    ');  session:logout()
+    -- Redirect the GUI only if the local GW device IP address is ACTUALLY changed for the "lan" interface
+    if ip_really_changed then
+        ngx.print('\
+        <script type="text/javascript">\
+          window.location="http://' .. target_ip .. '";\
+        </script>\
+        ')
+        session:logout()
     end
 else
-    session:store("old_ip",(content["localdevIP"]))
+    local current_ip = content["localdevIP"]
+    if not current_ip or current_ip == "" then
+        current_ip = (live_ip ~= "" and live_ip) or uci_ip
+    end
+    session:store("old_ip", current_ip)
 end
 
 local ethports_checked = {}
@@ -1215,6 +1410,10 @@ if #lan_intfs> 1 then
         end
         local url = "modals/ethernet-modal.lp?intf=" .. v.index
         html[#html+1] = format('<li class="%s"><a id = "%s" href="#" data-remote="%s">%s</a></li>', active, v.index, url, v.name)
+    end
+    if session:hasAccess("/modals/ethspeed-modal.lp") then
+        html[#html+1] = format('<li class="nav-header">%s</li>', T"Ethernet Ports")
+        html[#html+1] = format('<li><a id="ethspeed_nav" href="#" data-remote="/modals/ethspeed-modal.lp">%s</a></li>', T"ETH Linespeed")
     end
     ngx.print(html)
     ngx.print('\
@@ -1266,11 +1465,12 @@ if curintf == "lan" then
     else
         html[#html + 1] = ui_helper.createLabel(T"LAN IPv6", IPv6addr, advanced)
     end
-    if sfp_presence and ( sfp_presence[1].value == "1" ) then
+    if sfp_presence and ( sfp_presence[1].value == "1" ) and has_sfp_intf then
         html[#html + 1] = ui_helper.createAlertBlock(T("This is the internal IP of the SFP interface used for fiber connection. " ..
                 "This and the local Gateway IP must be different."), info_box)
         html[#html + 1] = ui_helper.createInputText(T"SFP IP address", "sfplocalip", content["sfplocalip"],{},helpmsg["sfplocalip"])
     end
+
 end
 ngx.print(html)
 ngx.print('\

@@ -318,6 +318,14 @@ if ngx.req.get_method() == "POST" then
   if action == "system_reboot" then
     return resetreboot("rpc.system.reboot", "GUI")
   end
+  if action == "system_poweroff" then
+    ngx.header.content_type = "application/json"
+    ngx.print('{ "success":"true" }')
+    ngx.timer.at(0.5, function()
+      os.execute("( sudo /bin/sh /usr/bin/safe-poweroff.sh || sudo /usr/bin/safe-poweroff.sh || /bin/sh /usr/bin/safe-poweroff.sh ) >/tmp/poweroff_exec.log 2>&1 &")
+    end)
+    ngx.exit(ngx.HTTP_OK)
+  end
   if action == "schedulerebootset" then
     return schedulerebootset(ngx.req.get_post_args().paramvalue)
   end
@@ -366,8 +374,14 @@ if content["friendly_product_name"] and content["friendly_product_name"] == "AGH
 	content["friendly_product_name"] = "AGTHP" --Wrong product name by telecom!
 end
 
-if not ( content.friendly_product_name == "" ) then
-	content.product_name = format("%s ( %s )",content.product_name,content.friendly_product_name)
+if not ( content.friendly_product_name == "" ) and not ( content.friendly_product_name == content.product_name ) then
+	if content.friendly_product_name:find(content.product_name, 1, true) then
+		content.product_name = content.friendly_product_name
+	elseif content.product_name:find(content.friendly_product_name, 1, true) then
+		content.product_name = content.product_name
+	else
+		content.product_name = format("%s ( %s )", content.product_name, content.friendly_product_name)
+	end
 end
 
 
@@ -591,6 +605,52 @@ ngx.print(ui_helper.createMessages(message_helper.popMessages()))
           class = "span5"
         },
       }
+      local current_lang = tostring(gettext.language())
+      local shutdown_label = T"Safe Shutdown"
+      local shutdown_btn = T"Shutdown"
+      local shutdown_heading = T"Safe Shutdown"
+      local shutdown_process = T"Shutting down..."
+      local shutdown_confirm = T"Are you sure you want to safely shut down the gateway?"
+      local shutdown_alert = T"Il modem si sta arrestando in sicurezza. Quando il LED rosso lampeggia lentamente, puoi premere il tasto posteriore per spegnere l'alimentazione."
+      local shutdown_done_title = T"Arresto completato!"
+      local shutdown_done_desc = T"Il modem e' stato arrestato in sicurezza. Quando il LED rosso lampeggia lentamente, puoi premere il tasto posteriore per spegnere l'alimentazione."
+
+      if current_lang == "it-it" then
+        if shutdown_label == "Safe Shutdown" then shutdown_label = "Arresto di sicurezza" end
+        if shutdown_btn == "Shutdown" then shutdown_btn = "Spegni" end
+        if shutdown_heading == "Safe Shutdown" then shutdown_heading = "Arresto di sicurezza" end
+        if shutdown_process == "Shutting down..." then shutdown_process = "Arresto in corso..." end
+        if shutdown_confirm == "Are you sure you want to safely shut down the gateway?" then shutdown_confirm = "Sei sicuro di voler spegnere il modem in sicurezza?" end
+      elseif current_lang == "de-de" then
+        if shutdown_label == "Safe Shutdown" then shutdown_label = "Sicheres Herunterfahren" end
+        if shutdown_btn == "Shutdown" then shutdown_btn = "Ausschalten" end
+        if shutdown_heading == "Safe Shutdown" then shutdown_heading = "Sicheres Herunterfahren" end
+        if shutdown_process == "Shutting down..." then shutdown_process = "Wird heruntergefahren..." end
+        if shutdown_confirm == "Are you sure you want to safely shut down the gateway?" then shutdown_confirm = "Möchten Sie das Modem wirklich sicher herunterfahren?" end
+        shutdown_alert = "Das Modem wird sicher heruntergefahren. Wenn die rote LED langsam blinkt, können Sie den Netzschalter auf der Rückseite drücken, um das Gerät auszuschalten."
+        shutdown_done_title = "Herunterfahren abgeschlossen!"
+        shutdown_done_desc = "Das Modem wurde sicher heruntergefahren. Wenn die rote LED langsam blinkt, können Sie den Netzschalter auf der Rückseite drücken, um das Gerät auszuschalten."
+      elseif current_lang == "en-us" or current_lang == "en" then
+        shutdown_alert = "The gateway is shutting down safely. When the red LED blinks slowly, you can press the power button on the back to turn off the power."
+        shutdown_done_title = "Shutdown complete!"
+        shutdown_done_desc = "The gateway has been shut down safely. When the red LED blinks slowly, you can press the power button on the back to turn off the power."
+      end
+
+      local wait_for_poweroff = {
+        group = {
+          class = "wait-for-poweroff"
+        },
+        button = {
+          id = "btn-system-poweroff",
+          class = "custom-handler btn-danger"
+        }
+      }
+      local shutting_down = {
+        alert = {
+          class = "alert alert-error hide",
+          id = "poweroff-msg"
+        }
+      }
       local wait_for_reboot = {
         group = {
           class = "wait-for-reboot"
@@ -797,6 +857,9 @@ ngx.print(ui_helper.createMessages(message_helper.popMessages()))
       html[#html + 1] = ui_helper.createTable(ntp_columns, ntp_data, ntp_options, nil, ntp_helpmsg)
       html[#html + 1] = '</div></div>'
 
+      html[#html + 1] = ui_helper.createAlertBlock(shutdown_alert, shutting_down)
+      html[#html + 1] = ui_helper.createButton(shutdown_label, shutdown_btn, "icon-off", wait_for_poweroff)
+
       html[#html + 1] = ui_helper.createAlertBlock(T"Restarting, please wait...", rebooting)
       html[#html + 1] = ui_helper.createButton(T"Restart Device", T"Restart", "icon-refresh", wait_for_reboot)
       html[#html + 1] = '<div class="control-group">'
@@ -894,6 +957,38 @@ ngx.print('\
     );\
     return false;\
   }\
+  function wait_for_shutdown() {\
+    $.ajax({ url: "/", timeout: 2000 })\
+    .done(function() {\
+      window.setTimeout(wait_for_shutdown, 1500);\
+    })\
+    .fail(function() {\
+      tch.removeProgress();\
+      $("#poweroff-msg").removeClass("hide").html("<strong>'); ngx.print(shutdown_done_title); ngx.print('</strong> '); ngx.print(shutdown_done_desc); ngx.print('");\
+    });\
+  }\
+  $("#btn-system-poweroff").on("click", function() {\
+      var heading = "');  ngx.print(shutdown_heading); ngx.print('";\
+      var processMsg = "');  ngx.print(shutdown_process); ngx.print('";\
+      confirmationDialogue(\'');  ngx.print(shutdown_confirm); ngx.print('\',heading);\
+      $("#popUp").css({ "position": "fixed", "top": "50%", "left": "50%", "transform": "translate(-50%, -50%)", "margin": "0" });\
+      var PopUpHeaderText = "."+$(".popUp>.header>.header-title>p").text().trim().split(" ")[0];\
+      $(document).off("click", PopUpHeaderText).on("click", PopUpHeaderText, function() {\
+           tch.removeProgress();\
+           tch.showProgress(processMsg);\
+           $("#poweroff-msg").removeClass("hide");\
+           $("#poweroff-msg")[0].scrollIntoView();\
+           $("#btn-system-poweroff").replaceWith($("#poweroff-msg"));\
+           modgui.clearKoInterval();\
+           $.post(\
+             target,\
+             { action: "system_poweroff", CSRFtoken: $("meta[name=CSRFtoken]").attr("content") },\
+             wait_for_shutdown,\
+             "json"\
+           );\
+           return false;\
+	  });\
+  });\
   $("#btn-system-reboot").on("click", function() {\
       var heading = "');  ngx.print(T'Restart Device'); ngx.print('";\
       var processMsg = "');  ngx.print(T'Rebooting'); ngx.print('";\

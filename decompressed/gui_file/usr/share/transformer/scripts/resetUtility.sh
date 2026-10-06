@@ -34,67 +34,70 @@ showUsage() {
 
 
 restoreOriginalGui() {
-	running_bank=$(cat /proc/banktable/booted)
+	running_bank=""
+	[ -f /proc/banktable/booted ] && running_bank=$(cat /proc/banktable/booted)
+	overlay_base="/overlay"
+	[ -n "$running_bank" ] && [ -d "/overlay/$running_bank" ] && overlay_base="/overlay/$running_bank"
 	config_tmp=/tmp/config_tmp
 	
 	#Copying config simulating a firmware upgrade
 	echo "Copying config files to config_tmp dir in RAM..."
-	mkdir /tmp/config_tmp
-	mkdir /tmp/shadow_file
-	cp /overlay/$running_bank/etc/config/* $config_tmp/
-	cp /overlay/$running_bank/etc/shadow /tmp/shadow_file/
+	mkdir -p /tmp/config_tmp /tmp/shadow_file
+	cp -r "$overlay_base"/etc/config/* $config_tmp/ 2>/dev/null
+	[ -f "$overlay_base/etc/shadow" ] && cp "$overlay_base/etc/shadow" /tmp/shadow_file/
 	
 	#Saving root files
 	emergencydir=/tmp/rootfile/emergency
-	mkdir /tmp/rootfile
-	mkdir $emergencydir
-	mkdir $emergencydir/etc
-	mkdir $emergencydir/etc/init.d 
-	mkdir $emergencydir/etc/rc.d 
-	mkdir $emergencydir/usr
-	mkdir $emergencydir/usr/bin 
-	mkdir $emergencydir/lib
-	mkdir $emergencydir/lib/upgrade 
-	mkdir $emergencydir/sbin
-	cp /overlay/$running_bank/lib/upgrade/platform.sh $emergencydir/lib/upgrade/
-	cp /overlay/$running_bank/sbin/sysupgrade $emergencydir/sbin/
-	cp /overlay/$running_bank/etc/init.d/rootdevice $emergencydir/etc/init.d/
-	cp /overlay/$running_bank/usr/bin/rtfd $emergencydir/usr/bin/
-	cp /overlay/$running_bank/usr/bin/sysupgrade-safe $emergencydir/usr/bin/
-	cp -d /overlay/$running_bank/etc/rc.d/S94rootdevice $emergencydir/etc/rc.d/
+	mkdir -p $emergencydir/etc/init.d $emergencydir/etc/rc.d $emergencydir/usr/bin $emergencydir/lib/upgrade $emergencydir/sbin
+	[ -f "$overlay_base/lib/upgrade/platform.sh" ] && cp "$overlay_base/lib/upgrade/platform.sh" $emergencydir/lib/upgrade/
+	[ -f "$overlay_base/sbin/sysupgrade" ] && cp "$overlay_base/sbin/sysupgrade" $emergencydir/sbin/
+	[ -f "$overlay_base/etc/init.d/rootdevice" ] && cp "$overlay_base/etc/init.d/rootdevice" $emergencydir/etc/init.d/
+	[ -f "$overlay_base/usr/bin/rtfd" ] && cp "$overlay_base/usr/bin/rtfd" $emergencydir/usr/bin/
+	[ -f "$overlay_base/usr/bin/sysupgrade-safe" ] && cp "$overlay_base/usr/bin/sysupgrade-safe" $emergencydir/usr/bin/
+	[ -f "$overlay_base/etc/rc.d/S94rootdevice" ] && cp -d "$overlay_base/etc/rc.d/S94rootdevice" $emergencydir/etc/rc.d/
 	
 	#Delete any change from running bank
-	rm -r /overlay/$running_bank
+	if [ -n "$running_bank" ] && [ -d "/overlay/$running_bank" ]; then
+		rm -rf "/overlay/$running_bank"
+	else
+		for d in /overlay/*; do
+			[ "$d" != "/overlay/homeware_conversion" ] && rm -rf "$d"
+		done
+	fi
 	
 	#Restore config to be converted
 	if [ -d $config_tmp ]; then
 		mkdir -p /overlay/homeware_conversion/etc/config
-		cp $config_tmp/* /overlay/homeware_conversion/etc/config/
-		cp $config_tmp/modgui /overlay/homeware_conversion/etc/modgui_old
-		cp /tmp/shadow_file/shadow /overlay/homeware_conversion/etc/
-		cp /tmp/shadow_file/shadow /overlay/$running_bank/shadow_old
+		cp $config_tmp/* /overlay/homeware_conversion/etc/config/ 2>/dev/null
+		[ -f $config_tmp/modgui ] && cp $config_tmp/modgui /overlay/homeware_conversion/etc/modgui_old
+		[ -f /tmp/shadow_file/shadow ] && cp /tmp/shadow_file/shadow /overlay/homeware_conversion/etc/
 	fi
 	
 	#Root only
-	emergencydir=/tmp/rootfile/emergency
-	mkdir /overlay/$running_bank
-	cp -dr $emergencydir/* /overlay/$running_bank/
+	mkdir -p "$overlay_base"
+	cp -dr $emergencydir/* "$overlay_base"/
 	reboot
 }
 
 resetConfig() {
-	rm -r "/overlay/$(cat /proc/banktable/booted)/etc/uci-defaults"
-	rm -r /etc/config/*
-	cp -r /rom/etc/config/* /etc/config/
+	running_bank=""
+	[ -f /proc/banktable/booted ] && running_bank=$(cat /proc/banktable/booted)
+	if [ -n "$running_bank" ] && [ -d "/overlay/$running_bank" ]; then
+		rm -rf "/overlay/$running_bank/etc/uci-defaults"
+	else
+		rm -rf /overlay/etc/uci-defaults
+	fi
+	rm -rf /etc/config/*
+	cp -r /rom/etc/config/* /etc/config/ 2>/dev/null
 	[ "$(pgrep "cwmpd")" ] && /etc/init.d/cwmpd stop
-	[ -f /etc/cwmpd.db ] && rm /etc/cwmpd.db
+	[ -f /etc/cwmpd.db ] && rm -f /etc/cwmpd.db
 	touch /root/.install_gui #this is needed to trigger GUI full install after reboot mainly to reapply all custom edits to stock config files needed by custom GUI
 	reboot
 }
 
 resetCwmp() {
 	[ "$(pgrep "cwmpd")" ] && /etc/init.d/cwmpd stop
-	[ -f /etc/cwmpd.db ] && rm /etc/cwmpd.db
+	[ -f /etc/cwmpd.db ] && rm -f /etc/cwmpd.db
 	[ "$(uci get -q env.var.provisioning_code)" ] && uci del env.var.provisioning_code
 	/etc/init.d/cwmpd start
 }

@@ -52,12 +52,29 @@ local Multi_Leds_i_ = {
   }
 }
 
+local order_map = {
+  power = 1,
+  info = 1,
+  broadband = 2,
+  internet = 3,
+  ethernet = 4,
+  wireless = 5,
+  ["wireless_2.4GHz"] = 5.1,
+  ["wireless_5g"] = 5.2,
+  ["wireless_5GHz"] = 5.2,
+  wps = 6,
+  voip = 7
+}
+
 Multi_Leds_i_.entries = function(mapping)
   local entries = {}
   ledsInfo = leds.getLedsInfo()
   for k, v in pairs(ledsInfo) do
     entries[#entries+1] = k
   end 
+  table.sort(entries, function(a, b)
+    return (order_map[a] or 99) < (order_map[b] or 99)
+  end)
   return entries
 end
 
@@ -106,7 +123,7 @@ Multi_Leds_i_Led_i_.entries = function(mapping, parentkey)
   for k1, v1 in pairs(ledsInfo) do
     if k1 == parentkey then
       for k2, v2 in pairs(v1) do
-        if k2 == "red" or k2 == "green" or k2 == "blue" then
+        if k2 == "red" or k2 == "green" or k2 == "blue" or k2 == "orange" or k2 == "white" then
           entries[#entries+1] = parentkey .. ":" .. k2
         end
       end

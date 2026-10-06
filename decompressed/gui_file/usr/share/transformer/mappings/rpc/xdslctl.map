@@ -79,17 +79,10 @@ end
 local function call_popen(cmd, mode)
 	local output = popen(cmd, mode)
 
-	if not output then
-		return nil
-	end
-
 	while (not output:read(0) == "") do
 		output:close()
 		sleep(5)
 		output = popen(cmd, mode)
-		if not output then
-			return nil
-		end
 	end
 
 	return output
@@ -100,9 +93,6 @@ local function xdslmode(dtype)
 	local showdata = call_popen(showdatacmd, "r")
 	local showline
 	local result
-	if not showdata then
-		return "Not Found"
-	end
 	for showline in showdata:lines() do
 		if dtype:match("mode") then
 			if showline:match("Mode") then
@@ -128,9 +118,6 @@ local function pbParams_find(bandtype)
 	local cmd = ("xdslctl info --pbParams")
 	local pbfile = call_popen(cmd, "r")
 	local pbstring = ""
-	if not pbfile then
-		return
-	end
 	for pbline in pbfile:lines() do
 		if pbline:match("Medley Phase %(Final%) Band Plan") then
 			if (bandtype == "Ds") then
@@ -297,10 +284,6 @@ local function xdslctlget(dtype, request, band, bandtype, split)
 
 	local infofile = call_popen(cmd, "r")
 
-	if not infofile then
-		return data
-	end
-
 	for line in infofile:lines() do
 		if lineread >= (bandstart + 8) and lineread <= (bandend + 8) then
 			if not (dtype == "scanband") then
@@ -362,10 +345,6 @@ local function xdslctlDslamInfo(itype)
 
 	local vendor_info = call_popen(cmd)
 
-	if not vendor_info then
-		return result
-	end
-
 	for line in vendor_info:lines() do
 		if line:match("ChipSet Vendor Id") then
 			chipset = line:gsub(".*:%s+", ""):gsub(":.*", "")
@@ -413,10 +392,6 @@ local function xdslctlVersion(type)
 
 	local version_info = call_popen(cmd)
 
-	if not version_info then
-		return ""
-	end
-
 	for line in version_info:lines() do
 		if line:match("ADSL PHY") then
 			firm_ver, kmod_ver = line:match("%a+ %a+: %a+ %a+ %- (%w+)%.(%w+)")
@@ -425,10 +400,14 @@ local function xdslctlVersion(type)
 	version_info:close()
 
 	if type == "DslFirmwareVersion" then
-		return firm_ver or ""
+		return firm_ver or "N/A"
 	end
 
-	return firm_ver and kmod_ver and (firm_ver .. "." .. kmod_ver) or ""
+	if firm_ver and kmod_ver then
+		return firm_ver .. '.' .. kmod_ver
+	end
+
+	return firm_ver or "N/A"
 end
 
 local function get(mapping, paramName, key)

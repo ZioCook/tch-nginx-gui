@@ -144,14 +144,37 @@ function M.handleQuery(mapParams, mapValidation)
                         end
                     end
                     if not ok then
-                        ngx.log(ngx.ERR, "apply failed: " .. msg)
+                        ngx.log(ngx.ERR, "apply failed: " .. tostring(msg))
                         message_helper.pushMessage(T"Error while applying changes", "error")
                     else
                         message_helper.pushMessage(T"Changes saved successfully", "success")
                     end
                 else
-                    for _,v in ipairs (msg) do
-                        ngx.log(ngx.ERR, "setObject failed on " .. v.path .. ": " .. v.errcode .. " " .. v.errmsg)
+                    if type(msg) == "table" then
+                        for _,v in ipairs (msg) do
+                            if type(v) == "table" then
+                                ngx.log(ngx.ERR, "setObject failed on " .. tostring(v.path or "unknown") .. ": " .. tostring(v.errcode or "") .. " " .. tostring(v.errmsg or ""))
+                            else
+                                ngx.log(ngx.ERR, "setObject failed: " .. tostring(v))
+                            end
+                        end
+                    else
+                        ngx.log(ngx.ERR, "setObject failed: " .. tostring(msg))
+                    end
+                    local f = io.open("/tmp/setObject_err.log", "w")
+                    if f then
+                        f:write("msg: " .. tostring(msg) .. "\n")
+                        if type(msg) == "table" then
+                            for k, v in pairs(msg) do
+                                f:write("  " .. tostring(k) .. ": " .. tostring(v) .. "\n")
+                                if type(v) == "table" then
+                                    for k2, v2 in pairs(v) do
+                                        f:write("    " .. tostring(k2) .. ": " .. tostring(v2) .. "\n")
+                                    end
+                                end
+                            end
+                        end
+                        f:close()
                     end
                     message_helper.pushMessage(T"Error while saving changes", "error")
                     -- we cannot assume every transaction is atomic (not every mapping will implement it) so to be safe
@@ -824,7 +847,7 @@ function M.validateStringIsDomainName(value)
             if #strippedLabel > 63 then
                 return nil, T"Domain name contains a label that is longer than 63 characters."
             end
-            local correctLabel = match(strippedLabel, "^[a-zA-z0-9][a-zA-Z0-9\-]*[a-zA-Z0-9]")
+            local correctLabel = match(strippedLabel, "^[a-zA-Z0-9][a-zA-Z0-9%-]*[a-zA-Z0-9]")
             if #strippedLabel == 1 then
                 if not match(strippedLabel, "[a-zA-Z0-9]") then
                     return nil, T"Label within domain name has invalid syntax."

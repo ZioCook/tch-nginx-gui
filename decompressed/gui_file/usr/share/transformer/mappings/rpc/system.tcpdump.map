@@ -97,25 +97,29 @@ end
 
 local function getUSBSortedPath(path)
   local usbPath = {}
-  for file in lfs.dir(path) do
-    usbPath[#usbPath+1] = file:match("[^%.]*")
+  if lfs.attributes(path, "mode") == "directory" then
+    for file in lfs.dir(path) do
+      local name = file:match("[^%.]*")
+      if name and name ~= "" then
+        usbPath[#usbPath+1] = name
+      end
+    end
+    table.sort(usbPath)
   end
-  table.sort(usbPath)
   return usbPath
 end
 
 -- Function to return the dirctory name in the path specified(used to get the usb mount path) in case of reboot the mount path changes
 local function getDirName()
   local path = "/mnt/usb"
-  local dirPath
   local usbPath = getUSBSortedPath(path)
   for _, file in ipairs(usbPath) do
     -- file matches only USB-A1 or USB-B1 allowed
     if file and file:match("^%u+-%u%d$") then
-      dirPath = path .. "/" .. file
-    end
-    if dirPath and (lfs.attributes(file, "mode") ~= "directory") and isWritePermissionEnabled(dirPath) then
-      return dirPath
+      local dirPath = path .. "/" .. file
+      if (lfs.attributes(dirPath, "mode") == "directory") and isWritePermissionEnabled(dirPath) then
+        return dirPath
+      end
     end
   end
   return ""
@@ -238,20 +242,24 @@ local function createscript()
 --]]
 
   -- create script file /tmp/.tcpdump_gui.sh
-  -- fcctl enable
-  -- fcctl config --mcast 3
-  execute("echo 'type=\$1\
-interface=\$2\
-count=\$3\
-file=\$4\
-if [ \$type = pcap ]; then\
-  /usr/sbin/tcpdump -i \$interface -w \$file -c \$count;\
-else\
-  /usr/sbin/tcpdump -i \$interface -l -c \$count | tee \$file\
-fi\
-touch " .. TCPDUMP_COMPL .. "' > " .. TCPDUMP_SH)
-  if pathexists("/proc/fcache") then
-    execute("echo '" .. FC_ENABLED .. "' >> " .. TCPDUMP_SH)
+  local f = open(TCPDUMP_SH, "w")
+  if f then
+    f:write([[#!/bin/sh
+type=$1
+interface=$2
+count=$3
+file=$4
+if [ "$type" = "pcap" ]; then
+  /usr/sbin/tcpdump -i "$interface" -w "$file" -c "$count"
+else
+  /usr/sbin/tcpdump -i "$interface" -l -c "$count" | tee "$file"
+fi
+touch ]] .. TCPDUMP_COMPL .. "\n")
+    if pathexists("/proc/fcache") then
+      f:write(FC_ENABLED .. "\n")
+    end
+    f:close()
+    execute("chmod +x " .. TCPDUMP_SH)
   end
 end
 
@@ -357,9 +365,18 @@ local function getFileName()
     end
     if saveOnUsb == "1" and usbStatus == "Connected" then
       local usbFileName = getUSBFileName()
-      return usbFileName or ""
+      if usbFileName and usbFileName ~= "" then
+        return usbFileName
+      end
     end
-    return tcpdump_info.file
+    if tcpdump_info.file and tcpdump_info.file ~= "" then
+      return tcpdump_info.file
+    end
+    if tcpdump_info.type == "log" then
+      return TCPDUMP_LOG
+    else
+      return TCPDUMP_PCAP
+    end
 end
 
 -- commit function

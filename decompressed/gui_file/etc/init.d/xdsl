@@ -158,14 +158,14 @@ xdsl_config() {
 	fi
 	
 	config_get sra "$cfg" sra 1
-	if [ "$sra" == 0 ]; then
+	if [ "$sra" = "0" ]; then
 		srastring="--sra off"
 	else
 		srastring="--sra on"
 	fi
 	
 	config_get bitswap "$cfg" bitswap 1
-	if [ "$bitswap" == 0 ]; then
+	if [ "$bitswap" = "0" ]; then
 		bitswapstring="--bitswap off"
 	else
 		bitswapstring="--bitswap on"

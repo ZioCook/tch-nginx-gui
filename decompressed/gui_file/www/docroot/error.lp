@@ -57,9 +57,7 @@ ngx.print('\
     <link href="/css/gw.css?version='); ngx.print(cui.gui_version); ngx.print('" rel="stylesheet">\
 	<link rel="shortcut icon"    type="image/x-icon"   href="/img/favicon.ico"    />\
     <link href="/css/responsive.css?version='); ngx.print(cui.gui_version); ngx.print('" rel="stylesheet">\
-	<!--[if IE 7]><link rel="stylesheet" href="/css/font-awesome-ie7.css?version='); ngx.print(cui.gui_version); ngx.print('"><![endif]-->\
 	<link rel="stylesheet" href="/css/aos.css?version='); ngx.print(cui.gui_version); ngx.print('" >\
-    <!--[if lt IE 9]> <script src="/js/media-min.js?version='); ngx.print(cui.gui_version); ngx.print('"></script> <![endif]-->\
     <title>');  ngx.print( "Gateway" ); ngx.print('</title>\
 	<script src="/js/jquery.min.js?version='); ngx.print(cui.gui_version); ngx.print('" ></script>\
 	<script src="/js/main-min-nojquery.js?version='); ngx.print(cui.gui_version); ngx.print('" ></script>\

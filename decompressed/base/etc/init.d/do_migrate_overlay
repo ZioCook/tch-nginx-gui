@@ -104,13 +104,13 @@ boot() {
       # Actually remove the file flagged as removed in the old overlay
       while read -r file; do
         # kecho "setting "$file" as deleted in the new overlay"
-        rm "$file" 2>/dev/kmsg
+        rm -f "$file" 2>/dev/kmsg
       done < "$files_to_del"
 
       sync
     fi
 
-    rm $files_to_del
+    rm -f "$files_to_del"
   }
 
   move_overlay() {
@@ -119,7 +119,7 @@ boot() {
     # Other process can write some config file before modoverlay is mounted, checking the config dir is not enough
     # Try to check if modgui exist and assume the migration is needed if present
     if [ -f $overlay_bank/etc/config/modgui ]; then
-      mkdir $ram_dir $upperdir_backup
+      mkdir -p "$ram_dir" "$upperdir_backup"
 
       #copy all file from overlay_bank to ram keeping all attributes and links
       tranfer_file $overlay_bank $ram_dir

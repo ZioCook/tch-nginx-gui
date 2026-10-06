@@ -198,17 +198,17 @@ run_mount_checks() {
 	if [ -f "$loop_detect" ]; then
 		#reboot because of mount check failures
 		#do not check again, to prevent reboot loops
-		rm $loop_detect
+		rm -f "$loop_detect"
 		return
 	fi
 	local reboot_needed="no"
-	for check in $(ls -lA $checkdir); do
-		if [ -x $checkdir/$check ]; then
-			$checkdir/$check "$mount_point" || reboot_needed="yes"
+	for check in "$checkdir"/*; do
+		if [ -x "$check" ]; then
+			"$check" "$mount_point" || reboot_needed="yes"
 		fi
 	done
 	if [ "$reboot_needed" = "yes" ]; then
-		touch $loop_detect
+		touch "$loop_detect"
 		/sbin/reboot -f
 	fi
 }
@@ -242,7 +242,7 @@ mount_root_mod() {
 		exit 0
 	fi
 
-	rm $check_head_bank1 $check_head_bank2
+	rm -f $check_head_bank1 $check_head_bank2
 
 	find_mount_jffs2 ${mount_point}
 	if [ $? -ne 0 ]; then

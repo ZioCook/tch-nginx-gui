@@ -31,7 +31,25 @@
                     end
                   end
                 end
-		local html = ui_helper.createModalTabs(items, uri)
-		ngx.print(html)
+		local tabs = {}
+		local session = ngx.ctx.session
+		for _, item in ipairs(items) do
+			local target = "/modals/" .. item[1]
+			if not session or session:hasAccess(target) then
+				local active = nil
+				if uri and uri:find(item[1], 1, true) then
+					active = "active"
+				end
+				tabs[#tabs + 1] = {
+					desc = item[2],
+					target = target,
+					active = active,
+				}
+			end
+		end
+		if #tabs > 1 then
+			local html = ui_helper.createModalTabs(tabs)
+			ngx.print(html)
+		end
 	  ngx.print('\
 '); 

@@ -4,7 +4,7 @@ START=99
 
 setup_state() {
     config_get enabled state enabled 1
-	if [ $enabled == 1 ]; then
+	if [ "$enabled" = "1" ]; then
 		fcctl enable > /dev/null
 		logger -t "Flow Cache" "Starting service..."
 	else
@@ -44,6 +44,7 @@ config_mcast_learn() {
 }
 
 setup() {
+    which fcctl >/dev/null 2>&1 || return 0
     config_load fcctlsettings
     setup_state
     config_l2tp

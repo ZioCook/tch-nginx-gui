@@ -147,7 +147,7 @@ add_overlayfiles() {
 
 # hooks
 sysupgrade_image_check="platform_check_image"
-[ $SAVE_OVERLAY = 0 -o ! -d /overlay/etc ] && \
+{ [ "$SAVE_OVERLAY" = "0" ] || [ ! -d /overlay/etc ]; } && \
 	sysupgrade_init_conffiles="add_uci_conffiles" || \
 	sysupgrade_init_conffiles="add_overlayfiles"
 
@@ -210,7 +210,7 @@ fi
 
 for check in $sysupgrade_image_check; do
 	( eval "$check \"\$ARGV\"" ) || {
-		if [ $FORCE -eq 1 ]; then
+		if [ "$FORCE" -eq 1 ]; then
 			echo "Image check '$check' failed but --force given - will update anyway!"
 			break
 		else
@@ -233,14 +233,14 @@ if [ -n "$CONF_IMAGE" ]; then
 	esac
 	get_image "$CONF_IMAGE" "cat" > "$CONF_TAR"
 	export SAVE_CONFIG=1
-elif ask_bool $SAVE_CONFIG "Keep config files over reflash"; then
-	[ $TEST -eq 1 ] || do_save_conffiles
+elif ask_bool "$SAVE_CONFIG" "Keep config files over reflash"; then
+	[ "$TEST" -eq 1 ] || do_save_conffiles
 	export SAVE_CONFIG=1
 else
 	export SAVE_CONFIG=0
 fi
 
-if [ $TEST -eq 1 ]; then
+if [ "$TEST" -eq 1 ]; then
 	exit 0
 fi
 

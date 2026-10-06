@@ -14,27 +14,82 @@ uci2onoff() {
 
 setup_eee() {
     config_get eee ethernet eee 1
-    pwrctl config --eee `uci2onoff $eee`
+    pwrctl config --eee `uci2onoff $eee` 2>/dev/null
 }
 
 setup_autogreeen() {
     config_get autogreeen ethernet autogreeen 1
-    pwrctl config --autogreeen `uci2onoff $autogreeen`
+    pwrctl config --autogreeen `uci2onoff $autogreeen` 2>/dev/null
 }
 
 setup_ethapd() {
     config_get ethapd ethernet ethapd 1
-    pwrctl config --ethapd `uci2onoff $ethapd`
+    pwrctl config --ethapd `uci2onoff $ethapd` 2>/dev/null
 }
 
 setup_wait() {
     config_get wait cpu wait 1
-    pwrctl config --wait `uci2onoff $wait`
+    pwrctl config --cpuwait `uci2onoff $wait` 2>/dev/null
 }
 
 setup_cpuspeed() {
-    config_get cpuspeed cpu cpuspeed
-    pwrctl config --cpuspeed $cpuspeed
+    config_get cpuspeed cpu cpuspeed ""
+    if [ -n "$cpuspeed" ]; then
+        if [ "$cpuspeed" = "0" ] || [ "$cpuspeed" = "off" ]; then
+            pwrctl config --cpuspeed off 2>/dev/null
+        else
+            pwrctl config --cpuspeed on "$cpuspeed" 2>/dev/null
+        fi
+    fi
+}
+
+setup_governor() {
+    config_get governor cpu governor ""
+    if [ -n "$governor" ] && [ -f /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor ]; then
+        if grep -q "$governor" /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors 2>/dev/null; then
+            echo "$governor" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor 2>/dev/null
+        fi
+    fi
+}
+
+setup_frequencies() {
+    config_get min_freq cpu min_freq ""
+    config_get max_freq cpu max_freq ""
+    if [ -n "$min_freq" ] && [ -f /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq ]; then
+        echo "$min_freq" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_min_freq 2>/dev/null
+    fi
+    if [ -n "$max_freq" ] && [ -f /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq ]; then
+        echo "$max_freq" > /sys/devices/system/cpu/cpu0/cpufreq/scaling_max_freq 2>/dev/null
+    fi
+}
+
+setup_cores() {
+    config_get cores cpu cores "2"
+    if [ -f /sys/devices/system/cpu/cpu1/online ]; then
+        if [ "$cores" = "1" ]; then
+            echo 0 > /sys/devices/system/cpu/cpu1/online 2>/dev/null
+        else
+            echo 1 > /sys/devices/system/cpu/cpu1/online 2>/dev/null
+        fi
+    fi
+}
+
+setup_extra_ethernet() {
+    config_get phy_down ethernet phy_down 0
+    config_get net_down ethernet net_down 0
+    pwrctl config --phy `uci2onoff $phy_down` 2>/dev/null
+    pwrctl config --net `uci2onoff $net_down` 2>/dev/null
+}
+
+setup_vm() {
+    config_get swappiness vm swappiness ""
+    config_get vfs_cache_pressure vm vfs_cache_pressure ""
+    if [ -n "$swappiness" ] && [ -f /proc/sys/vm/swappiness ]; then
+        sysctl -w vm.swappiness="$swappiness" >/dev/null 2>&1
+    fi
+    if [ -n "$vfs_cache_pressure" ] && [ -f /proc/sys/vm/vfs_cache_pressure ]; then
+        sysctl -w vm.vfs_cache_pressure="$vfs_cache_pressure" >/dev/null 2>&1
+    fi
 }
 
 move_irq_interrupts_cpu1() {
@@ -46,17 +101,33 @@ move_irq_interrupts_cpu1() {
 	fi
 }
 
+setup_leds() {
+    if [ -x /usr/share/transformer/scripts/check_ecoled.sh ]; then
+        /usr/share/transformer/scripts/check_ecoled.sh >/dev/null 2>&1 &
+    fi
+}
+
 setup() {
     config_load power
     setup_autogreeen
     setup_eee
     setup_ethapd
+    setup_extra_ethernet
     setup_wait
     setup_cpuspeed
+    setup_governor
+    setup_frequencies
+    setup_cores
+    setup_vm
 	move_irq_interrupts_cpu1
+    setup_leds
 }
 
 start() {
+    setup
+}
+
+reload() {
     setup
 }
 

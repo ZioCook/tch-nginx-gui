@@ -10,7 +10,7 @@ local ui_helper = require("web.ui_helper")
 local post_helper = require("web.post_helper")
 local content_helper = require("web.content_helper")
 local message_helper = require("web.uimessage_helper")
-local format, untaint, gmatch = string.format, string.untaint, string.gmatch
+local format, untaint, gmatch, match = string.format, string.untaint, string.gmatch, string.match
 local open = io.open
 local vB = post_helper.validateBoolean
 local vNES = post_helper.validateNonEmptyString
@@ -275,6 +275,7 @@ ngx.print(ui_helper.createMessages(message_helper.popMessages()))
   }
   local attrText = {input = { ["data-for"] = "START"}}
   local attrSelect = {select = { ["data-for"] = "START"}}
+  local attrCheckbox = {input = { ["data-for"] = "START"}}
   local attributes = { span = { class = "span8" } }
   local statusText = ""
   local statusIcon = ""
@@ -318,7 +319,11 @@ ngx.print(ui_helper.createMessages(message_helper.popMessages()))
 
   -- tcpdump log content
   if(tcpdump_data.state == "Complete" and tcpdump_data.type == "log") then
-    local f = open(untaint(tcpdump_data.file), "r")
+    local logPath = untaint(tcpdump_data.file or "")
+    if logPath == "" then
+      logPath = "/tmp/tcpdumpGUI.log"
+    end
+    local f = open(logPath, "r")
     if f then
       ngx.print(ui_helper.createLabel(T"TCPDump Log:", ""))
       ngx.print("<div class='control-group'><label class='control-label'></label><div class='controls'>")

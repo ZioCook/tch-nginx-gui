@@ -1,0 +1,36 @@
+#!/bin/sh /etc/rc.common
+#
+# OpenWrt service for Rescue Server & Watchdog Daemon
+#
+
+START=95
+STOP=10
+
+PIDFILE=/var/run/rescue-watchdog.pid
+
+start() {
+    if [ -f "$PIDFILE" ] && kill -0 "$(cat "$PIDFILE")" 2>/dev/null; then
+        echo "Rescue watchdog is already running."
+        return 0
+    fi
+
+    echo "Starting Rescue Server Watchdog..."
+    /usr/bin/rescue-watchdog.sh >/dev/null 2>&1 &
+    echo $! > "$PIDFILE"
+}
+
+stop() {
+    echo "Stopping Rescue Server..."
+    if [ -f "$PIDFILE" ]; then
+        kill "$(cat "$PIDFILE")" 2>/dev/null
+        rm -f "$PIDFILE"
+    fi
+    for pid in $(pgrep -f "rescue-watchdog.sh" 2>/dev/null); do kill -9 "$pid" 2>/dev/null; done
+    for pid in $(pgrep -f "rescue_server.lua" 2>/dev/null); do kill -9 "$pid" 2>/dev/null; done
+}
+
+restart() {
+    stop
+    sleep 1
+    start
+}

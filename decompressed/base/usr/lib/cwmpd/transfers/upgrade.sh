@@ -269,7 +269,7 @@ if [ "$TRANSFER_ACTION" = "start" ]; then
     # In case of single bank, reboot the board
     platform_is_dualbank
     SINGLE_BANK=$?
-    if [ $SINGLE_BANK == "1" ]; then
+    if [ "$SINGLE_BANK" = "1" ]; then
       echo "Single bank board, rebooting system..."
       reboot -f
       sleep 5
@@ -357,7 +357,7 @@ if [ "$TRANSFER_ACTION" = "cleanup" ]; then
     set_started "$TRANSFER_ID" no
     # Remove RAW storage information if coming from legacy SW (transfer ID is hexadecimal)
     if [ -f /proc/banktable/legacy_upgrade/key ]; then
-      [ "$TRANSFER_ID" == $(cat /proc/banktable/legacy_upgrade/key | hexdump -v -e '/1 "%02X"') ] && echo "1" > /proc/banktable/erase_upgrade_info
+      [ "$TRANSFER_ID" = "$(cat /proc/banktable/legacy_upgrade/key | hexdump -v -e '/1 "%02X"')" ] && echo "1" > /proc/banktable/erase_upgrade_info
     fi
     # Upgrade finished succesfully, remove database and transfer information from passive bank (for dual bank platform)
     if is_dual_bank; then

@@ -2,6 +2,8 @@
 
 . /etc/init.d/rootdevice
 
+[ -z "$restart_dnsmasq" ] && restart_dnsmasq=0
+
 add_ipoe() {
   if [ ! "$(uci -q get network.ipoe)" ]; then
     logecho "Adding ipoe in network config..."
@@ -54,7 +56,13 @@ setup_network() {
     [ "$(uci -q get network.vlan_wan.vid)" = "835" ] && uci -q set network.wanptm0.vid=836
   fi
   [ ! "$(uci -q get network.wanptm0.vid)" ] && uci -q set network.wanptm0.vid=835
-  [ ! "$(uci -q get network.wanptm0.ifname)" ] && uci -q set network.wanptm0.ifname=ptm0
+  wan_if="$(uci -q get network.wan.ifname)"
+  if ! echo "$wan_if" | grep -q '\.'; then
+    [ ! "$(uci -q get network.wanptm0.ifname)" ] && uci -q set network.wanptm0.ifname=ptm0
+  else
+    # If dot notation is used on WAN interface, ensure wansensing does not overwrite it on boot
+    [ "$(uci -q get wansensing.global.enable)" = "1" ] && uci -q set wansensing.global.enable=0
+  fi
 
   #Set a SSH_wan firewall rule if not found (fix SSH Wan not working)
   if [ ! "$(uci -q get firewall.SSH_wan)" ]; then
@@ -193,7 +201,7 @@ clean_cups_block_rule() {
     uci del "$ret"
     firewall_change=1
   done
-  if [ $firewall_change -eq 1 ]; then
+  if [ "$firewall_change" = "1" ]; then
     logecho "Restarting firewall..."
     uci commit firewall
     /etc/init.d/firewall restart 2>/dev/null
@@ -216,13 +224,10 @@ disable_tcp_Sack() {
   logecho "Apply CVE 2019-11477 workaround"
   if grep -q 'net.ipv4.tcp_sack' /etc/sysctl.conf; then
     sed -i 's/\(net.ipv4.tcp_sack=\)1/\10/g' /etc/sysctl.conf
-    sysctl -p 2>/dev/null 1>/dev/null
-  elif ! grep -q 'net.ipv4.tcp_sack=0' /etc/sysctl.conf; then
-    echo -e "\n" >>/etc/sysctl.conf
-    echo "# disable tcp_sack for CVE 2019-11477" >>/etc/sysctl.conf
-    echo "net.ipv4.tcp_sack=0" >>/etc/sysctl.conf
-    sysctl -p 2>/dev/null 1>/dev/null
+  else
+    printf "\n# disable tcp_sack for CVE 2019-11477\nnet.ipv4.tcp_sack=0\n" >>/etc/sysctl.conf
   fi
+  sysctl -p >/dev/null 2>&1
 }
 
 check_xtm_atmwan() {
@@ -255,13 +260,22 @@ check_dnsmasq_name   #check dnsmasq name in uci to avoid issue in guid hardcoded
 update_dhcp_config   #DHCP sync
 wan_sensing_clean    #Wansensing clean utility
 clean_cups_block_rule
-[ "$device_type" = "MediaAccess TG789vac v2" ] && unlock_ssh_wan_tiscali
+[ -z "${device_type##*TG789vac v2*}" ] && unlock_ssh_wan_tiscali
 disable_tcp_Sack
 check_xtm_atmwan #needed for UNO firmware
 
 logecho "Restarting dnsmasq if needed..."
-if [ "$restart_dnsmasq" -eq 1 ]; then
-  uci commit
-  killall dnsmasq
+if [ "$restart_dnsmasq" = "1" ]; then
+  uci commit dhcp
+  killall dnsmasq 2>/dev/null
   /etc/init.d/dnsmasq restart
+fi
+
+# Enable and apply mode services manager
+if [ -x /etc/init.d/mode_services ]; then
+  /etc/init.d/mode_services enable 2>/dev/null
+fi
+if [ -x /usr/share/transformer/scripts/apply_service_modes.sh ]; then
+  logecho "Applying service mode optimization..."
+  /usr/share/transformer/scripts/apply_service_modes.sh
 fi

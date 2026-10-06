@@ -1,0 +1,18 @@
+#!/bin/sh
+
+[ "$ACTION" = "ifup" ] || exit 0
+
+is_ra_enabled() {
+  [ "$(uci -q get web.state_remote.enabled)" = "1" ] && return 0
+  [ "$(uci -q get web.remote.active)" = "1" ] && return 0
+  [ "$(uci -q get web.assistance.@remote.active)" = "1" ] && return 0
+  uci show web 2>/dev/null | grep -qE "(state_.*|assist_state.*|remote.*)\.(enabled|active)=['\"]?1['\"]?" && return 0
+  return 1
+}
+
+if [ -d /var/run/assistance ] && [ -n "$(ls -A /var/run/assistance 2>/dev/null)" ]; then
+  [ -x /etc/fwdassist.sh ] && /etc/fwdassist.sh >/dev/null 2>&1
+elif is_ra_enabled; then
+  wget -O /dev/null -q http://127.0.0.1/ 2>/dev/null || curl -s -m 2 http://127.0.0.1/ >/dev/null 2>&1
+  [ -x /etc/fwdassist.sh ] && /etc/fwdassist.sh >/dev/null 2>&1
+fi

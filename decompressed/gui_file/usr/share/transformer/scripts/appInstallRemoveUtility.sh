@@ -20,8 +20,11 @@ modgui_has_tun() {
 }
 
 modgui_reviewed_tun_build() {
-  [ "$cpu_type" = "armv7l" ] && [ "$(uname -r)" = "4.1.52" ] &&
-    [ "$(uci -q get version.@version[0].kernel)" = "ac8d9a0575131475c4002132bf4995cb96c6f99d" ]
+  [ "$cpu_type" = "armv7l" ] && [ "$(uname -r)" = "4.1.52" ] && {
+    k_hash="$(uci -q get version.@version[0].kernel)"
+    [ "$k_hash" = "ac8d9a0575131475c4002132bf4995cb96c6f99d" ] ||
+    [ "$k_hash" = "5c1688dc9cc0c60e2e5534d702efa8c262815dae" ]
+  }
 }
 
 modgui_tun_migrate_owners() {
@@ -63,7 +66,7 @@ modgui_install_tun() {
       cp "$tun_tmp" "$modgui_tun_file" || { rm -f "$tun_tmp"; return 1; }
       rm -f "$tun_tmp"
     fi
-    modprobe tun 2>/dev/null || insmod "$modgui_tun_file" 2>/dev/null || return 1
+    modprobe tun 2>/dev/null || insmod "$modgui_tun_file" 2>/dev/null || /rom/sbin/insmod "$modgui_tun_file" 2>/dev/null || return 1
     modgui_has_tun || return 1
     printf 'tun\n' > "$modgui_tun_boot"
     touch "$modgui_tun_owned" "/etc/.modgui-tun-user-$consumer"
@@ -93,7 +96,7 @@ modgui_release_tun() {
     [ -e "$tun_user" ] && return 0
   done
   if lsmod | grep -q '^tun '; then
-    rmmod tun 2>/dev/null || {
+    rmmod tun 2>/dev/null || /rom/sbin/rmmod tun 2>/dev/null || {
       echo "TUN is still in use; leaving the shared module installed"
       return 0
     }
@@ -288,30 +291,54 @@ app_luci() {
       opkg update
       [ ! -f /rom/usr/lib/libjson-c.so.2 ] && ln -s /usr/lib/libjson-c.so.4 /usr/lib/libjson-c.so.2 #workaround for 18.x feeds used on 19.x firmware
       rm -rf /etc/config/uhttpd
-      rm /usr/lib/lua/uci.so #remove to avoid lua-uci conflict during install
-      opkg install --force-reinstall libuci-lua luci rpcd
-      [ ! -f /etc/init.d/uhttpd ] && opkg install uhttpd # only on 19.x is not getting installed as dependency?
-      mkdir /www_luci
-      mv /www/cgi-bin /www_luci/
-      mv /www/luci-static /www_luci/
-      mv /www/index.html /www_luci/
-      cp /rom/usr/lib/lua/uci.so /usr/lib/lua/ #restore lib as it gets removed by libuci-lua
-      sed -i 's/require "uci"/require "uci_luci"/g' /usr/lib/lua/luci/model/uci.lua #modify luci to load his original lib with different name
+      rm -f /usr/lib/lua/uci.so #remove to avoid lua-uci conflict during install
+      opkg install --force-reinstall uhttpd libuci-lua luci rpcd px5g-standalone
+      mkdir -p /www_luci
+      [ -d /www/cgi-bin ] && mv /www/cgi-bin /www_luci/
+      [ -d /www/luci-static ] && mv /www/luci-static /www_luci/
+      [ -f /www/index.html ] && mv /www/index.html /www_luci/
+      [ -f /rom/usr/lib/lua/uci.so ] && cp /rom/usr/lib/lua/uci.so /usr/lib/lua/ #restore lib as it gets removed by libuci-lua
+      [ -f /usr/lib/lua/luci/model/uci.lua ] && sed -i 's/require "uci"/require "uci_luci"/g' /usr/lib/lua/luci/model/uci.lua #modify luci to load his original lib with different name
+      [ -f /usr/lib/lua/luci/view/sysauth.htm ] && sed -i '/if (document.location.protocol != .https:.) {/,/}/d' /usr/lib/lua/luci/view/sysauth.htm
 
-      if [ ! "$(uci get uhttpd.main.listen_http | grep 9080)" ]; then
-        uci del_list uhttpd.main.listen_http='0.0.0.0:80'
-        uci add_list uhttpd.main.listen_http='0.0.0.0:9080'
-        uci del_list uhttpd.main.listen_http='[::]:80'
-        uci add_list uhttpd.main.listen_http='[::]:9080'
-        uci del_list uhttpd.main.listen_https='0.0.0.0:443'
-        uci add_list uhttpd.main.listen_https='0.0.0.0:9443'
-        uci del_list uhttpd.main.listen_https='[::]:443'
-        uci add_list uhttpd.main.listen_https='[::]:9443'
+      if [ ! -f /etc/config/uhttpd ]; then
+        touch /etc/config/uhttpd
+        uci set uhttpd.main=uhttpd
         uci set uhttpd.main.home='/www_luci'
+        uci set uhttpd.main.cgi_prefix='/cgi-bin'
+        uci add_list uhttpd.main.lua_prefix='/cgi-bin/luci=/usr/lib/lua/luci/sgi/uhttpd.lua'
+        uci set uhttpd.main.script_timeout='60'
+        uci set uhttpd.main.network_timeout='30'
+        uci set uhttpd.main.http_keepalive='20'
+        uci set uhttpd.main.tcp_keepalive='1'
+        uci set uhttpd.main.rfc1918_filter='1'
+        uci set uhttpd.main.max_requests='3'
+        uci set uhttpd.main.max_connections='100'
+        uci set uhttpd.main.cert='/etc/uhttpd.crt'
+        uci set uhttpd.main.key='/etc/uhttpd.key'
+        uci add_list uhttpd.main.listen_http='0.0.0.0:9080'
+        uci add_list uhttpd.main.listen_http='[::]:9080'
+        uci add_list uhttpd.main.listen_https='0.0.0.0:9443'
+        uci add_list uhttpd.main.listen_https='[::]:9443'
+        uci set uhttpd.main.redirect_https='0'
       fi
 
+      uci del_list uhttpd.main.listen_http='0.0.0.0:80' 2>/dev/null
+      uci add_list uhttpd.main.listen_http='0.0.0.0:9080'
+      uci del_list uhttpd.main.listen_http='[::]:80' 2>/dev/null
+      uci add_list uhttpd.main.listen_http='[::]:9080'
+      uci del_list uhttpd.main.listen_https='0.0.0.0:443' 2>/dev/null
+      uci add_list uhttpd.main.listen_https='0.0.0.0:9443'
+      uci del_list uhttpd.main.listen_https='[::]:443' 2>/dev/null
+      uci add_list uhttpd.main.listen_https='[::]:9443'
+      uci set uhttpd.main.redirect_https='0'
+      uci set uhttpd.main.home='/www_luci'
+
       uci commit uhttpd
-      /etc/init.d/uhttpd restart
+      if [ -f /etc/init.d/uhttpd ]; then
+        /etc/init.d/uhttpd enable
+        /etc/init.d/uhttpd restart
+      fi
     }
 
     luci_install_mips() {
@@ -329,7 +356,7 @@ app_luci() {
       [ "$cpu_type" = "armv7l" ] && {
         luci_install_arm
         opkg install --force-reinstall --force-overwrite libuci-lua
-        sed -i 's/require "uci_luci"/require "uci"/g' /usr/lib/lua/luci/model/uci.lua
+        [ -f /usr/lib/lua/luci/model/uci.lua ] && sed -i 's/require "uci_luci"/require "uci"/g' /usr/lib/lua/luci/model/uci.lua
       }
       [ "$cpu_type" = "mips" ] && luci_install_mips
       ;;
@@ -346,17 +373,18 @@ app_luci() {
   }
   remove() {
     luci_remove_arm() {
-      opkg remove --force-removal-of-dependent-packages uhttpd rpcd libuci-lua luci luci-*
+      [ -f /etc/init.d/uhttpd ] && { /etc/init.d/uhttpd stop 2>/dev/null; /etc/init.d/uhttpd disable 2>/dev/null; }
+      opkg remove --force-removal-of-dependent-packages uhttpd rpcd rpcd-mod-* libuci-lua luci luci-* liblucihttp* px5g-standalone
       [ ! -f /rom/usr/lib/libjson-c.so.2 ] && rm -rf /usr/lib/libjson-c.so.2 #workaround for 18.x feeds used on 19.x firmware
-      cp /rom/usr/lib/lua/uci.so /usr/lib/lua/ #restore lib as it gets removed by libuci-lua
+      [ -f /rom/usr/lib/lua/uci.so ] && cp /rom/usr/lib/lua/uci.so /usr/lib/lua/ #restore lib as it gets removed by libuci-lua
 
       rm -rf /www_luci
       rm -rf /etc/config/uhttpd
       rm -rf /etc/config/luci
 
       #needed cause of a bug (?) macoers repos will keep trying to install wrong (newer) versions of luci and libubox
-      sed -i '/^Package: luci/,/^$/d' /usr/lib/opkg/status
-      sed -i '/^Package: uhttpd/,/^$/d' /usr/lib/opkg/status
+      sed -i '/^Package: luci/,/^$/d' /usr/lib/opkg/status 2>/dev/null
+      sed -i '/^Package: uhttpd/,/^$/d' /usr/lib/opkg/status 2>/dev/null
     }
 
     luci_remove_mips() {
@@ -2092,7 +2120,7 @@ app_dumaos() {
       depmod -a 4.1.52 2>/dev/null || true
     fi
     echo act_connmark > /etc/modules.d/99-dumaos-qos || return 1
-    modprobe act_connmark 2>/dev/null || insmod "$dumaos_module" 2>/dev/null || {
+    modprobe act_connmark 2>/dev/null || insmod "$dumaos_module" 2>/dev/null || /rom/sbin/insmod "$dumaos_module" 2>/dev/null || {
       echo "Unable to load the DumaOS act_connmark QoS module"
       return 1
     }
@@ -2151,7 +2179,10 @@ app_dumaos() {
       ;;
     esac
     if [ "$(dumaos_installed_version)" != "$dumaos_version" ]; then
-      require_free_space 40960 /overlay || return 1
+      require_free_space 46080 /overlay || {
+        echo "DumaOS requires at least 45 MB of free space in /overlay"
+        return 1
+      }
       require_free_space 10240 /tmp || return 1
       opkg update || return 1
       curl -kfL "https://github.com/FrancYescO/sharing_tg789/releases/download/$dumaos_tag/$dumaos_package" \

@@ -88,7 +88,12 @@ local function updateLanCache()
       error("retrieving hosts failed")
     end
     --Update the lan interfaces cache
-    lanInterfacesCache = nwcommon.findLanWanInterfaces(false)
+    local newLan = nwcommon.findLanWanInterfaces(false)
+    if newLan ~= nil then
+      lanInterfacesCache = newLan
+    elseif lanInterfacesCache == nil then
+      lanInterfacesCache = {}
+    end
 end
 
 local function getWirelessNumberOfEntries(mapping)

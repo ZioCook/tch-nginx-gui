@@ -20,7 +20,8 @@ end
 ----------------------------------------------------------------------------
 -- Internal compilation cache.
 local cache = {}
-local max_cache_size = 20
+local lookup = {}
+local max_cache_size = 100
 
 ----------------------------------------------------------------------------
 -- Set the size of the template cache.
@@ -33,6 +34,10 @@ local function setcachesize(size)
   -- if we're shrinking then throw out any excess elements
   if size < max_cache_size and #cache > size then
     for i = size + 1, #cache do
+      local e = cache[i]
+      if e then
+        lookup[e.filename] = nil
+      end
       cache[i] = nil
     end
   end
@@ -44,6 +49,7 @@ end
 ----------------------------------------------------------------------------
 local function flush()
   cache = {}
+  lookup = {}
 end
 
 local function translate(template)
@@ -94,15 +100,19 @@ end
 -- @scope internal
 ----------------------------------------------------------------------------
 local function getFromCache(filename)
-  for position, entry in ipairs(cache) do
-    if entry.filename == filename then
-      -- entry already exists, move it to pos 1 of table (most recently used)
-      if position ~= 1 then
-        entry = tremove(cache, position)
-        tinsert(cache, 1, entry)
+  local entry = lookup[filename]
+  if entry then
+    -- entry already exists, move it to pos 1 of table (most recently used)
+    if cache[1] ~= entry then
+      for position, e in ipairs(cache) do
+        if e == entry then
+          entry = tremove(cache, position)
+          tinsert(cache, 1, entry)
+          break
+        end
       end
-      return entry
     end
+    return entry
   end
 end
 
@@ -116,11 +126,15 @@ local function putInCache(entry)
     -- there is a cache we can insert to
     -- If cache is full clear oldest entry (which is at the end)
     if #cache >= max_cache_size then
-      tremove(cache)
+      local oldest = tremove(cache)
+      if oldest then
+        lookup[oldest.filename] = nil
+      end
     end
 
     -- Insert new entry on position one (as it is the most recently used)
     tinsert(cache, 1, entry)
+    lookup[entry.filename] = entry
   end
 end
 

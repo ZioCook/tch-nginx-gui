@@ -74,15 +74,22 @@ if success then
 --      wanintfs[index] = {v, format("%s-VLAN%s", wanintfs_name[v], getContent[v.."vlan"])}
       wanintfs[index] = {v, format("%s", wanintfs_name[v] or v)}
    else
-      if find(getContent[v.."ifname"], "eth") then
-        wanintfs[index] = {v, format("%s-%s", wanintfs_name[v] or v, upper(getContent[v.."ifname"]))}
-      else
-        local wanintf_path = format("%s@%s.vid", "uci.network.device.", getContent[v.."ifname"])
-        local result = proxy.get(wanintf_path)
-        if type(result) == "table" then
---          wanintfs[index] = {v,format("%s-VLAN%s", wanintfs_name[v], result[1]["value"])}
-          wanintfs[index] = {v,format("%s", wanintfs_name[v] or v)}
+      local ifname = getContent[v.."ifname"]
+      if ifname and ifname ~= "" then
+        if find(ifname, "eth") then
+          wanintfs[index] = {v, format("%s-%s", wanintfs_name[v] or v, upper(ifname))}
+        else
+          local wanintf_path = format("%s@%s.vid", "uci.network.device.", ifname)
+          local result = proxy.get(wanintf_path)
+          if type(result) == "table" then
+  --          wanintfs[index] = {v,format("%s-VLAN%s", wanintfs_name[v], result[1]["value"])}
+            wanintfs[index] = {v,format("%s", wanintfs_name[v] or v)}
+          else
+            wanintfs[index] = {v,format("%s", wanintfs_name[v] or v)}
+          end
         end
+      else
+        wanintfs[index] = {v,format("%s", wanintfs_name[v] or v)}
       end
    end
   end
@@ -293,7 +300,6 @@ local function getIntfName(intf)
   end
   return intf
 end
-
 
 for index, row in ipairs(bridge_data) do
   local lan, wan = bridgeSelections(row[3], row[4])

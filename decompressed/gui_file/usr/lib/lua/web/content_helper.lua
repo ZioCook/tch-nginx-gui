@@ -256,6 +256,41 @@ function M.readfile(filename,form,conversion)
     return result
 end
 
+local theme_has_script = {}
+--- Check if a theme has script.js, caching the result in memory across requests
+function M.themeHasScript(skin)
+    if not skin or skin == "" then return false end
+    local clean_skin = untaint(skin)
+    if not clean_skin or clean_skin == "" then return false end
+    local cached = theme_has_script[clean_skin]
+    if cached ~= nil then
+        return cached
+    end
+    local filepath = "/www/docroot/theme/" .. clean_skin .. "/script.js"
+    local fd = open(untaint(filepath), "r")
+    if fd then
+        fd:close()
+        theme_has_script[clean_skin] = true
+        return true
+    else
+        theme_has_script[clean_skin] = false
+        return false
+    end
+end
+
+--- Check if a file exists and properly close it
+function M.fileExists(filename)
+    if not filename or filename == "" then return false end
+    local clean_filename = untaint(filename)
+    local fd = open(clean_filename, "r")
+    if fd then
+        fd:close()
+        return true
+    end
+    return false
+end
+
+
 --- Method to convert proxy result to aggregated objects
 --  This method only work on results from an array type of elements
 --  It will discard elements deeper than the array
@@ -310,20 +345,42 @@ local function convertResultToObject(basepath, results, sorted)
             else
                 index = sorted
             end
-            -- Avoid the table.sort crash when meets nil object
-            if output[1][index] then
-                table.sort(output, function(a, b)
-                    if a[index] and b[index] then
-                        if reverse then
-                            return a[index] > b[index]
-                        else
-                            return a[index] < b[index]
-                        end
-                    else
-                        return true
+            table.sort(output, function(a, b)
+                local valA = a and a[index]
+                local valB = b and b[index]
+                if valA == valB then
+                    return false
+                end
+                if valA == nil then
+                    return not reverse
+                end
+                if valB == nil then
+                    return reverse
+                end
+                local numA = tonumber(valA)
+                local numB = tonumber(valB)
+                if numA and numB then
+                    if numA == numB then
+                        return false
                     end
-                end)
-            end
+                    if reverse then
+                        return numA > numB
+                    else
+                        return numA < numB
+                    end
+                end
+                local untaint = string.untaint
+                local strA = untaint and untaint(valA) or valA
+                local strB = untaint and untaint(valB) or valB
+                if tostring(strA) == tostring(strB) then
+                    return false
+                end
+                if reverse then
+                    return tostring(strA) > tostring(strB)
+                else
+                    return tostring(strA) < tostring(strB)
+                end
+            end)
         end
     end
 
@@ -441,11 +498,28 @@ function M.setObject(object, map, basepath, defaultObject)
     local something = false
     basepath = basepath or ""
 
+    local function toStringVal(val)
+        if type(val) == "boolean" then
+            return val and "1" or "0"
+        elseif val == nil then
+            return ""
+        else
+            local untaint = string.untaint
+            if untaint then
+                val = untaint(val)
+            end
+            if type(val) == "boolean" then
+                return val and "1" or "0"
+            end
+            return tostring(val)
+        end
+    end
+
     -- If defaultObject is not nil, then we start adding it
     -- Anything that is also present in object will overwrite this
     if type(defaultObject) == "table" then
         for k,v in pairs(defaultObject) do
-            pathvalues[basepath .. k] = v
+            pathvalues[basepath .. k] = toStringVal(v)
         end
     end
 
@@ -459,16 +533,23 @@ function M.setObject(object, map, basepath, defaultObject)
                 proxy.del(basepath .. map[k] .. ".")
                 for i,d in ipairs(v) do
                     proxy.add(basepath .. map[k] .. ".")
-                    pathvalues[basepath .. map[k] .. ".@" .. i .. ".value"] = d
+                    pathvalues[basepath .. map[k] .. ".@" .. i .. ".value"] = toStringVal(d)
                 end
             else
-                pathvalues[basepath .. map[k]] = v
+                pathvalues[basepath .. map[k]] = toStringVal(v)
             end
         end
     end
 
     if something == true then
         success, msg = proxy.set(pathvalues)
+        if not success and ngx and ngx.log then
+            local p_log = {}
+            for pk, pv in pairs(pathvalues) do
+                p_log[#p_log+1] = pk .. " (" .. type(pk) .. ") = " .. tostring(pv) .. " (" .. type(pv) .. ")"
+            end
+            ngx.log(ngx.ERR, "proxy.set failed in setObject: " .. table.concat(p_log, "; "))
+        end
     end
     return success, msg
 end

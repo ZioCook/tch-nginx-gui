@@ -213,6 +213,9 @@ end
 -- @param token The token to check.
 -- @return True if the token matches.
 function Session:checkCSRFtoken(token)
+  if type(token) == "table" then
+    token = token[1]
+  end
   if token ~= self.CSRFtoken then
     ngx.log(ngx.ERR, "POST without CSRF token")
     ngx.exit(ngx.HTTP_FORBIDDEN)

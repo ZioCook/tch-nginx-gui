@@ -1,0 +1,22 @@
+#!/bin/sh
+
+# Determine configured WPS button dynamically (e.g. BTN_2 on DGA4331, BTN_4 on DGA4132/TG789)
+WPS_BTN=$(uci -q get button.wps.button)
+if [ -z "$WPS_BTN" ]; then
+    if grep -q "BTN_4" /etc/config/button 2>/dev/null; then
+        WPS_BTN="BTN_4"
+    else
+        WPS_BTN="BTN_2"
+    fi
+fi
+
+[ "$BUTTON" = "$WPS_BTN" ] || exit 0
+
+case "$ACTION" in
+    pressed)
+        /bin/sh /usr/bin/wps-poweroff-monitor.sh start &
+        ;;
+    released)
+        /bin/sh /usr/bin/wps-poweroff-monitor.sh stop "$SEEN" &
+        ;;
+esac
