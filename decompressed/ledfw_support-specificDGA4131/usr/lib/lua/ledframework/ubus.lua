@@ -15,11 +15,13 @@ if info_service_led_timeout == nil then
     info_service_led_timeout = 2000
 end
 
+local ambient_active = cursor:get(config, 'ambient', 'active')
 local provisioning_status = "completed"
 
 cursor:unload(config)
 
 local wan_status = "initial"
+local ambient_initial_pattern = (ambient_active == "0") and "inactive" or "active"
 
 
 --Led runtime data structure:
@@ -44,7 +46,7 @@ local led = {
     broadband = {status = "initial", mode = "initial", color = "none", utimer = nil},
     wireless = {status = "initial", mode = "initial", color = "none", utimer = nil},
     wps = {status = "initial", mode = "initial", color = "none", utimer = nil},
-    ambient = {pattern = "active", status = "initial"},
+    ambient = {pattern = ambient_initial_pattern, status = "initial"},
 }
 
 local reset_timer = nil
@@ -105,6 +107,7 @@ local function update_led_status(cb, ledname, status, mode, color)
     if status ~= "off" then
         -- If ambient is set to be 'inactive' by user, trigger it at the first event of service-led.
         if led.ambient.pattern == "to-inactive" then
+            cb('ambient_switch_off')
             cb('ambient_inactive')
             led.ambient.pattern = "inactive"
         end
@@ -140,6 +143,11 @@ function M.start(cb)
     local conn = ubus.connect()
     if not conn then
         error("Failed to connect to ubusd")
+    end
+
+    if ambient_initial_pattern == "inactive" then
+        cb('ambient_switch_off')
+        cb('ambient_inactive')
     end
 
     local events = {}
@@ -275,12 +283,14 @@ function M.start(cb)
                         -- Ambient inactive just means it's not in use to represent its staus.
                         -- Ambient status and color should be updated according to service-led status,
                         -- so that its status can be represent correctly as soon as it get active again.
+                        cb('ambient_switch_off')
                         cb('ambient_inactive')
                         led.ambient.pattern = "inactive"
                     end
                 end
             elseif msg.state == "active" then
                 -- Always turns ambient.pattern immediatelly.
+                cb('ambient_switch_on')
                 cb('ambient_active')
                 led.ambient.pattern = "active"
             end

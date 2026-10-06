@@ -1,4 +1,3 @@
--- DGA4331 LED state machine; packaged separately from the specific app.
 -- The only available function is helper (ledhelper)
 local timerLed, staticLed, netdevLed, netdevLedOWRT, runFunc, uci, ubus, print, get_depending_led, is_WiFi_LED_on_if_NSC, is_show_remote_mgmt, xdsl_status = timerLed, staticLed, netdevLed, netdevLedOWRT, runFunc, uci, ubus, print, get_depending_led, is_WiFi_LED_on_if_NSC, is_show_remote_mgmt, xdsl_status
 local wl1_ifname = get_wl1_ifname()
@@ -190,6 +189,7 @@ patterns = {
             status_active = {
                 status_nok = "status_inactive",
                 status_inactive = "status_inactive",
+                status_active = "status_active",
             },
         },
         actions = {

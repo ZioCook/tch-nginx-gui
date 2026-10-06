@@ -5,10 +5,10 @@
 check_webui_config() {
   if [ -f /tmp/web_unlock ]; then
     if [ ! "$(uci get -q web.changelog)" ] || [ ! "$(uci get -q web.mmpbxstatisticsmodal)" ]; then
-      mv /etc/config/web /etc/config/web_back #backup of the stock web config
+      [ ! -f /etc/config/web_back ] && [ -f /etc/config/web ] && mv /etc/config/web /etc/config/web_back #backup of the stock web config
       mv /tmp/web_unlock /etc/config/web      #apply unlocked universal config
     else
-      rm /tmp/web_unlock
+      rm -f /tmp/web_unlock
     fi
   fi
   if [ "$(uci get -q wireless.global.wifi_analyzer_disable)" ]; then
@@ -33,16 +33,122 @@ check_webui_config() {
   fi
 }
 
+check_nanocdn() {
+  if [ -f /etc/init.d/nanocdn ]; then
+    /etc/init.d/nanocdn stop 2>/dev/null
+    /etc/init.d/nanocdn disable 2>/dev/null
+    killall -9 nanocdn-rr 2>/dev/null
+  fi
+}
+
+sync_background_services() {
+  # 1. Disable legacy GRE hotspot daemon if present
+  if [ -f /etc/init.d/gre-hotspotd ]; then
+    /etc/init.d/gre-hotspotd stop 2>/dev/null
+    /etc/init.d/gre-hotspotd disable 2>/dev/null
+    rm -f /etc/rc.d/*gre-hotspotd* 2>/dev/null
+  fi
+
+  # 2. Fix wireless debug_monitor bug (avoid accumulating zombie instances)
+  if [ -f /etc/init.d/wireless ]; then
+    sed -i 's/local OLD_PID_DM=.*/killall -q debug_monitor/' /etc/init.d/wireless 2>/dev/null
+    sed -i '/if \[ \$OLD_PID_DM \]; then/,/fi/d' /etc/init.d/wireless 2>/dev/null
+  fi
+
+  # 3. Sync Parental Control daemons (weburl / dnsfilter)
+  if [ "$(uci get -q parental.general.enable)" != "1" ]; then
+    [ -x /etc/init.d/weburl ] && { /etc/init.d/weburl stop 2>/dev/null; /etc/init.d/weburl disable 2>/dev/null; }
+    [ -x /etc/init.d/dnsfilter ] && { /etc/init.d/dnsfilter stop 2>/dev/null; /etc/init.d/dnsfilter disable 2>/dev/null; }
+  fi
+
+  # 4. Sync Mobile daemons (mobiled / lte-doctor-logger)
+  if [ "$(uci get -q mobiled.device_defaults.enabled)" = "0" ] || [ -z "$(uci get -q mobiled.device_defaults.enabled)" ]; then
+    [ -x /etc/init.d/mobiled ] && { /etc/init.d/mobiled stop 2>/dev/null; /etc/init.d/mobiled disable 2>/dev/null; }
+    [ -x /etc/init.d/lte-doctor-logger ] && { /etc/init.d/lte-doctor-logger stop 2>/dev/null; /etc/init.d/lte-doctor-logger disable 2>/dev/null; }
+    uci set mobiled.globals.enabled='0' 2>/dev/null
+    uci set ltedoctor.config.enabled='0' 2>/dev/null
+    uci commit mobiled 2>/dev/null
+    uci commit ltedoctor 2>/dev/null
+    if [ "$(uci get -q network.wwan.auto)" != "0" ]; then
+      uci set network.wwan.auto='0' 2>/dev/null
+      uci commit network 2>/dev/null
+      ifdown wwan 2>/dev/null
+    fi
+  fi
+
+  # 5. Sync opticald with Bridge mode
+  local is_bridge=0
+  [ "$(uci get -q network.config.wan_mode)" = "bridge" ] && is_bridge=1
+  [ "$(uci get -q network.interface.wan.proto)" = "bridge" ] && is_bridge=1
+  [ "$(uci get -q network.interface.wan.proto)" = "none" ] && [ "$(uci get -q network.interface.wan.auto)" = "0" ] && is_bridge=1
+  if [ "$is_bridge" = "1" ]; then
+    [ -x /etc/init.d/opticald ] && { /etc/init.d/opticald stop 2>/dev/null; /etc/init.d/opticald disable 2>/dev/null; }
+  fi
+
+  # 6. Ensure Nginx and SSL certificate readiness across reboots
+  if [ -f /etc/init.d/nginx ]; then
+    if ! grep -q "unlock_and_refresh_web_config" /etc/init.d/nginx; then
+      sed -i '/start_service() {/a\	[ -x /usr/share/transformer/scripts/unlock_and_refresh_web_config.lua ] && /usr/share/transformer/scripts/unlock_and_refresh_web_config.lua' /etc/init.d/nginx
+    fi
+    if ! grep -q "/tmp/ssl/data/cert" /etc/init.d/nginx; then
+      sed -i '/start_service() {/a\	[ -d /tmp/ssl/data ] || mkdir -p /tmp/ssl/data\n\t[ -e /tmp/ssl/data/cert ] || ln -sf /etc/nginx/server.crt /tmp/ssl/data/cert\n\t[ -e /tmp/ssl/data/pairing ] || ln -sf /etc/nginx/server.key /tmp/ssl/data/pairing' /etc/init.d/nginx
+    fi
+  fi
+  if [ -f /etc/init.d/cert ]; then
+    if ! grep -q "start()" /etc/init.d/cert; then
+      sed -i '/START=79/a\start() {\n\tboot\n}' /etc/init.d/cert
+    fi
+  fi
+  [ -d /tmp/ssl/data ] || mkdir -p /tmp/ssl/data
+  [ -e /tmp/ssl/data/cert ] || ln -sf /etc/nginx/server.crt /tmp/ssl/data/cert
+  [ -e /tmp/ssl/data/pairing ] || ln -sf /etc/nginx/server.key /tmp/ssl/data/pairing
+
+  # 7. Fix Broadcom regulatory country map on 5GHz / 2.4GHz
+  # Stock firmware hardcodes 'EU E0 0 etsi', an ancient pre-VHT regulatory rev that locks 5GHz to 40MHz,
+  # 12.5 dBm power, and blocks all DFS channels (52-112).
+  local is_dga4331=0
+  if grep -qi "DGA4331" /proc/cpuinfo 2>/dev/null || [ "$(uci get -q env.var.prod_friendly_name)" = "MediaAccess DGA4331" ]; then
+    is_dga4331=1
+  fi
+
+  local restart_hostapd=0
+  for map_file in /etc/wlan/brcm_country_map_5G /etc/wlan/brcm_country_map_2G; do
+    if [ -f "$map_file" ]; then
+      if [ "$is_dga4331" = "1" ]; then
+        # On DGA4331 (BCM43684), 'E0' is invalid and causes init_broadcom.sh to disable all WLAN!
+        # Valid codes are IT/0 and US/787. Remove any E0/EU and ensure IT/0 and US/787 are present.
+        if grep -q "E0" "$map_file" || grep -q "EU" "$map_file" || ! grep -q "^IT " "$map_file" || ! grep -q "^US " "$map_file"; then
+          sed -i '/E0/d; /EU/d' "$map_file"
+          grep -q "^IT " "$map_file" || echo "IT IT 0 etsi" >> "$map_file"
+          grep -q "^US " "$map_file" || echo "US US 787 fcc" >> "$map_file"
+          restart_hostapd=1
+        fi
+      else
+        if grep -q "E0 0" "$map_file" || ! grep -q "^IT " "$map_file"; then
+          sed -i 's/E0 0/E0 6/g' "$map_file"
+          if ! grep -q "^IT " "$map_file"; then
+            echo "IT E0 6 etsi" >> "$map_file"
+          fi
+          restart_hostapd=1
+        fi
+      fi
+    fi
+  done
+  if [ "$restart_hostapd" = "1" ] && [ -x /etc/init.d/hostapd ]; then
+    /etc/init.d/hostapd restart 2>/dev/null
+  fi
+}
+
 check_variant_friendly_name() {
   #Get variant friendly name and save
   if [ ! "$(uci get -q env.var.variant_friendly_name)" ]; then
-    variant=$(uci get env.var.prod_friendly_name)
+    variant=$(uci get -q env.var.prod_friendly_name)
     case "$variant" in
 
-    DGA4130)
+    *DGA4130*)
       variant=AGTEF
       ;;
-    DGA4132)
+    *DGA4132*)
       variant=AGTHP
       ;;
     Technicolor*)
@@ -97,7 +203,7 @@ dropbear_config_check() {
   uci set dropbear.wan.RootPasswordAuth='on' #dropbear root related
   uci set dropbear.wan.PasswordAuth='on'
 
-  if [ "$(uci changes)" ]; then
+  if [ "$(uci changes dropbear)" ]; then
     logecho "Restarting Dropbear SSH Server..."
     uci commit dropbear
     /etc/init.d/dropbear enable
@@ -118,6 +224,67 @@ eco_param() {
 
 create_gui_type() {
   #Gathers various infomation about what programs are installed and saves it in the modgui config file
+  if [ ! "$(uci get -q modgui.app.aria2_webui)" ]; then
+    if [ -d /www/docroot/aria ]; then
+      uci set modgui.app.aria2_webui="1"
+    else
+      uci set modgui.app.aria2_webui="0"
+    fi
+  fi
+  if [ ! "$(uci get -q modgui.app.luci_webui)" ]; then
+    if [ -d /www_luci ]; then
+      uci set modgui.app.luci_webui="1"
+    else
+      uci set modgui.app.luci_webui="0"
+    fi
+  fi
+  if [ ! "$(uci get -q modgui.app.amule_webui)" ]; then
+    if [ -d /www/docroot/amule ]; then
+      uci set modgui.app.amule_webui="1"
+    else
+      uci set modgui.app.amule_webui="0"
+    fi
+  fi
+  if [ ! "$(uci get -q modgui.app.transmission_webui)" ]; then
+    if [ -d /www/docroot/transmission ]; then
+      uci set modgui.app.transmission_webui="1"
+    else
+      uci set modgui.app.transmission_webui="0"
+    fi
+  fi
+  if [ ! "$(uci get -q modgui.app.xupnp_app)" ]; then
+    if [ -d /usr/share/xupnpd ]; then
+      uci set modgui.app.xupnp_app="1"
+    else
+      uci set modgui.app.xupnp_app="0"
+    fi
+  fi
+  if [ ! "$(uci get -q modgui.app.voipblock_for_mmpbx)" ]; then
+    if [ -f /etc/firewall.voipblock ]; then
+      uci set modgui.app.voipblock_for_mmpbx="1"
+    else
+      uci set modgui.app.voipblock_for_mmpbx="0"
+    fi
+  fi
+  if [ ! "$(uci get -q modgui.app.voipblock_for_asterisk)" ]; then
+    if [ -d /usr/share/asterisk/agi-bin/voipblock ]; then
+      uci set modgui.app.voipblock_for_asterisk="1"
+    else
+      uci set modgui.app.voipblock_for_asterisk="0"
+    fi
+  fi
+  if [ ! "$(uci get -q modgui.app.blacklist_app)" ]; then
+    if [ -f /www/docroot/modals/mmpbx-contacts-modal.lp.orig ]; then
+      uci set modgui.app.blacklist_app="1"
+    else
+      uci set modgui.app.blacklist_app="0"
+    fi
+  elif [ "$(uci get -q modgui.app.blacklist_app)" = "1" ] &&
+    [ ! -f /www/docroot/modals/mmpbx-contacts-modal.lp.orig ] &&
+    [ -f /usr/share/transformer/scripts/appInstallRemoveUtility.sh ]; then
+    logecho "Reinstalling blacklist app after upgrade..."
+    /usr/share/transformer/scripts/appInstallRemoveUtility.sh install blacklist >/dev/null
+  fi
   if [ ! "$(uci get -q modgui.app.adblock_app)" ]; then
     if [ -x /etc/init.d/adblock ]; then
       uci set modgui.app.adblock_app="1"
@@ -238,68 +405,6 @@ create_gui_type() {
     logecho "Restoring L2TP/IPsec GUI files after upgrade..."
     /usr/share/transformer/scripts/appInstallRemoveUtility.sh refresh l2tpipsec >/dev/null 2>&1
   fi
-  if [ ! "$(uci get -q modgui.app.aria2_webui)" ]; then
-    if [ -d /www/docroot/aria ]; then
-      uci set modgui.app.aria2_webui="1"
-    else
-      uci set modgui.app.aria2_webui="0"
-    fi
-  fi
-  if [ ! "$(uci get -q modgui.app.luci_webui)" ]; then
-    if [ -d /www_luci ]; then
-      uci set modgui.app.luci_webui="1"
-    else
-      uci set modgui.app.luci_webui="0"
-    fi
-  fi
-  if [ ! "$(uci get -q modgui.app.amule_webui)" ]; then
-    if [ -d /www/docroot/amule ]; then
-      uci set modgui.app.amule_webui="1"
-    else
-      uci set modgui.app.amule_webui="0"
-    fi
-  fi
-  if [ ! "$(uci get -q modgui.app.transmission_webui)" ]; then
-    if [ -d /www/docroot/transmission ]; then
-      uci set modgui.app.transmission_webui="1"
-    else
-      uci set modgui.app.transmission_webui="0"
-    fi
-  fi
-  if [ ! "$(uci get -q modgui.app.xupnp_app)" ]; then
-    if [ -d /usr/share/xupnpd ]; then
-      uci set modgui.app.xupnp_app="1"
-    else
-      uci set modgui.app.xupnp_app="0"
-    fi
-  fi
-  if [ ! "$(uci get -q modgui.app.voipblock_for_mmpbx)" ]; then
-    if [ -f /etc/firewall.voipblock ]; then
-      uci set modgui.app.voipblock_for_mmpbx="1"
-    else
-      uci set modgui.app.voipblock_for_mmpbx="0"
-    fi
-  fi
-  if [ ! "$(uci get -q modgui.app.voipblock_for_asterisk)" ]; then
-    if [ -d /usr/share/asterisk/agi-bin/voipblock ]; then
-      uci set modgui.app.voipblock_for_asterisk="1"
-    else
-      uci set modgui.app.voipblock_for_asterisk="0"
-    fi
-  fi
-  if [ ! "$(uci get -q modgui.app.blacklist_app)" ]; then
-    if [ -f /www/docroot/modals/mmpbx-contacts-modal.lp.orig ]; then
-      uci set modgui.app.blacklist_app="1"
-    else
-      uci set modgui.app.blacklist_app="0"
-    fi
-  elif [ "$(uci get -q modgui.app.blacklist_app)" = "1" ] &&
-    [ ! -f /www/docroot/modals/mmpbx-contacts-modal.lp.orig ] &&
-    [ -f /usr/share/transformer/scripts/appInstallRemoveUtility.sh ]; then
-    logecho "Reinstalling blacklist app after upgrade..."
-    /usr/share/transformer/scripts/appInstallRemoveUtility.sh install blacklist >/dev/null
-  fi
-  uci commit modgui
 }
 
 add_new_web_rule() {
@@ -346,13 +451,21 @@ suppress_excessive_logging() {
 real_ver_entitied() {
   if [ -f /rom/etc/uci-defaults/tch_5000_versioncusto ] && [ -f /etc/config/versioncusto ]; then
     bank_version="activeversion"
-    if [ "$(cat /proc/banktable/booted)" != "$(cat /proc/banktable/active)" ]; then
-      bank_version="passiveversion"
+    if [ -f /proc/banktable/booted ] && [ -f /proc/banktable/active ]; then
+      if [ "$(cat /proc/banktable/booted)" != "$(cat /proc/banktable/active)" ]; then
+        bank_version="passiveversion"
+      fi
     fi
 
-    short_ver="$(grep </proc/banktable/$bank_version -Eo '.*\..*\.[0-9]*-[0-9]*')"
-    real_ver=$(grep </rom/etc/uci-defaults/tch_5000_versioncusto "$short_ver" | awk '{print $2}')
-    if [ "$real_ver" = "" ]; then
+    short_ver=""
+    if [ -f "/proc/banktable/$bank_version" ]; then
+      short_ver="$(grep -Eo '.*\..*\.[0-9]*-[0-9]*' "/proc/banktable/$bank_version")"
+    fi
+    real_ver=""
+    if [ -n "$short_ver" ]; then
+      real_ver=$(grep "$short_ver" /rom/etc/uci-defaults/tch_5000_versioncusto | awk '{print $2}')
+    fi
+    if [ -z "$real_ver" ]; then
       real_ver="Not Found"
     fi
     if [ ! "$(uci get -q versioncusto.override.fwversion_override_real)" ]; then
@@ -367,7 +480,7 @@ real_ver_entitied() {
     if [ -f /overlay/.skip_version_spoof ]; then
       uci set modgui.var.version_spoof_mode="disabled"
       uci set versioncusto.override.fwversion_override="$real_ver"
-      rm /overlay/.skip_version_spoof
+      rm -f /overlay/.skip_version_spoof
     else
       if [ "$(uci get -q modgui.var.version_spoof_mode)" ]; then
         if [ "$(uci get -q modgui.var.version_spoof_mode)" = "disabled" ]; then
@@ -437,18 +550,18 @@ dosprotect_inizialize() {
       /etc/init.d/dosprotect start
     fi
   fi
-  [ -f /tmp/dosprotect_orig ] && rm /tmp/dosprotect_orig
+  [ -f /tmp/dosprotect_orig ] && rm -f /tmp/dosprotect_orig
 }
 
 mobiled_lib_add() {
-  if [ -f /rom/usr/lib/lua/mobiled/scripthelpers.lua ]; then #restore from rom to avoid taking the replaced from older GUI installs
-    if [ "$(md5sum /rom/usr/lib/lua/mobiled/scripthelpers.lua | cut -d' ' -f1)" != "$(md5sum /usr/lib/lua/mobiled/scripthelpers.lua | cut -d' ' -f1)" ]; then
+  if [ -f /rom/usr/lib/lua/mobiled/scripthelpers.lua ] && [ -f /usr/lib/lua/mobiled/scripthelpers.lua ]; then #restore from rom to avoid taking the replaced from older GUI installs
+    if [ "$(md5sum /rom/usr/lib/lua/mobiled/scripthelpers.lua 2>/dev/null | cut -d' ' -f1)" != "$(md5sum /usr/lib/lua/mobiled/scripthelpers.lua 2>/dev/null | cut -d' ' -f1)" ]; then
       logecho "Restoring mobiled scripthelpers lib..."
       cp /rom/usr/lib/lua/mobiled/scripthelpers.lua /usr/lib/lua/mobiled/scripthelpers.lua
     fi
   fi
 
-  if [ -f /rom/usr/lib/lua/libat/huawei.lua ]; then
+  if [ -f /rom/usr/lib/lua/libat/huawei.lua ] && [ -f /usr/lib/lua/libat/huawei.lua ]; then
     cmp -s /rom/usr/lib/lua/libat/huawei.lua /usr/lib/lua/libat/huawei.lua || cp /rom/usr/lib/lua/libat/huawei.lua /usr/lib/lua/libat/huawei.lua
     grep -q "1003" /usr/lib/lua/libat/huawei.lua || sed -i '/^.*or device.pid == "1c05" then -- E173/i or device.pid == "1003" -- E156G E17X' /usr/lib/lua/libat/huawei.lua
   fi
@@ -463,30 +576,30 @@ mobiled_lib_add() {
   marketing_version="$(uci get -q version.@version[0].marketing_version)"
   if [ -z "${marketing_version##16*}" ]; then #need to replace on old fw (16.x) otherwise will ignore enabled status
     logecho "Replacing /etc/init.d/mobiled ..."
-    mv /tmp/mobiled /etc/init.d/mobiled
+    [ -f /tmp/mobiled ] && mv /tmp/mobiled /etc/init.d/mobiled
     /etc/init.d/mobiled restart
   else
     #make sure we haven't replaced it some old GUI install, restore from rom if needed
-    if [ -f /rom/etc/init.d/mobiled ] && [ -n "$(cmp /rom/etc/init.d/mobiled /etc/init.d/mobiled)" ]; then
+    if [ -f /rom/etc/init.d/mobiled ] && [ -f /etc/init.d/mobiled ] && ! cmp -s /rom/etc/init.d/mobiled /etc/init.d/mobiled; then
       logecho "Restoring and restarting /etc/init.d/mobiled ..."
       cp /rom/etc/init.d/mobiled /etc/init.d/mobiled
       /etc/init.d/mobiled restart
     fi
-    [ -f /tmp/mobiled ] && rm /tmp/mobiled
+    [ -f /tmp/mobiled ] && rm -f /tmp/mobiled
   fi
 
   #replacing default lte-doctor config if is configured as "no-logging" (found 1 time the logger word)
-  if [ ! -f /etc/config/ltedoctor ] || [ "$(grep -i -c logger </etc/config/ltedoctor)" = "1" ]; then
+  if [ ! -f /etc/config/ltedoctor ] || [ "$(grep -i -c logger </etc/config/ltedoctor 2>/dev/null)" = "1" ]; then
     if [ -f /tmp/ltedoctor ]; then
       logecho "Replacing ltedoctor config..."
       mv /tmp/ltedoctor /etc/config/ltedoctor
       /etc/init.d/lte-doctor-logger restart
     fi
   fi
-  [ -f /tmp/ltedoctor ] && rm /tmp/ltedoctor
+  [ -f /tmp/ltedoctor ] && rm -f /tmp/ltedoctor
 
   major_system_version="$(uci get version.@version[0].marketing_version | sed 's#\.##' | grep -o -E '[0-9]+')"
-  if [ "$major_system_version" -lt 173 ]; then #if fw <17.3
+  if [ -n "$major_system_version" ] && [ "$major_system_version" -lt 173 ] 2>/dev/null; then #if fw <17.3
     #Restore original lte-doctor related webui files
     [ -f /rom/www/docroot/ajax/radioparameters.lua ] && cp /rom/www/docroot/ajax/radioparameters.lua /www/docroot/ajax/radioparameters.lua
     [ -f /rom/www/docroot/modals/lte-doctor.lp ] && cp /rom/www/docroot/modals/lte-doctor.lp /www/docroot/modals/lte-doctor.lp
@@ -504,19 +617,19 @@ disable_intercept() {
 }
 
 restore_nginx() {
-  #This file contain settings specific for gui
-  #For example
-  #client_max_body_size
+  # This file contains settings specific for GUI (included in nginx.conf via include ui_server.conf)
   if [ ! -f /etc/nginx/ui_server.conf ]; then
-    #Execute defualt script to set this value
-    /rom/etc/uci-defaults/tch_0080-nginx
+    [ -f /rom/etc/uci-defaults/tch_0080-nginx ] && /rom/etc/uci-defaults/tch_0080-nginx 2>/dev/null
   fi
-}
-
-apply_nginx_compatibility() {
-  compat_script="/usr/share/transformer/scripts/compat_nginx.sh"
-  if [ -x "$compat_script" ]; then
-    "$compat_script" || logecho "Warning: nginx compatibility changes were rolled back"
+  # Ensure client_max_body_size is 64M for offline GUI updates, specific apps and backups
+  if [ -f /etc/nginx/ui_server.conf ]; then
+    if grep -q "client_max_body_size" /etc/nginx/ui_server.conf 2>/dev/null; then
+      sed -i 's/client_max_body_size.*/client_max_body_size 64M;/' /etc/nginx/ui_server.conf
+    else
+      echo "client_max_body_size 64M;" >> /etc/nginx/ui_server.conf
+    fi
+  else
+    echo "client_max_body_size 64M;" > /etc/nginx/ui_server.conf
   fi
 }
 
@@ -530,13 +643,34 @@ adds_dnd_config() {
   fi
 }
 
+apply_nginx_compatibility() {
+  if [ -x /usr/share/transformer/scripts/compat_nginx.sh ]; then
+    /usr/share/transformer/scripts/compat_nginx.sh apply
+  fi
+}
+
+if ! type safe_mv >/dev/null 2>&1; then
+  safe_mv() { # <src file path> <dest file path>
+    [ ! -f "$1" ] && return 1
+    [ -f "$2" ] && rm -f "$2"
+    dest_free=$(df -P "$(dirname "$2")" 2>/dev/null | awk 'NR==2 {print $4}')
+    src_size=$(($(wc -c <"$1" 2>/dev/null) / 1024))
+    if [ -n "$dest_free" ] && [ -n "$src_size" ] && [ "$dest_free" -gt "$src_size" ] 2>/dev/null; then
+      mv "$1" "$2"
+    else
+      echo "ERROR: No space left for mv $1 $2"
+      return 1
+    fi
+  }
+fi
+
 move_gui_to_root() {
   if [ -f /tmp/GUI.tar.bz2 ]; then
     logecho "Updating GUI in /root folder from /tmp"
     if [ -f /root/GUI.tar.bz2 ]; then
-      rm /root/GUI.tar.bz2
+      rm -f /root/GUI.tar.bz2
     fi
-    mv /tmp/GUI.tar.bz2 /root/GUI.tar.bz2
+    safe_mv /tmp/GUI.tar.bz2 /root/GUI.tar.bz2
   fi
 }
 
@@ -554,43 +688,46 @@ cumulative_check_gui() {
     logecho "Update branch detected: DEV"
   fi
 
-  #Remove deprecated .gz GUI file if low space device
-  overlay_space=$(df /overlay | sed -n 2p | awk \{'{print $2}'\})
+  #Remove deprecated / unneeded GUI packages if low space device to prevent 100% overlay exhaustion (issue #1203)
+  overlay_space=$(df -P /overlay 2>/dev/null | awk 'NR==2 {print $2}')
+  [ -z "$overlay_space" ] && overlay_space=999999
   if [ "$overlay_space" -lt 33000 ]; then
-    logger -s -t 'Root Script' "Detected low flash space device..."
-    if [ -f /root/GUI.tar.gz ]; then
-      logger -s -t 'Root Script' "Removing unneeded gz of Stable GUI"
-      rm /root/GUI.tar.gz
-    fi
+    logger -s -t 'Root Script' "Detected low flash space device ($overlay_space KB)..."
+    [ -f /root/GUI.tar.gz ] && rm -f /root/GUI.tar.gz
+    [ -f /root/GUI_dev.tar.bz2 ] && rm -f /root/GUI_dev.tar.bz2
   fi
 
-  #This makes sure we have a recovery GUI package in /root
+  #This makes sure we have a recovery GUI package in /root (only on devices with enough flash space)
   if [ ! -f /root/GUI.tar.bz2 ]; then
-    logecho "Stable GUI not found in /root"
-    if [ ! -f /tmp/GUI.tar.bz2 ]; then
-      logecho "Stable GUI not found in /tmp, checking for GUI_dev..."
-      if [ -f /tmp/GUI_dev.tar.bz2 ]; then
-        logecho "Found GUI_dev in /tmp, copying in /root to generate a valid hash"
-        mv /tmp/GUI_dev.tar.bz2 /tmp/GUI.tar.bz2
-        move_gui_to_root
-      elif ping -q -c 1 -W 1 8.8.8.8 >/dev/null 2>&1; then
-        logecho "Downloading stable..."
-        if /usr/share/transformer/scripts/checkver DownloadStable /tmp/GUI.tar.bz2; then
+    if [ "$overlay_space" -lt 33000 ] && [ -d /www/docroot ]; then
+      logecho "Low flash space device: skipping recovery GUI download to prevent overlay exhaustion"
+    else
+      logecho "Stable GUI not found in /root"
+      if [ ! -f /tmp/GUI.tar.bz2 ]; then
+        logecho "Stable GUI not found in /tmp, checking for GUI_dev..."
+        if [ -f /tmp/GUI_dev.tar.bz2 ]; then
+          logecho "Found GUI_dev in /tmp, copying in /root to generate a valid hash"
+          mv /tmp/GUI_dev.tar.bz2 /tmp/GUI.tar.bz2
           move_gui_to_root
+        elif ping -q -c 1 -W 1 8.8.8.8 >/dev/null 2>&1; then
+          logecho "Downloading stable..."
+          if /usr/share/transformer/scripts/checkver DownloadStable /tmp/GUI.tar.bz2; then
+            move_gui_to_root
+          else
+            logecho "Cannot download a verified recovery GUI."
+          fi
         else
-          logecho "Cannot download a verified recovery GUI."
+          logecho "Can't download stable GUI!"
         fi
       else
-        logecho "Can't download stable GUI!"
+        logecho "Moving stable GUI from /tmp to /root"
+        move_gui_to_root
       fi
-    else
-      logecho "Moving stable GUI from /tmp to /root"
-      move_gui_to_root
-    fi
-    if [ -s /root/GUI.tar.bz2 ]; then
-      logecho "Assuming first time install, cleaning /www dir and re-extracting .bz2"
-      rm -r /www/*
-      bzcat /root/GUI.tar.bz2 | tar -C / -xf - www
+      if [ -s /root/GUI.tar.bz2 ]; then
+        logecho "Assuming first time install, cleaning /www dir and re-extracting .bz2"
+        rm -r /www/*
+        bzcat /root/GUI.tar.bz2 | tar -C / -xf - www
+      fi
     fi
   fi
 
@@ -609,18 +746,29 @@ cumulative_check_gui() {
     else
       logecho "GUI hash set: $old_gui_hash"
     fi
+  elif [ -f /root/gui_orig.md5sum ]; then
+    old_gui_hash=$(uci get -q modgui.gui.gui_hash)
+    gui_hash=$(awk '{ print $1 }' /root/gui_orig.md5sum)
+    logecho "GUI hash set from saved md5: $gui_hash"
   else
     logecho "Can't generate GUI hash, file not found!"
     gui_hash="0"
   fi
 
+  # On low flash space devices, remove /root/GUI.tar.bz2 after hash generation to keep overlay under safe threshold
+  if [ "$overlay_space" -lt 33000 ] && [ -f /root/GUI.tar.bz2 ]; then
+    logger -s -t 'Root Script' "Low flash space device: removing /root/GUI.tar.bz2 to preserve flash space"
+    [ -n "$gui_hash" ] && [ "$gui_hash" != "0" ] && echo "$gui_hash" >/root/gui_orig.md5sum
+    rm -f /root/GUI.tar.bz2
+  fi
+
   clean_version_gui=$(echo "$version_gui" | cut -d'-' -f1)
 
   #This is to fix a bug in older gui when stable gui is wrongly saved as dev and never replaced.
-  major_ver="$(echo "$clean_version_gui" | cut -d. -f 0)"
-  if [ "$major_ver" -lt 9 ]; then
+  major_ver="$(echo "$clean_version_gui" | cut -d. -f 1)"
+  if [ -n "$major_ver" ] && [ "$major_ver" -lt 9 ] 2>/dev/null; then
     if [ -f /root/GUI.tar.bz2 ] && [ -f /root/GUI_dev.tar.bz2 ]; then
-      rm /root/GUI.tar.bz2
+      rm -f /root/GUI.tar.bz2
       mv /root/GUI_dev.tar.bz2 /root/GUI.tar.bz2
     fi
   fi
@@ -666,7 +814,7 @@ cumulative_check_gui() {
 fcctlsettings_daemon() {
   if [ -f /etc/config/fcctlsettings ]; then
     if grep -q 'mcast-learn' </etc/config/fcctlsettings; then
-      rm /etc/config/fcctlsettings #NEVER EVER WRITE - IN CONFIG FILE...
+      rm -f /etc/config/fcctlsettings #NEVER EVER WRITE - IN CONFIG FILE...
     fi
   fi
   if [ ! -f /etc/config/fcctlsettings ]; then
@@ -675,7 +823,7 @@ fcctlsettings_daemon() {
     fi
   else
     if [ -f /etc/config/fcctlsettings_new ]; then
-      rm /etc/config/fcctlsettings_new
+      rm -f /etc/config/fcctlsettings_new
     fi
   fi
   if [ ! -f /etc/rc.d/S99fcctlsettings ] && [ -f /etc/init.d/fcctlsettings ]; then
@@ -688,18 +836,20 @@ fcctlsettings_daemon() {
 led_integration() {
   #Restart statusledeventing if old version
   if [ -f /tmp/status-led-eventing.lua_new ]; then
-    ledeventing_new_md5=$(awk </tmp/status-led-eventing.md5sum '{ print $1 }')
-    ledeventing_md5=$(md5sum /sbin/status-led-eventing.lua | awk '{ print $1 }')
+    ledeventing_new_md5=""
+    [ -f /tmp/status-led-eventing.md5sum ] && ledeventing_new_md5=$(awk '{ print $1 }' /tmp/status-led-eventing.md5sum)
+    ledeventing_md5=""
+    [ -f /sbin/status-led-eventing.lua ] && ledeventing_md5=$(md5sum /sbin/status-led-eventing.lua 2>/dev/null | awk '{ print $1 }')
     logecho "LedEventing new md5sum: $ledeventing_new_md5"
     logecho "LedEventing md5sum: $ledeventing_md5"
-    if [ "$ledeventing_new_md5" ] && [ "$ledeventing_new_md5" != "$ledeventing_md5" ]; then
-      rm /sbin/status-led-eventing.lua
+    if [ -n "$ledeventing_new_md5" ] && [ "$ledeventing_new_md5" != "$ledeventing_md5" ]; then
+      rm -f /sbin/status-led-eventing.lua
       mv /tmp/status-led-eventing.lua_new /sbin/status-led-eventing.lua
-      rm /tmp/status-led-eventing.md5sum
+      rm -f /tmp/status-led-eventing.md5sum
       /usr/share/transformer/scripts/restart_leds.sh
-      ubus send fwupgrade '{"state":"upgrading"}' # #continue blinking when service restarted
+      ubus send fwupgrade '{"state":"upgrading"}' #continue blinking when service restarted
     else
-      rm /tmp/status-led-eventing.lua_new /tmp/status-led-eventing.md5sum
+      rm -f /tmp/status-led-eventing.lua_new /tmp/status-led-eventing.md5sum
     fi
   fi
 }
@@ -729,6 +879,8 @@ logecho "Check original config"
 orig_config_gen #this check if new config are already present
 logecho "Unlocking web interface if needed"
 check_webui_config
+check_nanocdn
+sync_background_services
 logecho "Check if variant_friendly_name set"
 check_variant_friendly_name
 logecho "Check Dropbear config file"
@@ -774,3 +926,129 @@ logecho "Decrypting any encrypted password present in config"
 decrypt_config_pass
 clean_ping_and_traceroute
 clean_watchdog
+
+# Disable socat (generic tunneling daemon, not used by GUI, no toggle)
+# Note: telnetd is intentionally NOT disabled here — it is controlled by
+# the GUI toggle in "Funzioni extra di sistema" > "Accesso telnet" via
+# uci.telnet.general.enable. The init.d script already checks this value
+# before starting. We only ensure the link is present so procd can manage it.
+if [ -f "/etc/init.d/socat" ]; then
+  /etc/init.d/socat enabled 2>/dev/null && {
+    logecho "Disabling unused service: socat"
+    /etc/init.d/socat disable
+    /etc/init.d/socat stop 2>/dev/null
+  }
+fi
+
+# Restore telnetd init.d link if it was accidentally removed,
+# so the GUI toggle and procd reload trigger work correctly
+if [ -f "/etc/init.d/telnetd" ] && ! /etc/init.d/telnetd enabled 2>/dev/null; then
+  logecho "Re-enabling telnetd init.d link (UCI toggle controls actual start)"
+  /etc/init.d/telnetd enable
+fi
+
+
+# Kernel/TCP Stack Tuning
+# Rationale: defaults are optimized for 10Mbps-era hardware.
+# These values improve throughput on VDSL/GPON and reduce latency.
+logecho "Applying TCP stack and VM tuning..."
+
+# Increase TCP socket buffers: from 200KB to 2MB
+# Needed for VDSL2/GPON > 50Mbps to saturate the link
+sysctl -w net.core.rmem_max=2097152 >/dev/null 2>&1
+sysctl -w net.core.wmem_max=2097152 >/dev/null 2>&1
+sysctl -w net.ipv4.tcp_rmem="4096 87380 2097152" >/dev/null 2>&1
+sysctl -w net.ipv4.tcp_wmem="4096 65536 2097152" >/dev/null 2>&1
+
+# Enable TCP Fast Open (both client and server sides)
+# Eliminates one RTT for connections to known servers
+sysctl -w net.ipv4.tcp_fastopen=3 >/dev/null 2>&1
+
+# VM: keep processes in RAM, avoid aggressive swap
+# Default 60 is too aggressive for a router with limited RAM
+# 10 = swap only when nearly full, keeping transformer/nginx in RAM
+sysctl -w vm.swappiness=10 >/dev/null 2>&1
+sysctl -w vm.min_free_kbytes=8192 >/dev/null 2>&1
+
+# Reduce TIME_WAIT connections to free up ports faster
+sysctl -w net.ipv4.tcp_fin_timeout=15 >/dev/null 2>&1
+sysctl -w net.ipv4.tcp_tw_reuse=1 >/dev/null 2>&1
+
+# Increase conntrack table size proportionally to available RAM
+total_ram=$(awk '/MemTotal/{print $2}' /proc/meminfo)
+if [ "$total_ram" -gt 400000 ]; then
+  sysctl -w net.netfilter.nf_conntrack_max=16384 >/dev/null 2>&1
+fi
+
+logecho "TCP/VM tuning applied."
+
+# Add EasyMesh rules and card only if supported
+if [ -f /etc/config/multiap ] && [ -n "$(uci -q get multiap.controller || uci -q get multiap.agent)" ]; then
+    if [ -z "$(uci -q get web.easyMeshConfiguration)" ]; then
+        uci set web.easyMeshConfiguration=rule
+        uci set web.easyMeshConfiguration.target="/modals/easy-mesh-configuration.lp"
+        uci add_list web.easyMeshConfiguration.roles="admin"
+        uci add_list web.easyMeshConfiguration.roles="engineer"
+        uci add_list web.easyMeshConfiguration.roles="ispuser"
+    fi
+
+    if [ -z "$(uci -q get web.wifiExtender)" ]; then
+        uci set web.wifiExtender=rule
+        uci set web.wifiExtender.target="/modals/wifi-extender-status.lp"
+        uci add_list web.wifiExtender.roles="guest"
+        uci add_list web.wifiExtender.roles="admin"
+        uci add_list web.wifiExtender.roles="engineer"
+        uci add_list web.wifiExtender.roles="ispuser"
+    fi
+
+    if [ -z "$(uci -q get web.agentlistmodal)" ]; then
+        uci set web.agentlistmodal=rule
+        uci set web.agentlistmodal.target="/modals/agent-list.lp"
+        uci add_list web.agentlistmodal.roles="admin"
+        uci add_list web.agentlistmodal.roles="engineer"
+        uci add_list web.agentlistmodal.roles="ispuser"
+    fi
+
+    if [ -z "$(uci -q get web.agentlist2gmodal)" ]; then
+        uci set web.agentlist2gmodal=rule
+        uci set web.agentlist2gmodal.target="/modals/agent-list-2g.lp"
+        uci add_list web.agentlist2gmodal.roles="admin"
+        uci add_list web.agentlist2gmodal.roles="engineer"
+        uci add_list web.agentlist2gmodal.roles="ispuser"
+    fi
+
+    if [ -z "$(uci -q get web.agentlist5gmodal)" ]; then
+        uci set web.agentlist5gmodal=rule
+        uci set web.agentlist5gmodal.target="/modals/agent-list-5g.lp"
+        uci add_list web.agentlist5gmodal.roles="admin"
+        uci add_list web.agentlist5gmodal.roles="engineer"
+        uci add_list web.agentlist5gmodal.roles="ispuser"
+    fi
+
+    if [ -z "$(uci -q get web.wifidevicesinfomodal)" ]; then
+        uci set web.wifidevicesinfomodal=rule
+        uci set web.wifidevicesinfomodal.target="/modals/wifi-devices-info.lp"
+        uci add_list web.wifidevicesinfomodal.roles="admin"
+        uci add_list web.wifidevicesinfomodal.roles="engineer"
+        uci add_list web.wifidevicesinfomodal.roles="ispuser"
+    fi
+
+    if [ -z "$(uci -q get web.wifiextender_card)" ]; then
+        uci set web.wifiextender_card=card
+        uci set web.wifiextender_card.card="020_wifiExtender.lp"
+        uci set web.wifiextender_card.modal="easyMeshConfiguration"
+        uci set web.wifiextender_card.hide="0"
+    fi
+
+    for r in easyMeshConfiguration wifiExtender agentlistmodal agentlist2gmodal agentlist5gmodal wifidevicesinfomodal; do
+        if ! uci -q get web.ruleset_main.rules | grep -q "$r"; then
+            uci add_list web.ruleset_main.rules="$r"
+        fi
+    done
+else
+    # Hide EasyMesh card if device does not support it
+    if [ -n "$(uci -q get web.wifiextender_card)" ]; then
+        uci set web.wifiextender_card.hide="1"
+    fi
+fi
+uci commit web

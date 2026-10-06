@@ -4,8 +4,8 @@
 
 move_files_and_clean(){
   for file in $(find "$1"*/ -xdev | cut -d '/' -f4-); do
-    if [[ -d "$1$file" && ! -d "/$file" ]]; then
-			mkdir "/$file"
+    if [ -d "$1$file" ] && [ ! -d "/$file" ]; then
+			mkdir -p "/$file"
 			continue
 		fi
 
@@ -18,8 +18,10 @@ logecho "Installing specificTG789Xtream35B package..."
 move_files_and_clean /tmp/upgrade-pack-specificTG789Xtream35B/
 
 #needed to fix opkg update from https feed
-opkg install /tmp/wget_1.17.1-1_brcm63xx-tch.ipk
-rm /tmp/wget_1.17.1-1_brcm63xx-tch.ipk
+if [ -f /tmp/wget_1.17.1-1_brcm63xx-tch.ipk ]; then
+  opkg install /tmp/wget_1.17.1-1_brcm63xx-tch.ipk
+  rm -f /tmp/wget_1.17.1-1_brcm63xx-tch.ipk
+fi
 
 if [ ! -f /etc/config/telnet ]; then
   touch /etc/config/telnet
@@ -28,10 +30,12 @@ if [ ! -f /etc/config/telnet ]; then
   uci commit telnet
 fi
 
-if [ -f /bin/busybox_telnet ] && [ ! -f /usr/sbin/telnetd ]; then
-  ln -s /bin/busybox_telnet /usr/sbin/telnetd
+if [ -f /bin/busybox_telnet ]; then
+  ln -sf /bin/busybox_telnet /usr/sbin/telnetd
 fi
 
 if [ -f /etc/init.d/telnet ] && [ ! -f /etc/init.d/telnetd ]; then
-  ln -s /etc/init.d/telnet /etc/init.d/telnetd
+  ln -sf /etc/init.d/telnet /etc/init.d/telnetd
+elif [ -f /etc/init.d/telnetd ] && [ ! -f /etc/init.d/telnet ]; then
+  ln -sf /etc/init.d/telnetd /etc/init.d/telnet
 fi

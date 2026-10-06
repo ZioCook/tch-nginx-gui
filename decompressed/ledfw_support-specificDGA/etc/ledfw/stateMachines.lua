@@ -31,19 +31,36 @@ end
 
 local wifi_led_nsc = is_WiFi_LED_on_if_NSC()
 
+local function is_stealth()
+   local c = uci.cursor()
+   local s = c:get("ledfw", "status_led", "stealth")
+   c:close()
+   return s == "1"
+end
+
+local function PowerStatusActiveLed()
+   return is_stealth() and 0 or 255
+end
+
 patterns = {
     status = {
         state = "status_inactive",
         transitions = {
             status_inactive = {
                 status_ok = "status_active",
+                status_active = "status_active",
             },
             status_active = {
                 status_nok = "status_inactive",
+                status_inactive = "status_inactive",
+                status_active = "status_active",
             },
         },
         actions = {
             status_active = {
+                staticLed("power:red", false),
+                staticLed("power:blue", false),
+                staticLed("power:green", PowerStatusActiveLed),
                 staticLed("broadband:red", false),
                 staticLed("broadband:green", false),
                 staticLed("internet:green", false),
@@ -169,10 +186,10 @@ stateMachines = {
             }
         },
         patterns_depend_on = {
-            power_started = { "remote_mgmt" , "fw_upgrade" },
-            service_ok_fullpower = { "remote_mgmt", "fw_upgrade" },
-            service_ok_eco = { "remote_mgmt", "fw_upgrade" },
-            service_notok = { "remote_mgmt", "fw_upgrade" }
+            power_started = { "remote_mgmt" , "fw_upgrade", "status" },
+            service_ok_fullpower = { "remote_mgmt", "fw_upgrade", "status" },
+            service_ok_eco = { "remote_mgmt", "fw_upgrade", "status" },
+            service_notok = { "remote_mgmt", "fw_upgrade", "status" }
         }
     },
     broadband = {

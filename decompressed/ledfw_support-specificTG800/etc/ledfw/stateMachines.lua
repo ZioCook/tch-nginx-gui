@@ -1,5 +1,16 @@
 -- The only available function is helper (ledhelper)
-local timerLed, staticLed, netdevLed, netdevLedOWRT = timerLed, staticLed, netdevLed, netdevLedOWRT
+local timerLed, staticLed, netdevLed, netdevLedOWRT, uci = timerLed, staticLed, netdevLed, netdevLedOWRT, uci
+
+local function is_stealth()
+   local c = uci.cursor()
+   local s = c:get("ledfw", "status_led", "stealth")
+   c:close()
+   return s == "1"
+end
+
+local function PowerStatusActiveLed()
+   return is_stealth() and 0 or 255
+end
 
 patterns = {
     status = {
@@ -7,13 +18,20 @@ patterns = {
         transitions = {
             status_inactive = {
                 status_ok = "status_active",
+                status_active = "status_active",
             },
             status_active = {
                 status_nok = "status_inactive",
+                status_inactive = "status_inactive",
+                status_active = "status_active",
             },
         },
         actions = {
             status_active = {
+                staticLed("power:red", false),
+                staticLed("power:blue", false),
+                staticLed("power:orange", false),
+                staticLed("power:green", PowerStatusActiveLed),
                 staticLed("broadband:red", false),
                 staticLed("broadband:green", false),
                 staticLed("internet:green", false),
@@ -96,8 +114,8 @@ stateMachines = {
             service_ok_eco = {
                 staticLed("power:orange", false),
                 staticLed("power:red", false),
-                staticLed("power:blue", true),
-                staticLed("power:green", false)
+                staticLed("power:blue", false),
+                staticLed("power:green", true)
             },
             power_overheated = {
                 staticLed("power:orange", false),
@@ -119,11 +137,11 @@ stateMachines = {
             }
         },
         patterns_depend_on = {
-            power_started = { "fw_upgrade" },
-            power_overheated = { "fw_upgrade" },
-            service_ok_eco = { "fw_upgrade" },
-            service_ok_fullpower = { "fw_upgrade" },
-            service_notok = { "fw_upgrade" }
+            power_started = { "fw_upgrade", "status" },
+            power_overheated = { "fw_upgrade", "status" },
+            service_ok_eco = { "fw_upgrade", "status" },
+            service_ok_fullpower = { "fw_upgrade", "status" },
+            service_notok = { "fw_upgrade", "status" }
         }
     },
     broadband = {

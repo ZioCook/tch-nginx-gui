@@ -18,7 +18,9 @@ extract_with_check() {
       continue
     fi
 
-    grep -q '.md5sum' "$file" && continue
+    case "$file" in
+      *.md5sum*) continue ;;
+    esac
 
     orig_file=/$file
     file=$MD5_CHECK_DIR/$file
@@ -73,10 +75,14 @@ apply_right_opkg_repo() {
 
   opkg_file="/etc/opkg.conf"
   opkg_config_dir="/etc/opkg"
+  grep -q "check_certificate" $opkg_file 2>/dev/null || echo "option check_certificate 0" >> $opkg_file
+  grep -q "check_certificate" /etc/wgetrc 2>/dev/null || echo "check_certificate = off" >> /etc/wgetrc
+  grep -q "check_certificate" /root/.wgetrc 2>/dev/null || echo "check_certificate = off" >> /root/.wgetrc
 
   if [ "$cpu_type" = "armv7l" ]; then
     case $marketing_version in
-    "19."*)
+    "19."* | "2."*)
+      [ ! -e /usr/lib/libjson-c.so.2 ] && [ -f /usr/lib/libjson-c.so.4 ] && ln -sf /usr/lib/libjson-c.so.4 /usr/lib/libjson-c.so.2
       sed -i '/homeware\/18\/brcm63xx-tch/d' /etc/opkg.conf #remove old setted feeds
       sed -i '/Ansuel\/GUI_ipk\/kernel-4.1/d' /etc/opkg.conf #remove old setted feeds
       sed -i '/repository\.macoers\.com\/homeware\/19\/brcm6xxx-tch/d' /etc/opkg.conf #remove broken 19 macoers feeds
@@ -324,12 +330,13 @@ uci commit modgui
 [ -z "${device_type##*TG788*}" ] && ledfw_extract "TG788"
 [ -z "${device_type##*TG788*}" ] && ledfw_rework_TG788
 [ -z "${device_type##*TG789*}" ] && ledfw_extract "TG789"
+[ -z "${device_type##*TG789*}" ] && [ -f /rom/usr/lib/lua/transformer/shared/WLANConfigurationCommon.lua ] && cp -f /rom/usr/lib/lua/transformer/shared/WLANConfigurationCommon.lua /usr/lib/lua/transformer/shared/WLANConfigurationCommon.lua
 [ -z "${device_type##*TG589*}" ] && ledfw_rework_TG799
 [ -z "${device_type##*TG799*}" ] && ledfw_rework_TG799
 [ -z "${device_type##*TG800*}" ] && ledfw_rework_TG800
 #[ -z "${device_type##*DGA413*}" ] && wifi_fix_24g
 
-ls /tmp/ledfw* 1>/dev/null 2>&1 && rm /tmp/ledfw* #clean ledfw bz2 from /tmp
+rm -f /tmp/ledfw* 2>/dev/null #clean ledfw bz2 from /tmp
 
 [ -z "${device_type##*TG788*}" ] && remove_wizard_5ghz
 
@@ -341,6 +348,12 @@ if [ -f /proc/rip/0123 ]; then
 fi
 
 #Fix led issues
+if grep -q "os.exit(0)" /sbin/ledfw.lua 2>/dev/null || grep -q "exit 0" /etc/init.d/ledfw 2>/dev/null; then
+  [ -f /rom/sbin/ledfw.lua ] && cp -f /rom/sbin/ledfw.lua /sbin/ledfw.lua 2>/dev/null
+  [ -f /rom/etc/init.d/ledfw ] && cp -f /rom/etc/init.d/ledfw /etc/init.d/ledfw 2>/dev/null
+  [ -f /rom/etc/init.d/led ] && cp -f /rom/etc/init.d/led /etc/init.d/led 2>/dev/null
+fi
+
 if [ -z "${device_type##*DGA4131*}" ]; then
   if [ ! "$(uci get -q ledfw.ambient.active)" ]; then
     uci set ledfw.ambient=led
@@ -359,3 +372,102 @@ else
     uci commit ledfw
   fi
 fi
+
+detect_homeware() {
+  local kernel_ver=$(uname -r)
+  local fw_version=$(uci -q get env.var.friendly_sw_version_activebank || cat /proc/banktable/activeversion 2>/dev/null)
+  
+  if echo "$kernel_ver" | grep -q "4.1."; then
+    echo "hw19"
+  elif echo "$kernel_ver" | grep -q "3.4."; then
+    if echo "$fw_version" | grep -qi "AGTEF_2\|AGTHP_2"; then
+      echo "hw18"
+    else
+      echo "hw18"
+    fi
+  else
+    echo "hw18" # Default fallback
+  fi
+}
+
+hw_ver=$(detect_homeware)
+logecho "Detected Homeware Version: $hw_ver"
+if [ -f "/tmp/upgrade-pack-${hw_ver}.tar.bz2" ]; then
+  logecho "Installing optimizations for $hw_ver..."
+  extract_with_check "/tmp/upgrade-pack-${hw_ver}.tar.bz2"
+fi
+
+# IRQ Affinity tuning (HW19 / Kernel 4.1 dual-core only)
+# On DGA4132 (VBNT), WiFi traffic (wl0) is pinned to Core 0 by default,
+# starving Nginx/Transformer. Moving it to Core 1 (bitmask 0x2)
+# leaves Core 0 free for latency-sensitive GUI and routing tasks.
+# IMPORTANT: On DGA4331 (VCNT-3 / BCM43684 FullMAC DHD), PCIe interrupts are tightly
+# coupled with Broadcom Runner/HWA packet flow acceleration on Core 0. Migrating
+# dhdpcie IRQ 92/93 away from Core 0 causes flow ring desynchronization and fatal dongle traps!
+tune_hw19() {
+  local board_m="$(uci get -q env.rip.board_mnemonic)"
+  local prod_name="$(uci get -q env.var.prod_friendly_name)"
+  if [ "$board_m" != "VCNT-3" ] && [ "$prod_name" != "MediaAccess DGA4331" ]; then
+    for iface in wl0 wl1; do
+      wifi_irq=$(awk "/$iface/{print \$1}" /proc/interrupts 2>/dev/null | tr -d ':' | head -1)
+      if [ -n "$wifi_irq" ] && [ -f "/proc/irq/$wifi_irq/smp_affinity" ]; then
+        logecho "Pinning WiFi IRQ $wifi_irq ($iface) to Core 1..."
+        echo 2 > "/proc/irq/$wifi_irq/smp_affinity"
+      fi
+    done
+  else
+    for iface in wl0 wl1; do
+      wifi_irq=$(awk "/$iface/{print \$1}" /proc/interrupts 2>/dev/null | tr -d ':' | head -1)
+      if [ -n "$wifi_irq" ] && [ -f "/proc/irq/$wifi_irq/smp_affinity" ]; then
+        echo 1 > "/proc/irq/$wifi_irq/smp_affinity" 2>/dev/null
+      fi
+    done
+
+    # Patch Broadcom hostapd on DGA4331 to prevent FullMAC country & radio abort traps
+    local hapd_bin="/usr/sbin/hostapd"
+    local hapd_stock_md5="12897f282cb303c499e88c5d9e7b9f05"
+    if [ -f "$hapd_bin" ]; then
+      local cur_md5=$(md5sum "$hapd_bin" | awk '{print $1}')
+      if [ "$cur_md5" = "$hapd_stock_md5" ]; then
+        logecho "Patching hostapd for DGA4331 Broadcom FullMAC ioctls..."
+        [ ! -f /overlay/upper/usr/sbin/hostapd ] && cp -f /rom/usr/sbin/hostapd /usr/sbin/hostapd
+        printf '\x21\x00\x00\xea' | dd of="$hapd_bin" bs=1 seek=554736 count=4 conv=notrunc 2>/dev/null
+        printf '\x21\x00\x00\xea' | dd of="$hapd_bin" bs=1 seek=598408 count=4 conv=notrunc 2>/dev/null
+        printf '\x00\x00\xa0\xe1' | dd of="$hapd_bin" bs=1 seek=599872 count=4 conv=notrunc 2>/dev/null
+        printf '\x00\x00\xa0\xe1' | dd of="$hapd_bin" bs=1 seek=602444 count=4 conv=notrunc 2>/dev/null
+        chmod +x "$hapd_bin"
+        /etc/init.d/hostapd restart
+      fi
+    fi
+
+    # Fix invalid PMF values and ensure safe initial 5GHz channel if set to auto
+    local uci_changed=0
+    for ap in ap0 ap1; do
+      if [ "$(uci get -q wireless.$ap.pmf)" = "optional" ]; then
+        uci set wireless.$ap.pmf='disabled'
+        uci_changed=1
+      fi
+    done
+    if [ "$(uci get -q wireless.radio_5G.channel)" = "auto" ]; then
+      uci set wireless.radio_5G.channel='36'
+      uci set wireless.radio_5G.channelwidth='20/40/80'
+      uci set wireless.radio_5G.acs_state='disabled'
+      uci_changed=1
+    fi
+    if [ "$uci_changed" = "1" ]; then
+      uci commit wireless
+    fi
+
+    # Ensure telnet support and symlinks exist on DGA4331
+    if [ -f /bin/busybox_telnet ] && [ ! -x /usr/sbin/telnetd ]; then
+      ln -sf /bin/busybox_telnet /usr/sbin/telnetd
+    fi
+    if [ -f /etc/init.d/telnet ] && [ ! -f /etc/init.d/telnetd ]; then
+      ln -sf /etc/init.d/telnet /etc/init.d/telnetd
+    elif [ -f /etc/init.d/telnetd ] && [ ! -f /etc/init.d/telnet ]; then
+      ln -sf /etc/init.d/telnetd /etc/init.d/telnet
+    fi
+  fi
+}
+[ "$hw_ver" = "hw19" ] && tune_hw19
+

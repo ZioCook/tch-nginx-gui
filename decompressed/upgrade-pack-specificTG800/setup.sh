@@ -4,8 +4,8 @@
 
 move_files_and_clean(){
   for file in $(find "$1"*/ -xdev | cut -d '/' -f4-); do
-    if [[ -d "$1$file" && ! -d "/$file" ]]; then
-			mkdir "/$file"
+    if [ -d "$1$file" ] && [ ! -d "/$file" ]; then
+			mkdir -p "/$file"
 			continue
 		fi
 
@@ -18,7 +18,7 @@ logecho "Installing specificTG800 package..."
 move_files_and_clean /tmp/upgrade-pack-specificTG800/
 
 if [ -z "${kernel_ver##3.4*}" ]; then
-  opkg install /tmp/3.4_ipk/*
+  [ -d /tmp/3.4_ipk ] && opkg install /tmp/3.4_ipk/*
 else #unsupported kernels (ie 19.x using 4.1.52)
   echo "No packages to install for kernel: $kernel_ver"
 fi
@@ -33,10 +33,12 @@ if [ ! -f /etc/config/telnet ]; then
   uci commit telnet
 fi
 
-if [ -f /bin/busybox_telnet ] && [ ! -f /usr/sbin/telnetd ]; then
-  ln -s /bin/busybox_telnet /usr/sbin/telnetd
+if [ -f /bin/busybox_telnet ]; then
+  ln -sf /bin/busybox_telnet /usr/sbin/telnetd
 fi
 
 if [ -f /etc/init.d/telnet ] && [ ! -f /etc/init.d/telnetd ]; then
-  ln -s /etc/init.d/telnet /etc/init.d/telnetd
+  ln -sf /etc/init.d/telnet /etc/init.d/telnetd
+elif [ -f /etc/init.d/telnetd ] && [ ! -f /etc/init.d/telnet ]; then
+  ln -sf /etc/init.d/telnetd /etc/init.d/telnet
 fi
