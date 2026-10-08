@@ -518,6 +518,11 @@ local basic = {
                 class = "span5"
         }
 }
+local long_basic = {
+        span = {
+                class = "span6"
+        }
+}
 local upgrade_gui = {
         group = {
                 class = "wait-for-reset"
