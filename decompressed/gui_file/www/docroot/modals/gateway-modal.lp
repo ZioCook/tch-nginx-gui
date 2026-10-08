@@ -106,7 +106,7 @@ local function export_config()
 end
 
 local function receive_file(filename, match)
-  function do_receive(outfile, match)
+  local function do_receive(outfile, match)
     local upload = require("web.fileupload")
     local form, err = upload.fromstream()
     if not form then
