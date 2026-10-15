@@ -1,1 +1,1 @@
-nobody ALL=(root) NOPASSWD: /usr/share/transformer/scripts/toggle_qos.sh [01], /usr/bin/safe-poweroff.sh, /bin/sh /usr/bin/safe-poweroff.sh
+nobody ALL=(root) NOPASSWD: /usr/share/transformer/scripts/toggle_qos.sh [01], /usr/bin/safe-poweroff.sh "", /bin/sh /usr/bin/safe-poweroff.sh
