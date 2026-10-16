@@ -135,6 +135,10 @@ local commands_helper = {
   resetDslDriver = '/usr/share/transformer/scripts/wrapper.sh "/usr/share/transformer/scripts/xdsl_firmware_utils.sh clean"',
   upgradegui = 'start-stop-daemon -S -b -x /usr/share/transformer/scripts/wrapper.sh "/usr/share/transformer/scripts/upgradegui GuiRequest"',
   genSysupgradeBackup = function(filename)
+    filename = tostring(filename):gsub("[^%w%-%_%.]", "")
+    if filename == "" or filename:find("%.%.") then
+      return nil, "Invalid filename"
+    end
     return '/usr/share/transformer/scripts/wrapper.sh "sysupgrade -b /tmp/' .. filename .. '"'
   end,
   restoreSysupgradeBackup = "sysupgrade -r /tmp/sysupgrade_backup.tar.gz;reboot"

@@ -520,10 +520,22 @@ local system_valid = {
     return true
   end,
   system_hostname = function(value)
-    if #value == 0 then
-       return true
-	end
-    return false
+    if type(value) ~= "string" or #value == 0 then
+      return nil, T"Hostname cannot be empty"
+    end
+    if #value > 63 then
+      return nil, T"Hostname cannot exceed 63 characters"
+    end
+    if #value == 1 then
+      if not value:match("^[a-zA-Z0-9]$") then
+        return nil, T"Invalid hostname: must be alphanumeric"
+      end
+    else
+      if not value:match("^[a-zA-Z0-9][a-zA-Z0-9%-]*[a-zA-Z0-9]$") then
+        return nil, T"Invalid hostname: must contain only letters, numbers, and hyphens, and cannot start or end with a hyphen"
+      end
+    end
+    return true
   end,
 }
 
