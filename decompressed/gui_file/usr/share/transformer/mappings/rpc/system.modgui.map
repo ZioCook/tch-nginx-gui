@@ -176,7 +176,11 @@ local SYSTEM_MODGUI_UTILITY_ = {
         return nil, "Invalid command"
       end
       if type(command) == "function" then
-        command = command(args)
+        local err
+        command, err = command(args)
+        if not command then
+          return nil, err or "Invalid command"
+        end
       elseif args and args == "terminate" then
         local clean_comm =
           "for pid in $(pgrep -f " .. command .. "); do logger terminating :  $pid && kill -KILL $pid;done"
