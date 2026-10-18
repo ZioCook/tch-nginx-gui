@@ -324,10 +324,40 @@ install_gui() {
   fi
 
   if [ -d /etc/modgui_scripts ]; then
+    if [ -r /tmp/gui_progress.sh ]; then
+      . /tmp/gui_progress.sh
+    elif [ -r /usr/share/transformer/scripts/gui_progress.sh ]; then
+      . /usr/share/transformer/scripts/gui_progress.sh
+    fi
+    type gui_progress >/dev/null 2>&1 || gui_progress() { :; }
+
+    gp_total=0
     for file in /etc/modgui_scripts/*; do
-      logecho "Executing $file"
-      . $file
+      [ -f "$file" ] && gp_total=$((gp_total + 1))
     done
+    [ "$gp_total" -le 0 ] && gp_total=1
+
+    gp_idx=0
+    for file in /etc/modgui_scripts/*; do
+      [ -f "$file" ] || continue
+      gp_name="${file##*/}"
+      case "$gp_name" in
+        01_prereq.sh)   gp_desc="Verifica prerequisiti di sistema" ;;
+        02_specific.sh) gp_desc="Applicazione fix specifici hardware" ;;
+        03_various.sh)  gp_desc="Applicazione personalizzazioni" ;;
+        04_config.sh)   gp_desc="Aggiornamento configurazioni UCI" ;;
+        05_app.sh)      gp_desc="Configurazione applicazioni" ;;
+        06_network.sh)  gp_desc="Configurazione rete e servizi web" ;;
+        99_postreq.sh)  gp_desc="Finalizzazione post-installazione" ;;
+        *)              gp_desc="Configurazione: $gp_name" ;;
+      esac
+
+      gui_progress $((75 + gp_idx * 23 / gp_total)) "$gp_desc"
+      gp_idx=$((gp_idx + 1))
+      logecho "Executing $file"
+      . "$file"
+    done
+    gui_progress 98 "Riavvio servizi web..."
   fi
 
   #Remove reapply file as the root process after upgrade has finished.

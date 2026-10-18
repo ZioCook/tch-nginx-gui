@@ -261,6 +261,10 @@ html[#html + 1] = [[
 			})
 			.fail(function(data) {
 				consecutiveFailures++;
+				if (data.status === 503) {
+					window.location.replace("/");
+					return;
+				}
 				var isAuthRedirect = (data.status == 200 && data.responseText && data.responseText.indexOf("sign-me-in") !== -1);
 				
 				// Se Nginx ha riavviato i servizi, ha azzerato le sessioni in memoria. Se l'aggiornamento era già in fase avanzata (>= 75% o almeno 12 fallimenti di transizione), l'update è completato!

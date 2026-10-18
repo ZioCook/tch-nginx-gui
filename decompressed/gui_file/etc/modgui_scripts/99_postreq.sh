@@ -61,6 +61,7 @@ chmod 755 /usr/bin/wps-poweroff-monitor.sh 2>/dev/null
 chmod 755 /etc/hotplug.d/button/50-safe-poweroff 2>/dev/null
 chmod 755 /usr/bin/rescue-usb.sh /usr/bin/rescue-watchdog.sh /www/lua/rescue_server.lua /etc/init.d/rescue-server 2>/dev/null
 chmod 755 /usr/share/transformer/scripts/toggle_qos.sh 2>/dev/null
+chmod 755 /usr/share/transformer/scripts/gui_progress.sh 2>/dev/null
 chmod 4755 /usr/bin/sudo 2>/dev/null
 chmod 0440 /etc/sudoers.d/* 2>/dev/null
 /etc/init.d/rescue-server enable 2>/dev/null

@@ -82,6 +82,18 @@ ARCH_KB=0
 ARCH_FILES=0
 LAST_HASH=""
 
+# --- Caricamento helper progresso e copia in RAM ---
+GUI_PROGRESS_SRC="/usr/share/transformer/scripts/gui_progress.sh"
+GUI_PROGRESS_RAM="/tmp/gui_progress.sh"
+
+if [ -r "$GUI_PROGRESS_SRC" ]; then
+  cp -f "$GUI_PROGRESS_SRC" "$GUI_PROGRESS_RAM" 2>/dev/null
+  . "$GUI_PROGRESS_RAM"
+else
+  set_gui_progress() { :; }; gui_progress() { :; }; gui_extract_progress() { :; }
+  gui_maint_begin() { :; }; gui_maint_end() { :; }; gui_maint_error() { :; }
+fi
+
 ############TRANSFORMER UTILITY##################
 # datamodel.set returns nil,err on rejection (e.g. value not in the enumeration)
 # but lua would still exit 0: make it a real exit status.
@@ -247,15 +259,54 @@ verify_archive() {
   return 0
 }
 
-# fetch_verified <tag> <name> : download + checksum, removes the file on error
+# fetch_verified <tag> <file> [pct_da=0] [pct_a=50]
 fetch_verified() {
-  ftag="$1"
-  fname="$2"
-  rm -f "$WORKING_DIR/$fname"
-  if ! download "$URL_BASE/$ftag/$fname" "$WORKING_DIR/$fname"; then
+  ftag="$1"; fname="$2"; dl_from="${3:-0}"; dl_to="${4:-50}"
+  dl_url="$URL_BASE/$ftag/$fname"
+  dl_part="$WORKING_DIR/$fname.part"
+
+  dl_total=$($CURL -s -I -L "$dl_url" 2>/dev/null | tr -d '\r' |
+    awk '/^HTTP\//{v=0} tolower($1)=="content-length:"{v=$2} END{print v+0}')
+
+  rm -f "$dl_part" "$WORKING_DIR/$fname"
+  $CURL "$dl_url" --output "$dl_part" &
+  dl_pid=$!
+  dl_last=-1
+
+  while kill -0 "$dl_pid" 2>/dev/null; do
+    if [ -f "$dl_part" ]; then
+      dl_size=$(( $(wc -c <"$dl_part" 2>/dev/null) + 0 ))
+    else
+      dl_size=0
+    fi
+    if [ "$dl_total" -gt 0 ]; then
+      dl_pct=$(( dl_from + (dl_to - dl_from) * (dl_size / 1024) / (dl_total / 1024 + 1) ))
+      [ "$dl_pct" -gt "$dl_to" ] && dl_pct=$dl_to
+      dl_msg="Download $fname: $((dl_size / 1024)) / $((dl_total / 1024)) KB"
+    else
+      dl_pct=$dl_from
+      dl_msg="Download $fname: $((dl_size / 1024)) KB"
+    fi
+    if [ "$dl_size" != "$dl_last" ]; then
+      set_gui_progress "$dl_pct" download "$dl_msg"
+      dl_last=$dl_size
+    fi
+    sleep 1
+  done
+
+  wait "$dl_pid"
+  dl_rc=$?
+  dl_pid=""
+
+  if [ "$dl_rc" -ne 0 ] || [ ! -s "$dl_part" ]; then
+    rm -f "$dl_part"
     logecho "ERROR: can't download $fname ($ftag)" >&2
-    return 1
+    return "${dl_rc:-1}"
   fi
+
+  mv -f "$dl_part" "$WORKING_DIR/$fname"
+  set_gui_progress "$dl_to" download "Download completato"
+
   if ! verify_archive "$WORKING_DIR/$fname" "$ftag" "$fname"; then
     rm -f "$WORKING_DIR/$fname"
     return 1
@@ -289,9 +340,8 @@ check_archive() {
 }
 
 # bz_extract <archive> : like bz_pipe for extraction, but tar's verbose output
-# is NOT hidden: a counter loop logs "Extracted N files" every 100 files so the
-# GUI log keeps moving. Both exit codes are still checked; the final file
-# count is stored in $LISTFILE.
+# is NOT hidden: a counter loop logs "Extracted N files" every 100 files and
+# updates real extraction progress every 25 files so the WebUI progress bar moves smoothly.
 bz_extract() {
   rm -f "$RC_BZ" "$RC_TAR" "$LISTFILE"
   ( "$bzcat" "$1" 2>/dev/null; echo $? >"$RC_BZ" ) |
@@ -301,6 +351,9 @@ bz_extract() {
           n=0
           while read -r line; do
             n=$((n + 1))
+            if [ $((n % 25)) -eq 0 ] || [ "$n" -eq "${ARCH_FILES:-0}" ]; then
+              gui_extract_progress "$n" "$ARCH_FILES"
+            fi
             if [ $((n % 100)) -eq 0 ]; then
               logecho "Extracted $n files"
             fi
@@ -399,7 +452,27 @@ acquire_lock() {
   return 1
 }
 
-trap cleanup EXIT
+GUI_PROGRESS_DONE=0
+dl_pid=""
+
+gui_upgrade_cleanup() {
+  gp_rc=$?
+  trap - EXIT
+  # Uccide eventuale curl in background se lo script viene terminato durante il download
+  if [ -n "$dl_pid" ] && kill -0 "$dl_pid" 2>/dev/null; then
+    kill "$dl_pid" 2>/dev/null
+    wait "$dl_pid" 2>/dev/null
+  fi
+  if [ "$gp_rc" -ne 0 ] && [ "$GUI_PROGRESS_DONE" != 1 ]; then
+    gui_maint_error 0 "Aggiornamento non riuscito (codice errore: $gp_rc)"
+  else
+    gui_maint_end
+  fi
+  cleanup
+  exit "$gp_rc"
+}
+
+trap gui_upgrade_cleanup EXIT
 trap 'fail "Interrupted by signal"' INT TERM HUP
 
 ################## ENTRY POINT ##################
@@ -408,6 +481,8 @@ if ! acquire_lock; then
   logecho "Another upgrade is already running. Aborting." >&2
   exit 1
 fi
+
+gui_maint_begin 0 download "Avvio download pacchetto GUI..."
 
 case "$1" in
 AutoUpgrade)
@@ -576,6 +651,7 @@ fi
 ############ POINT OF NO RETURN (now protected by rollback) ############
 logecho "Cleaning www dir"
 CRITICAL=1
+gui_maint_begin 50 extract "Rimozione vecchi file interfaccia..."
 clean_www
 
 set_transformer "rpc.system.modgui.executeCommand.state" "Extracting"
@@ -589,6 +665,7 @@ logecho "Extracted $nfile_extracted files"
 CRITICAL=0
 rm -f "$BACKUP_TAR"
 HAVE_BACKUP=0
+set_gui_progress 75 extract "Estrazione completata"
 
 ############ HOUSEKEEPING ############
 #Remove deprecated GUI packages if found in /root
@@ -653,4 +730,7 @@ rm -f "$ARCHIVE" "$WORKING_DIR/$STABLE_FILE_NAME"
 UPGRADE_ACTIVE=0
 ubus send fwupgrade '{"state":"done"}'
 set_transformer "rpc.system.modgui.executeCommand.state" "Complete"
+GUI_PROGRESS_DONE=1
+gui_maint_end
+set_gui_progress 100 done "Aggiornamento completato"
 logecho "Upgrade Done"
