@@ -17,9 +17,14 @@ if [ "$STATE" = "1" ]; then
     uci -q commit qos
 
     /etc/init.d/qos enable 2>/dev/null
-    /etc/init.d/qos restart 2>/dev/null
     /etc/init.d/iqos enable 2>/dev/null
-    /etc/init.d/iqos restart 2>/dev/null
+    if command -v timeout >/dev/null 2>&1; then
+        timeout 5 /etc/init.d/qos restart 2>/dev/null || true
+        timeout 5 /etc/init.d/iqos restart 2>/dev/null || true
+    else
+        /etc/init.d/qos restart 2>/dev/null || true
+        /etc/init.d/iqos restart 2>/dev/null || true
+    fi
     logger -t "QoS" "QoS service enabled."
 else
     logger -t "QoS" "Disabling QoS service..."
@@ -31,9 +36,14 @@ else
     done
     uci -q commit qos
 
-    /etc/init.d/qos stop 2>/dev/null
+    if command -v timeout >/dev/null 2>&1; then
+        timeout 5 /etc/init.d/qos stop >/dev/null 2>&1 || { killall -9 qos 2>/dev/null || true; }
+        timeout 5 /etc/init.d/iqos stop >/dev/null 2>&1 || { killall -9 iqos 2>/dev/null || true; }
+    else
+        /etc/init.d/qos stop 2>/dev/null || true
+        /etc/init.d/iqos stop 2>/dev/null || true
+    fi
     /etc/init.d/qos disable 2>/dev/null
-    /etc/init.d/iqos stop 2>/dev/null
     /etc/init.d/iqos disable 2>/dev/null
 
     for dev in eth0 eth1 eth2 eth3 eth4 eth5 wl0 wl1; do
