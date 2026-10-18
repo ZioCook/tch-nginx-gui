@@ -138,3 +138,9 @@ msgstr "Virtueller Port"
 
 msgid "QoS"
 msgstr "QoS"
+
+msgid "QoS enabled"
+msgstr "QoS aktiviert"
+
+msgid "QoS disabled"
+msgstr "QoS deaktiviert"

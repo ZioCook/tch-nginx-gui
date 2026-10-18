@@ -6,7 +6,6 @@ declare -a modular_dir=(
 	"gui_file"
 	"traffic_mon"
 	"upgrade-pack-specificDGA"
-	"upgrade-pack-specificDGA4331"
 	"upgrade-pack-specificTG800"
 	"upgrade-pack-specificTG789"
 	"upgrade-pack-specificTG789Xtream35B"
@@ -41,6 +40,10 @@ fi
 mkdir -p compressed
 rm -f compressed/GUI*.tar.bz2 compressed/GUI*.zip
 
+commit_epoch=$(git log -1 --format=%ct 2>/dev/null || echo 1700000000)
+commit_date=$(date -u -d "@$commit_epoch" +"%Y-%m-%d %H:%M:%S" 2>/dev/null || echo "2026-10-05 00:00:00")
+echo "Using archive mtime: $commit_date ($commit_epoch)"
+
 for index in "${modular_dir[@]}"; do
 	cd decompressed/$index
 
@@ -56,7 +59,7 @@ for index in "${modular_dir[@]}"; do
 			;;
 	esac
 
-	BZIP2=-9 tar --mtime='2018-01-01' -cjf ../../compressed/$index.tar.bz2 * --owner=0 --group=0
+	BZIP2=-9 tar --mtime="$commit_date" -cjf ../../compressed/$index.tar.bz2 * --owner=0 --group=0
 	cd ../../
 done
 
@@ -92,6 +95,8 @@ build_ver="${version:-9.9.1}"
 # If VERSION already contains a hyphen/commit hash, do not append short_commit again
 if [[ "$build_ver" =~ -[0-9a-fA-F]{7,8}$ ]] || [[ "$build_ver" =~ -dev$ ]]; then
 	stamp_ver="$build_ver"
+elif [ "$TYPE" = "STABLE" ] || [ -z "$type" ]; then
+	stamp_ver="$build_ver"
 else
 	stamp_ver="$build_ver-$short_commit"
 fi
@@ -101,7 +106,7 @@ if [ -f total/etc/init.d/rootdevice ]; then
 fi
 
 cd total
-BZIP2=-9 tar -cjf ../compressed/GUI$type.tar.bz2 * --owner=0 --group=0
+BZIP2=-9 tar --mtime="$commit_date" -cjf ../compressed/GUI$type.tar.bz2 * --owner=0 --group=0
 if command -v zip >/dev/null 2>&1; then
 	zip -q -r -9 ../compressed/GUI$type.zip *
 fi

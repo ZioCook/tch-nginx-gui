@@ -93,6 +93,7 @@ html[#html + 1] = [[
 				pollCount++;
 				consecutiveFailures = 0;
 				var clean_log = (data.log || "")
+					.replace(/\x1b\x5b[0-9;]*[a-zA-Z]/g, "")
 					.replace(/^[-#=O\s]*\d+\.?\d*%\s*$/gm, "")
 					.replace(/^[-#=O\s]+$/gm, "")
 					.replace(/\n\s*\n/g, "\n");
@@ -109,11 +110,8 @@ html[#html + 1] = [[
 				}
 				if (ElementBinding && typeof ElementBinding.log === "function") {
 					try { ElementBinding.log(clean_log); } catch(e) {}
-				}
-				$("#command-log-text-container").text(clean_log);
-				var $logElem = $("#command-log-text-container, [data-bind*='log_text']");
-				if ($logElem.length && $logElem[0]) {
-					$logElem.scrollTop($logElem[0].scrollHeight);
+				} else {
+					$("#command-log-text-container").text(clean_log);
 				}
 
 				var header_text = $("#header_title").text();

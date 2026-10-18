@@ -53,25 +53,31 @@ local policy_intfs = {}
 -- get valid route table from /etc/iproute2/rt_tables
 -- Route table id > 0 && id < 100
 -----------------------------------------------------------
-local f = io.popen ("sed 's/\t/ /g' /etc/iproute2/rt_tables | grep -v \"#\"")
-for line in f:lines() do
-  local num = 0
-  for k in string.gmatch(line, "[^%s]+") do
-    if num == 0 and tonumber(k) >= 100 or tonumber(k) == 0 then --check table number
-      break
-    elseif num == 1 then --check table name and get valid table name not used yet
-      select_tables[#select_tables+1] = { k, T(k) }
-      for _, v in pairs (ip4table_content or {}) do
-         if v and v.value == k then
-           select_tables[#select_tables] = nil
-           break
-         end
+local f = io.open("/etc/iproute2/rt_tables", "r")
+if f then
+  for line in f:lines() do
+    line = line:gsub("^%s+", "")
+    if line ~= "" and not line:find("^#") then
+      local num = 0
+      for k in string.gmatch(line, "[^%s]+") do
+        local n = tonumber(k)
+        if num == 0 and (not n or n >= 100 or n == 0) then --check table number
+          break
+        elseif num == 1 then --check table name and get valid table name not used yet
+          select_tables[#select_tables+1] = { k, T(k) }
+          for _, v in pairs (ip4table_content or {}) do
+             if v and v.value == k then
+               select_tables[#select_tables] = nil
+               break
+             end
+          end
+        end
+        num = num + 1
       end
     end
-    num = num + 1
   end
+  f:close()
 end
-f:close()
 
 function split(x,sep)
   x = tostring(x)

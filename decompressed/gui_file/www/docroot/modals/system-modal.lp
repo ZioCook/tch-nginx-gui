@@ -37,6 +37,7 @@ local function file_check(file_name)
   if file_found==nil then
     return false
   else
+    file_found:close()
     return true
   end
 end
@@ -218,7 +219,7 @@ local syslog_valid = {
 }
 local syslog_Params, helpmsg = post_helper.handleQuery(syslog_Params, syslog_valid)
 
-local telnet_available = file_check("/bin/busybox_telnet")
+local telnet_available = file_check("/bin/busybox_telnet") or file_check("/usr/sbin/telnetd")
 local telnet_content
 
 if telnet_available then

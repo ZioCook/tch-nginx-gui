@@ -68,9 +68,9 @@ jobs:
           bash ../scripts/1-increment_autobuild_ver.sh
 
       - name: Setup Node.js for asset minification
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v5
         with:
-          node-version: 20
+          node-version: 22
 
       - name: Install Node asset optimization tools
         run: npm install --no-audit --no-fund

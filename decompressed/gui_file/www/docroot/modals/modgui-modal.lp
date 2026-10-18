@@ -229,7 +229,11 @@ local function genSysupgradeBackup()
 
         local hostname = proxy.get("uci.system.system.@system[0].hostname")
         hostname = hostname and hostname[1].value or "Unknown"
-        local filename = format("%s-%s.tar.gz",hostname,os.date("%d-%m-%y_%H:%m"))
+        hostname = tostring(hostname):gsub("[^%w%-]", "")
+        if hostname == "" then
+            hostname = "gateway"
+        end
+        local filename = format("%s-%s.tar.gz",hostname,os.date("%d-%m-%y_%H-%M"))
 
         proxy.set("rpc.system.modgui.utility.sendcmd", "genSysupgradeBackup_"..filename)
         wait_for_completion("rpc.system.modgui.executeCommand.")
@@ -362,6 +366,7 @@ local content = {
         outdated_ver = "uci.modgui.gui.outdated_ver",
         new_ver = "uci.modgui.gui.new_ver",
         specific_app = "uci.modgui.app.specific_app",
+        marketing_version = "uci.version.version.@version[0].marketing_version",
         telstra_gui = "uci.modgui.app.telstra_webui",
         fwversion_real = "uci.versioncusto.override.fwversion_override_real",
         activebank = "sys.banktable.activebank",
@@ -517,6 +522,11 @@ local basic = {
                 class = "span5"
         }
 }
+local long_basic = {
+        span = {
+                class = "span6"
+        }
+}
 local upgrade_gui = {
         group = {
                 class = "wait-for-reset"
@@ -611,7 +621,8 @@ html[#html + 1] = ui_helper.createSwitch(T"Always show advanced options", "gui_a
 html[#html + 1] = ui_helper.createSwitch(T"GUI animations", "gui_animation", modgui_settings["gui_animation"])
 html[#html + 1] = '</form>'
 
-if content.specific_app ~= "" then
+local marketing_major = tonumber((content.marketing_version or ""):match("^%d+"))
+if content.specific_app ~= "" and (not marketing_major or marketing_major < 19) then
 
         local upload_specific_app = {
                 button = {

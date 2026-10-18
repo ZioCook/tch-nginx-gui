@@ -68,7 +68,8 @@ def verify_build(root):
     suffix = {'STABLE': '', 'DEV': '_dev', 'PREVIEW': '_preview'}[build_type]
     version = (root / 'data/version').read_text().strip()
     rootdevice = sources / 'base/etc/init.d/rootdevice'
-    if f'version_gui={version}-' not in rootdevice.read_text():
+    expected_stamp = f'version_gui={version}' if build_type == 'STABLE' else f'version_gui={version}-'
+    if expected_stamp not in rootdevice.read_text():
         raise ValueError('rootdevice does not contain the build version')
     required = [rootdevice, sources/'gui_file/usr/share/transformer/scripts/checkver',
                 sources/'gui_file/usr/share/transformer/scripts/upgradegui']

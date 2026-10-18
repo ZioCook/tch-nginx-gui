@@ -311,30 +311,13 @@ case $marketing_version in
   }
   [ "$cpu_type" = "mips" ] && install_specific TG789
   ;;
-"18."* | "19."* | "2."*)
-  if [ "$cpu_type" = "armv7l" ]; then
-    if [ -n "$device_type" ] && [ -z "${device_type##*DGA4331*}" ] || [ "$(uci get -q env.var.variant_friendly_name)" = "AGMY2020" ] || [ "$(uci get -q env.rip.board_mnemonic)" = "VCNT-3" ]; then
-      install_specific DGA4331
-    else
-      install_specific DGA
-    fi
-  fi
-  [ "$cpu_type" = "mips" ] && install_specific TG789
+"18."*)
+  [ "$cpu_type" = "armv7l" ] && install_specific DGA
+  [ "$cpu_type" = "mips" ] && logecho "Unknown what specific_app to install on $marketing_version $cpu_type"
   ;;
 *)
-  if [ "$cpu_type" = "armv7l" ]; then
-    if [ -n "$device_type" ] && [ -z "${device_type##*DGA4331*}" ] || [ "$(uci get -q env.var.variant_friendly_name)" = "AGMY2020" ] || [ "$(uci get -q env.rip.board_mnemonic)" = "VCNT-3" ]; then
-      install_specific DGA4331
-    elif [ -z "${device_type##*DGA413*}" ]; then
-      install_specific DGA
-    else
-      uci set modgui.app.specific_app="1" #no specific package for this device
-      logecho "Unknown what specific_app to install on $marketing_version $cpu_type"
-    fi
-  else
-    uci set modgui.app.specific_app="1" #no specific package for this device
-    logecho "Unknown what specific_app to install on $marketing_version $cpu_type"
-  fi
+  uci set modgui.app.specific_app="1" #no specific package for this firmware
+  logecho "No specific_app package for $marketing_version $cpu_type"
   ;;
 esac
 
@@ -421,7 +404,7 @@ fi
 # IMPORTANT: On DGA4331 (VCNT-3 / BCM43684 FullMAC DHD), PCIe interrupts are tightly
 # coupled with Broadcom Runner/HWA packet flow acceleration on Core 0. Migrating
 # dhdpcie IRQ 92/93 away from Core 0 causes flow ring desynchronization and fatal dongle traps!
-if [ "$hw_ver" = "hw19" ]; then
+tune_hw19() {
   local board_m="$(uci get -q env.rip.board_mnemonic)"
   local prod_name="$(uci get -q env.var.prod_friendly_name)"
   if [ "$board_m" != "VCNT-3" ] && [ "$prod_name" != "MediaAccess DGA4331" ]; then
@@ -474,6 +457,17 @@ if [ "$hw_ver" = "hw19" ]; then
     if [ "$uci_changed" = "1" ]; then
       uci commit wireless
     fi
+
+    # Ensure telnet support and symlinks exist on DGA4331
+    if [ -f /bin/busybox_telnet ] && [ ! -x /usr/sbin/telnetd ]; then
+      ln -sf /bin/busybox_telnet /usr/sbin/telnetd
+    fi
+    if [ -f /etc/init.d/telnet ] && [ ! -f /etc/init.d/telnetd ]; then
+      ln -sf /etc/init.d/telnet /etc/init.d/telnetd
+    elif [ -f /etc/init.d/telnetd ] && [ ! -f /etc/init.d/telnet ]; then
+      ln -sf /etc/init.d/telnetd /etc/init.d/telnet
+    fi
   fi
-fi
+}
+[ "$hw_ver" = "hw19" ] && tune_hw19
 

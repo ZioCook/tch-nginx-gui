@@ -4,10 +4,11 @@
 #
 #  Uso:
 #    curl -kfL https://raw.githubusercontent.com/ZioCook/tch-nginx-gui/master/install.sh | sh
-#    curl -kfL .../install.sh | sh -s -- --dev
+#    curl -kfL .../install.sh | sh -s -- --dev --force
+#    FORCE=1 curl -kfL .../install.sh | sh
 #    sh install.sh [--stable|--dev] [--file <path>] [--force] [--keep-logs]
 #
-#  Opzioni:
+#  Opzioni CLI:
 #    --stable       installa ultima release STABLE
 #    --dev          installa build piu' recente del canale DEV
 #    --file <path>  installazione offline da archivio .tar.bz2 locale
@@ -15,7 +16,10 @@
 #    --keep-logs    conserva /tmp/gui_install.log anche a installazione riuscita
 #                   (in caso di errore il log viene sempre conservato)
 #
-#  Variabili d'ambiente opzionali:
+#  Variabili d'ambiente opzionali (comode via pipe: es. FORCE=1 curl ... | sh):
+#    FORCE=1                        forza reinstallazione stessa versione
+#    DEV=1 / STABLE=1               seleziona canale dev/stabile direttamente
+#    CHANNEL=dev|stable             seleziona canale
 #    GUI_STABLE_URL / GUI_DEV_URL   URL alternativi dell'archivio
 #    GUI_SHA256                     SHA256 atteso (solo --file / override)
 #    HEALTH_TIMEOUT                 secondi di attesa health-check (default 10)
@@ -24,7 +28,7 @@
 #        5 Health-check con auto-rescue
 # =============================================================================
 
-INSTALLER_VERSION="1.1.0"
+INSTALLER_VERSION="1.1.1"
 REPO="ZioCook/tch-nginx-gui"
 STABLE_URL="${GUI_STABLE_URL:-https://github.com/$REPO/releases/latest/download/GUI.tar.bz2}"
 
@@ -42,8 +46,8 @@ RESCUE_SCRIPT="/www/lua/rescue_server.lua"
 
 CHANNEL=""
 LOCAL_FILE=""
-FORCE=0
-KEEP_LOGS=0
+FORCE="${FORCE:-${GUI_FORCE:-0}}"
+KEEP_LOGS="${KEEP_LOGS:-${GUI_KEEP_LOGS:-0}}"
 STEP_N=0
 STEPS_TOT=5
 HAVE_LOCK=0
@@ -87,6 +91,11 @@ EOF
 
 # ------------------------------------------------------------ argomenti ------
 CLI_CHANNEL=""
+[ -n "$DEV" ] && [ "$DEV" = "1" ] && CLI_CHANNEL="dev"
+[ -n "$STABLE" ] && [ "$STABLE" = "1" ] && CLI_CHANNEL="stable"
+[ -n "$CHANNEL" ] && CLI_CHANNEL="$CHANNEL"
+[ -n "$GUI_CHANNEL" ] && CLI_CHANNEL="$GUI_CHANNEL"
+
 while [ $# -gt 0 ]; do
   case "$1" in
     --stable) CLI_CHANNEL="stable" ;;
@@ -409,8 +418,25 @@ new_ver=$(archive_version "$TMP_DL")
 cur_ver=$(installed_version)
 info "Versione installata: ${cur_ver:-n/d} | versione archivio: ${new_ver:-n/d}"
 if [ "$FORCE" != "1" ] && [ -n "$new_ver" ] && [ "$new_ver" = "$cur_ver" ] && [ ! -f /root/.install_gui ]; then
-  say "   La versione $cur_ver e' gia' installata. Usa --force per reinstallare."
-  exit 0
+  say "   La versione $cur_ver e' gia' installata."
+  reinstall=""
+  if [ -t 0 ]; then
+    printf "   Vuoi forzare la reinstallazione comunque? [s/N]: "
+    read -r reinstall
+  elif [ -r /dev/tty ]; then
+    printf "   Vuoi forzare la reinstallazione comunque? [s/N]: "
+    read -r reinstall </dev/tty 2>/dev/null
+  fi
+  case "$reinstall" in
+    [sSyY]|[sS][iI]|[yY][eE][sS])
+      FORCE=1
+      say "   -> Reinstallazione forzata confermata."
+      ;;
+    *)
+      say "   Installazione terminata senza modifiche. (Per forzare via CLI: --force oppure FORCE=1)"
+      exit 0
+      ;;
+  esac
 fi
 
 # Posizionamento archivio validato per rootdevice

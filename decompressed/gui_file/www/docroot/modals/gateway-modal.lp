@@ -106,7 +106,7 @@ local function export_config()
 end
 
 local function receive_file(filename, match)
-  function do_receive(outfile, match)
+  local function do_receive(outfile, match)
     local upload = require("web.fileupload")
     local form, err = upload.fromstream()
     if not form then
@@ -520,10 +520,22 @@ local system_valid = {
     return true
   end,
   system_hostname = function(value)
-    if #value == 0 then
-       return true
-	end
-    return false
+    if type(value) ~= "string" or #value == 0 then
+      return nil, T"Hostname cannot be empty"
+    end
+    if #value > 63 then
+      return nil, T"Hostname cannot exceed 63 characters"
+    end
+    if #value == 1 then
+      if not value:match("^[a-zA-Z0-9]$") then
+        return nil, T"Invalid hostname: must be alphanumeric"
+      end
+    else
+      if not value:match("^[a-zA-Z0-9][a-zA-Z0-9%-]*[a-zA-Z0-9]$") then
+        return nil, T"Invalid hostname: must contain only letters, numbers, and hyphens, and cannot start or end with a hyphen"
+      end
+    end
+    return true
   end,
 }
 
@@ -910,45 +922,6 @@ ngx.print(ui_helper.createMessages(message_helper.popMessages()))
 
       html[#html + 1] = ui_helper.createLabel(T"ACS URL", content["acs_url"], basic)
     end
-
-    -- Network & Kernel Tuning Information
-    local function trim_val(s)
-        local res = (s or ""):match("^%s*(.-)%s*$")
-        return res or ""
-    end
-    local cc_algo = trim_val(content_helper.readfile("/proc/sys/net/ipv4/tcp_congestion_control"))
-    local ct_count = trim_val(content_helper.readfile("/proc/sys/net/netfilter/nf_conntrack_count"))
-    local ct_max = trim_val(content_helper.readfile("/proc/sys/net/netfilter/nf_conntrack_max"))
-    local rmem_max = tonumber(trim_val(content_helper.readfile("/proc/sys/net/core/rmem_max"))) or 0
-    local wmem_max = tonumber(trim_val(content_helper.readfile("/proc/sys/net/core/wmem_max"))) or 0
-    local tfo = trim_val(content_helper.readfile("/proc/sys/net/ipv4/tcp_fastopen"))
-    local qdisc = trim_val(content_helper.readfile("/proc/sys/net/core/default_qdisc"))
-    local irq_aff = trim_val(content_helper.readfile("/proc/irq/92/smp_affinity"))
-    local irq_str = T"Core 0 (Default)"
-    if irq_aff == "2" then
-        irq_str = T"Core 1 (Offloaded / Balanced)"
-    elseif irq_aff == "3" then
-        irq_str = T"Core 0 & Core 1 (Shared)"
-    end
-
-    local rmem_mb = string.format("%.0f MB", rmem_max / (1024 * 1024))
-    local wmem_mb = string.format("%.0f MB", wmem_max / (1024 * 1024))
-    local tfo_str = T"Disabled"
-    if tfo == "3" then
-        tfo_str = T"Enabled (Client & Server)"
-    elseif tfo == "1" then
-        tfo_str = T"Enabled (Client only)"
-    elseif tfo == "2" then
-        tfo_str = T"Enabled (Server only)"
-    end
-
-    html[#html + 1] = '<legend style="margin-top: 30px; margin-bottom: 15px; border-bottom: 1px solid #e5e5e5; font-weight: bold;">' .. T"Network & Kernel Performance" .. '</legend>'
-    html[#html + 1] = ui_helper.createLabel(T"TCP Congestion Algorithm", cc_algo:upper(), basic)
-    html[#html + 1] = ui_helper.createLabel(T"TCP Max Socket Buffers", rmem_mb .. " (RX) / " .. wmem_mb .. " (TX)", basic)
-    html[#html + 1] = ui_helper.createLabel(T"TCP Fast Open", tfo_str, basic)
-    html[#html + 1] = ui_helper.createLabel(T"NAT Conntrack Connections", ct_count .. " / " .. ct_max .. " (Max)", basic)
-    html[#html + 1] = ui_helper.createLabel(T"Queue Discipline (Bufferbloat)", qdisc, basic)
-    html[#html + 1] = ui_helper.createLabel(T"Wi-Fi IRQ Core Affinity", irq_str, basic)
 
 	ngx.print(html)
     ngx.print('\

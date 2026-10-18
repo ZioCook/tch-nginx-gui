@@ -74,14 +74,41 @@ function M.getCpuStatus()
     end
   end
 
+  local has_cpufreq = (cur_gov ~= nil or cur_freq ~= nil)
+  local cores = (cpu1_online == "0") and 1 or 2
+
+  if not has_cpufreq then
+    local cpuinfo = read_file("/proc/cpuinfo")
+    if cpuinfo then
+      local bogomips = cpuinfo:match("BogoMIPS%s*:%s*([%d%.]+)")
+      if bogomips then
+        local bm = tonumber(bogomips)
+        if bm and bm > 300 and bm < 500 then
+          cur_freq_str = "400 MHz"
+        elseif bm and bm > 1500 then
+          cur_freq_str = "1.0 GHz"
+        elseif bm then
+          cur_freq_str = string.format("%d MHz", math.floor(bm))
+        end
+      end
+      local count = 0
+      for _ in cpuinfo:gmatch("processor%s*:") do
+        count = count + 1
+      end
+      if count > 0 then
+        cores = count
+      end
+    end
+  end
+
   return {
     governor = cur_gov or "N/A",
     cur_freq = cur_freq_str,
     cur_freq_raw = cur_freq or "N/A",
     min_freq = min_freq or "N/A",
     max_freq = max_freq or "N/A",
-    cores_online = (cpu1_online == "0") and 1 or 2,
-    has_cpufreq = (cur_gov ~= nil or cur_freq ~= nil),
+    cores_online = cores,
+    has_cpufreq = has_cpufreq,
   }
 end
 
@@ -155,25 +182,20 @@ function M.getTemperatures()
   end
 
   -- 4. Thermal Zones (if any)
-  local f_tz = io.popen("cat /sys/class/thermal/thermal_zone*/temp 2>/dev/null")
-  if f_tz then
-    local out = f_tz:read("*a")
+  for idx = 0, 3 do
+    local f_tz = io.open("/sys/class/thermal/thermal_zone" .. idx .. "/temp", "r")
+    if not f_tz then break end
+    local line = f_tz:read("*l")
     f_tz:close()
-    if out and #out > 0 then
-      local idx = 0
-      for t in out:gmatch("%d+") do
-        local val = tonumber(t)
-        if val then
-          if val > 1000 then val = math.floor(val / 1000) end
-          temps[#temps + 1] = {
-            sensor = "SoC Thermal Zone " .. idx,
-            temp = val,
-            unit = "°C",
-            chip = "soc",
-          }
-          idx = idx + 1
-        end
-      end
+    local val = line and tonumber(line:match("%d+"))
+    if val then
+      if val > 1000 then val = math.floor(val / 1000) end
+      temps[#temps + 1] = {
+        sensor = "SoC Thermal Zone " .. idx,
+        temp = val,
+        unit = "°C",
+        chip = "soc",
+      }
     end
   end
 
@@ -203,6 +225,11 @@ function M.getMemoryInfo()
     res.cached = tonumber(meminfo:match("Cached:%s*(%d+)")) or 0
     res.swap_total = tonumber(meminfo:match("SwapTotal:%s*(%d+)")) or 0
     res.swap_free = tonumber(meminfo:match("SwapFree:%s*(%d+)")) or 0
+
+    -- Fallback for Linux kernels < 3.14 (e.g. 3.4 on TG789vac v2) without MemAvailable
+    if res.mem_available == 0 then
+      res.mem_available = res.mem_free + res.buffers + res.cached
+    end
   end
 
   res.swap_used = res.swap_total - res.swap_free

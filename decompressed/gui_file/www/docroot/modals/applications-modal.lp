@@ -192,22 +192,40 @@ local function append_extension_card(state_key, app, title, description, link, c
 end
 
 local function kernel_has_tun()
-	local command = io.popen("[ -c /dev/net/tun ] || zcat /proc/config.gz 2>/dev/null | grep -q '^CONFIG_TUN=y$'; echo $?", "r")
+	if _G.__kernel_has_tun ~= nil then
+		return _G.__kernel_has_tun
+	end
+	local f = io.open("/dev/net/tun", "r")
+	if f then
+		f:close()
+		_G.__kernel_has_tun = true
+		return true
+	end
+	local command = io.popen("zcat /proc/config.gz 2>/dev/null | grep -q '^CONFIG_TUN=y$'; echo $?", "r")
 	if not command then
+		_G.__kernel_has_tun = false
 		return false
 	end
 	local result = command:read("*line")
 	command:close()
-	return result == "0"
+	_G.__kernel_has_tun = (result == "0")
+	return _G.__kernel_has_tun
 end
 
 local function tun_install_supported()
 	if kernel_has_tun() then return true end
+	if _G.__tun_install_supported ~= nil then
+		return _G.__tun_install_supported
+	end
 	local command = io.popen("[ \"$(uname -r)\" = 4.1.52 ] && { k=\"$(uci -q get version.@version[0].kernel)\"; [ \"$k\" = ac8d9a0575131475c4002132bf4995cb96c6f99d ] || [ \"$k\" = 5c1688dc9cc0c60e2e5534d702efa8c262815dae ]; }; echo $?", "r")
-	if not command then return false end
+	if not command then
+		_G.__tun_install_supported = false
+		return false
+	end
 	local result = command:read("*line")
 	command:close()
-	return result == "0"
+	_G.__tun_install_supported = (result == "0")
+	return _G.__tun_install_supported
 end
 
 if StateParams["luci_webui"] ~= nil then
