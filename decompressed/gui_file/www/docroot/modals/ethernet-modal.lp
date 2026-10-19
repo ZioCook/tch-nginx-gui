@@ -456,12 +456,32 @@ local sleases_valid = {
     sleases_ip = gAV(sleases_ip_validation,vQTN),
 }
 
+local function to_uint(n)
+    if not n then return nil end
+    if n < 0 then return n + 4294967296 end
+    return n
+end
+
+local function compare_leases(a, b)
+    local ipA = a and (a.sleases_ip or a.ip)
+    local ipB = b and (b.sleases_ip or b.ip)
+    local numA = to_uint(ipA and post_helper.validateStringIsIP(ipA) and ipv42num(ipA)) or 0
+    local numB = to_uint(ipB and post_helper.validateStringIsIP(ipB) and ipv42num(ipB)) or 0
+    if numA ~= numB then
+        return numA < numB
+    end
+    local nameA = a and (a.sleases_name or a.name) or ""
+    local nameB = b and (b.sleases_name or b.name) or ""
+    return tostring(nameA) < tostring(nameB)
+end
+
 local sleases_options = {
     tableid = "sleases",
     basepath = "uci.dhcp.host.@.",
     createMsg = T"Add new static lease",
     objectName  = post_helper.getRandomKey(),
     addNamedObject = true,
+    sorted = compare_leases,
 }
 
 
@@ -889,11 +909,6 @@ local function validateDHCPStart(value, object)
     end
 end
 
-local function to_uint(n)
-    if not n then return nil end
-    if n < 0 then return n + 4294967296 end
-    return n
-end
 
 -- This function will validate the Modem IP Address and check for
 -- Valid IP Format, Limited Broadcast Address, Public IP Range, Multicast Address Range
@@ -1214,10 +1229,20 @@ content, helpmsg = post_helper.handleQuery(mapParams, mapValid)
 if (ngx.var.request_method == "POST")  and not next(helpmsg) then
    local post_data = ngx.req.get_post_args()
    if post_data["domainName"] then
-      if post_data["domainName"] ~= "" then
-         proxy.set("uci.dhcp.dnsmasq.@" .. dnsmasq_instance .. ".local", "/" .. post_data["domainName"] .. "/")
+      local new_domain = post_data["domainName"]
+      if new_domain ~= "" then
+         proxy.set("uci.dhcp.dnsmasq.@" .. dnsmasq_instance .. ".local", "/" .. new_domain .. "/")
       else
          proxy.set("uci.dhcp.dnsmasq.@" .. dnsmasq_instance .. ".local", "")
+      end
+      -- Synchronize domain and local across default dnsmasq section to prevent stale ISP domain (e.g. homenet.telecomitalia.it)
+      if dnsmasq_instance ~= "dnsmasq" then
+         proxy.set("uci.dhcp.dnsmasq.@dnsmasq.domain", new_domain)
+         if new_domain ~= "" then
+            proxy.set("uci.dhcp.dnsmasq.@dnsmasq.local", "/" .. new_domain .. "/")
+         else
+            proxy.set("uci.dhcp.dnsmasq.@dnsmasq.local", "")
+         end
       end
    end
    local dhcp_options_path = "uci.dhcp.dhcp.@"..cur_dhcp_intf..".dhcp_option."

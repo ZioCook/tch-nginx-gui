@@ -12,6 +12,18 @@ uci2onoff() {
     esac
 }
 
+detect_pwrctl_flags() {
+    dgm_flag="--autogreeen"
+    apd_flag="--ethapd"
+
+    if pwrctl help 2>&1 | grep -q -- '--dgm'; then
+        dgm_flag="--dgm"
+    fi
+    if pwrctl help 2>&1 | grep -q -- '--apd'; then
+        apd_flag="--apd"
+    fi
+}
+
 setup_eee() {
     config_get eee ethernet eee 1
     pwrctl config --eee `uci2onoff $eee` 2>/dev/null
@@ -19,12 +31,12 @@ setup_eee() {
 
 setup_autogreeen() {
     config_get autogreeen ethernet autogreeen 1
-    pwrctl config --autogreeen `uci2onoff $autogreeen` 2>/dev/null
+    pwrctl config $dgm_flag `uci2onoff $autogreeen` 2>/dev/null
 }
 
 setup_ethapd() {
     config_get ethapd ethernet ethapd 1
-    pwrctl config --ethapd `uci2onoff $ethapd` 2>/dev/null
+    pwrctl config $apd_flag `uci2onoff $ethapd` 2>/dev/null
 }
 
 setup_wait() {
@@ -108,6 +120,7 @@ setup_leds() {
 }
 
 setup() {
+    detect_pwrctl_flags
     config_load power
     setup_autogreeen
     setup_eee
