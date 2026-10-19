@@ -1,99 +1,369 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Aggiornamento GUI</title>
-<noscript><meta http-equiv="refresh" content="5;url=/"></noscript>
-<style>
-*{box-sizing:border-box;margin:0;padding:0}
-body{min-height:100vh;display:flex;align-items:center;justify-content:center;background:#0f172a;font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif;color:#f8fafc;padding:16px}
-.c{width:100%;max-width:450px;background:#1e293b;border:1px solid #334155;border-radius:12px;box-shadow:0 10px 25px rgba(0,0,0,.4);padding:28px 24px;text-align:center}
-.hd{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:12px}
-.sp{width:20px;height:20px;border:3px solid #334155;border-top-color:#38bdf8;border-radius:50%;animation:r .8s linear infinite}
-@keyframes r{to{transform:rotate(360deg)}}
-h1{font-size:19px;font-weight:600;color:#f1f5f9}
-p{font-size:13.5px;color:#94a3b8;margin-bottom:20px}
-.b{height:12px;background:#0f172a;border:1px solid #334155;border-radius:99px;overflow:hidden;margin-bottom:12px}
-.b i{display:block;height:100%;width:0;background:linear-gradient(90deg,#0284c7,#38bdf8);transition:width .4s ease}
-.mt{display:flex;justify-content:space-between;font-size:13px;color:#cbd5e1;gap:8px}
-#m{text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-#v{font-weight:700;color:#38bdf8;font-variant-numeric:tabular-nums}
-.e{border-color:#ef4444}
-.e .b i{background:#ef4444}
-.e h1{color:#f87171}
-a{color:#38bdf8;margin-left:6px;text-decoration:none}
-a:hover{text-decoration:underline}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Technicolor Gateway - Aggiornamento GUI</title>
+  <noscript>
+    <meta http-equiv="refresh" content="5;url=/">
+  </noscript>
+  <style>
+    :root {
+      --accent: rgb(30, 116, 30);
+      --accent-dark: rgb(24, 90, 24);
+      --accent-shadow: rgba(56, 132, 56, 0.45);
+    }
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background-color: #eeeeee;
+      font-family: Helvetica, Arial, sans-serif;
+      font-size: 14px;
+      line-height: 20px;
+      color: #333333;
+      padding: 20px 16px;
+    }
+    .logo-technicolor {
+      width: 131px;
+      height: 50px;
+      margin: 0 auto 35px auto;
+      display: block;
+    }
+    .logo-technicolor svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .modal-container {
+      width: 100%;
+      max-width: 480px;
+      background-color: #ffffff;
+      border-top: 4px solid var(--accent);
+      border-radius: 0 0 6px 6px;
+      box-shadow: 0 2px 20px 0 var(--accent-shadow), 0 5px 15px rgba(0, 0, 0, 0.15);
+      padding: 24px 28px 20px;
+      background-clip: padding-box;
+    }
+    .card-header-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    h2 {
+      font-family: Helvetica, Arial, sans-serif;
+      font-size: 24px;
+      font-weight: normal;
+      line-height: 28px;
+      color: #333333;
+      margin: 0;
+    }
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid #e3e3e3;
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    .alert {
+      padding: 10px 14px;
+      margin: 0 0 16px;
+      text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+      background-color: #d9edf7;
+      border: 1px solid #bce8f1;
+      border-radius: 4px;
+      color: #3a87ad;
+      font-size: 13px;
+      line-height: 18px;
+    }
+    .progress {
+      height: 20px;
+      margin: 14px 0 10px;
+      overflow: hidden;
+      background-color: #f5f5f5;
+      background-image: linear-gradient(to bottom, #f5f5f5, #f9f9f9);
+      border-radius: 4px;
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+    }
+    .bar {
+      float: left;
+      width: 0%;
+      height: 100%;
+      font-size: 12px;
+      color: #ffffff;
+      text-align: center;
+      text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.25);
+      background-color: #149bdf;
+      background-image: linear-gradient(
+        45deg,
+        rgba(255, 255, 255, 0.15) 25%,
+        transparent 25%,
+        transparent 50%,
+        rgba(255, 255, 255, 0.15) 50%,
+        rgba(255, 255, 255, 0.15) 75%,
+        transparent 75%,
+        transparent
+      ), linear-gradient(to bottom, #149bdf, #0480be);
+      background-size: 40px 40px, 100% 100%;
+      box-shadow: inset 0 -1px 0 rgba(0, 0, 0, 0.15);
+      transition: width 0.6s ease;
+      animation: progress-bar-stripes 2s linear infinite;
+    }
+    @keyframes progress-bar-stripes {
+      from { background-position: 40px 0, 0 0; }
+      to { background-position: 0 0, 0 0; }
+    }
+    .bar-success {
+      background-color: #51a351;
+      background-image: linear-gradient(
+        45deg,
+        rgba(255, 255, 255, 0.15) 25%,
+        transparent 25%,
+        transparent 50%,
+        rgba(255, 255, 255, 0.15) 50%,
+        rgba(255, 255, 255, 0.15) 75%,
+        transparent 75%,
+        transparent
+      ), linear-gradient(to bottom, #62c462, #51a351);
+    }
+    .status-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 12px;
+      font-size: 13px;
+      color: #555555;
+    }
+    #m {
+      flex: 1;
+      text-align: left;
+      word-break: break-word;
+      line-height: 18px;
+    }
+    #v {
+      font-weight: bold;
+      color: var(--accent);
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
+    }
+    .copyright {
+      color: #999999;
+      text-shadow: 0 1px 0 #ffffff;
+      margin-top: 35px;
+      text-align: center;
+      font-size: 11px;
+      line-height: 17px;
+    }
+    .copyright p {
+      margin: 2px 0;
+    }
+    .copyright .accent {
+      color: var(--accent);
+    }
+    .copyright a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+    .copyright a:hover {
+      text-decoration: underline;
+    }
+    .btn {
+      display: inline-block;
+      padding: 6px 14px;
+      font-size: 13px;
+      line-height: 18px;
+      color: #ffffff;
+      text-align: center;
+      text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.25);
+      text-decoration: none;
+      background-color: var(--accent);
+      background-image: linear-gradient(to bottom, var(--accent), var(--accent-dark));
+      border: 1px solid var(--accent-dark);
+      border-radius: 4px;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 1px 2px rgba(0, 0, 0, 0.05);
+      cursor: pointer;
+      margin-top: 14px;
+    }
+    .btn:hover {
+      background-color: var(--accent-dark);
+      background-image: none;
+    }
+    /* Stato di errore */
+    .error-state {
+      border-top-color: #bd362f !important;
+      box-shadow: 0 2px 20px 0 rgba(189, 54, 47, 0.45), 0 5px 15px rgba(0, 0, 0, 0.15) !important;
+    }
+    .error-state .alert {
+      background-color: #f2dede;
+      border-color: #eed3d7;
+      color: #b94a48;
+    }
+    .error-state .bar {
+      background-color: #bd362f;
+      background-image: linear-gradient(to bottom, #ee5f5b, #bd362f);
+      animation: none;
+    }
+    .error-state #m,
+    .error-state #v {
+      color: #b94a48;
+      font-weight: bold;
+    }
+    .error-state .spinner {
+      border-top-color: #bd362f;
+      animation: none;
+    }
+  </style>
 </head>
 <body>
-<div class="c" id="c">
-  <div class="hd">
-    <div class="sp" id="s"></div>
-    <h1 id="t">Aggiornamento GUI in corso</h1>
+  <div class="logo-technicolor">
+    <svg xmlns="http://www.w3.org/2000/svg" width="131" height="50" viewBox="0 0 600.29283 228.46002">
+      <path d="M237.78 42.8c3.25-.01 6.51-.01 9.77-.01.05 15.17-.05 30.34.04 45.52 4.2-3.26 8.57-6.59 13.88-7.74 6.97-1.65 15.14.41 19.61 6.26 2.71 4.15 3.17 9.3 3.13 14.13-.08 10.58.05 21.15-.07 31.73-3.24.04-6.47.02-9.7.03.02-10.58 0-21.15.03-31.73-.01-3.35-.36-7.08-2.83-9.6-3.69-4.1-10.17-3.76-14.76-1.5-3.39 1.75-7.15 3.57-9.21 6.9-.28 11.96-.03 23.95-.1 35.92-3.27.01-6.53.01-9.79.01-.03-29.97-.02-59.95 0-89.92zM496.82 42.8c3.24-.01 6.48-.01 9.73-.03.12 29.98.01 59.96.05 89.95h-9.76c-.04-29.97-.01-59.95-.02-89.92zM361.46 57.67c3.47-1.47 7.85.54 8.53 4.36 1.36 4.81-4.62 9.67-8.96 6.88-4.47-2.19-4.3-9.51.43-11.24zM91.71 71.63c3.14-2.53 6.35-4.98 9.59-7.4.04 5.64.03 11.29.01 16.93 5.07.04 10.14.02 15.22.04-.01 2.78-.01 5.55-.01 8.33-5.06.01-10.12.01-15.18 0-.03 9.18-.01 18.35-.03 27.53-.05 2.5.28 5.55 2.68 6.95 2.97 1.45 6.41.8 9.58.77.4 2.64.83 5.27 1.26 7.9-5.29.93-11.07 1.8-16.14-.48-5.14-2.62-6.91-8.8-6.95-14.17-.06-9.5.03-18.99-.03-28.48-2.93.02-5.85 0-8.76-.25 2.68-3.13 5.68-5.97 8.7-8.77.08-2.97.1-5.93.06-8.9zM129.06 90.99c6.77-11.08 23.26-14.47 33.78-6.81 8.08 5.54 9.95 16.41 9.08 25.54-12.65.07-25.31-.01-37.97.04.41 5.82 3.81 11.64 9.43 13.78 7.76 2.9 16.35 1.46 23.99-1.13.61 2.7 1.28 5.39 2 8.06-10.31 3.52-22.48 5.09-32.4-.42-5.96-2.98-10.09-8.97-11.75-15.31-1.35-8-1.05-16.91 3.84-23.75m9.49 1.54c-2.62 2.67-3.58 6.41-4.5 9.91 9.74.07 19.47.05 29.21.02-.82-3.85-1.57-8.24-4.93-10.76-5.39-4.98-14.83-4.6-19.78.83zM202.06 80.96c8.37-2.45 17.4.12 24.63 4.57-1.37 2.37-2.65 4.77-3.88 7.21-6.84-3.47-15.25-6.29-22.54-2.43-10.42 4.56-12.36 19.58-5.9 28.15 3.17 3.66 7.74 6.31 12.65 6.58 5.78.64 11.36-1.42 16.4-4.03 1.05 2.49 2.15 4.97 3.33 7.4-7.65 4.56-16.91 6.59-25.64 4.31-6.23-1.94-12.31-5.49-15.72-11.22-5.14-8.03-5.4-18.8-.95-27.18 3.42-6.85 10.28-11.58 17.62-13.36zM319.86 80.88c6.43-1.92 14.21-.67 18.9 4.4 3.35 3.27 3.93 8.23 3.98 12.69.01 11.58 0 23.17-.01 34.75h-9.6c-.04-10.58.06-21.17-.03-31.75-.31-3.45-.01-7.61-2.97-10.05-3.06-3.31-8.16-3.04-12.12-1.86-4.1 1.79-8.42 4.08-10.95 7.88-.32 11.91-.02 23.85-.13 35.78h-9.69c-.01-17.18-.02-34.36 0-51.53 3.03-.01 6.06-.01 9.1-.01 0 2.56.02 5.11.01 7.67 3.95-3.47 8.37-6.59 13.51-7.97zM386.2 91.3c4.02-5.98 10.9-9.5 17.84-10.84 7.65-1.49 15.44 1.01 22.11 4.68-.85 2.61-1.92 5.14-3.26 7.54-6.59-2.88-14.1-6.03-21.23-3.04-10.42 3.43-14.21 17.43-8.85 26.46 3.41 6.47 11.14 9.88 18.27 8.91 4.41-.19 8.37-2.25 12.31-4.04 1.2 2.49 2.12 5.12 2.77 7.82-9.28 5.17-21.13 6.93-30.77 1.69-7.3-3.38-12.36-10.61-13.96-18.38-1.53-7.2.48-14.9 4.77-20.8zM454.48 80.57c8.65-1.82 18.3 1.07 24.31 7.62 9.41 10.08 9.34 27.43-.07 37.5-10.15 11.27-30.51 10.52-39.52-1.8-8.85-11.08-7.19-29.03 3.85-38.05 3.36-2.57 7.27-4.42 11.43-5.27m.88 7.97c-3.89 1.15-7.56 3.64-9.4 7.35-2.96 4.79-3.05 10.7-2.29 16.11 1.12 5.37 4.52 10.69 9.91 12.55 5.17 2.23 11.42 1.31 15.89-2.04 9.43-7.82 9.16-24.85-1.01-31.93-3.74-2.78-8.71-2.73-13.1-2.04zM539.26 80.38c7.3-1.32 15.13.85 20.9 5.46 12.28 9.88 12.56 30.83.94 41.33-9.23 8.39-24.46 8.66-34.11.83-12.33-9.88-12.72-30.56-1.21-41.23 3.8-3.32 8.52-5.5 13.48-6.39m-.75 8.34c-3.8 1.47-7.45 4-9.09 7.86-3.4 7.12-3.12 16.2 1.28 22.85 5.48 7.68 17.95 8.5 24.33 1.49 7.8-8.47 6.82-24.39-3.27-30.7-3.86-2.58-8.9-2.36-13.25-1.5zM589.49 89.52c4.38-5.66 11.2-9.15 18.32-9.66.04 3.23.04 6.46.06 9.7-5.81.47-12.07 1.65-16.38 5.89-1.65 1.35-1.39 3.59-1.43 5.48.06 10.59.03 21.19.02 31.79h-9.94c-.01-17.18 0-34.36 0-51.53 3.12-.01 6.25-.01 9.38-.01.02 2.78.02 5.56-.03 8.34zM359.06 81.18c3.21 0 6.41 0 9.62.01v51.53h-9.55c.03-17.18-.04-34.36-.07-51.54z" style="opacity:1;fill:#6d6e72" transform="translate(-42.86705 -42.77001)"/>
+      <path d="M42.87 185.92c10.03-7.06 19.74-14.67 30.13-21.18 12.51-.42 25.08-.09 37.61-.14-7.74 7.75-16.78 14.03-24.91 21.36-14.27-.02-28.55.05-42.83-.04z" style="opacity:1;fill:#81dcf9" transform="translate(-42.86705 -42.77001)"/>
+      <path d="M110.61 164.6c12.95-.08 25.9-.07 38.84 0-6.6 7.44-13.96 14.18-20.83 21.37-14.3-.01-28.61.01-42.92-.01 8.13-7.33 17.17-13.61 24.91-21.36z" style="opacity:1;fill:#81c7eb" transform="translate(-42.86705 -42.77001)"/>
+      <path d="M149.45 164.6c12.93-.07 25.87-.02 38.8-.03-5.26 7.31-11.27 14.05-16.47 21.39h-.43c-14.25.02-28.49 0-42.73.01 6.87-7.19 14.23-13.93 20.83-21.37z" style="opacity:1;fill:#81a6d0" transform="translate(-42.86705 -42.77001)"/>
+      <path d="M188.25 164.57c12.74-.01 25.47-.02 38.21.01-3.54 7.35-8.05 14.18-11.88 21.38-14.27.01-28.53 0-42.8 0 5.2-7.34 11.21-14.08 16.47-21.39z" style="opacity:1;fill:#b296c7" transform="translate(-42.86705 -42.77001)"/>
+      <path d="M226.46 164.58c12.94-.02 25.88-.03 38.83 0-2.31 7.27-5.24 14.31-8.04 21.39-14.22.01-28.44.01-42.67-.01 3.83-7.2 8.34-14.03 11.88-21.38z" style="opacity:1;fill:#c894bb" transform="translate(-42.86705 -42.77001)"/>
+      <path d="M265.29 164.58c12.93-.03 25.87 0 38.8-.01-1.15 7.17-2.47 14.31-3.99 21.4-14.29.01-28.57 0-42.85 0 2.8-7.08 5.73-14.12 8.04-21.39z" style="opacity:1;fill:#de92ae" transform="translate(-42.86705 -42.77001)"/>
+      <path d="M304.09 164.57c12.98-.03 25.96-.02 38.94 0-.04 7.14-.02 14.27-.03 21.41-14.3-.02-28.6-.02-42.9-.01 1.52-7.09 2.84-14.23 3.99-21.4z" style="opacity:1;fill:#f78d97" transform="translate(-42.86705 -42.77001)"/>
+      <path d="M343.03 164.57c12.68.02 25.36.01 38.04.01 2.01 7.05 3.4 14.25 5.09 21.39-14.39.02-28.77.01-43.16.01.01-7.14-.01-14.27.03-21.41z" style="opacity:1;fill:#f9b292" transform="translate(-42.86705 -42.77001)"/>
+      <path d="M381.07 164.58c12.94-.04 25.89-.01 38.84-.02 3.08 7.09 6.08 14.21 8.93 21.41-14.23-.01-28.45 0-42.68 0-1.69-7.14-3.08-14.34-5.09-21.39z" style="opacity:1;fill:#ffe086" transform="translate(-42.86705 -42.77001)"/>
+      <path d="M419.91 164.56c12.91-.01 25.83-.04 38.75.01 3.96 7.28 9.23 13.8 12.65 21.37-14.16.05-28.32.02-42.47.03-2.85-7.2-5.85-14.32-8.93-21.41z" style="opacity:1;fill:#fff681" transform="translate(-42.86705 -42.77001)"/>
+      <path d="M458.66 164.57c13.02-.01 26.04-.05 39.06.02 5.51 7.31 11.44 14.3 17.23 21.39-14.41-.04-28.83.03-43.24-.04h-.4c-3.42-7.57-8.69-14.09-12.65-21.37z" style="opacity:1;fill:#e5ee95" transform="translate(-42.86705 -42.77001)"/>
+      <path d="M497.72 164.59c12.8-.04 25.6-.05 38.4 0 6.77 7.37 14.51 13.8 21.07 21.38-14.08.01-28.16-.01-42.24.01-5.79-7.09-11.72-14.08-17.23-21.39z" style="opacity:1;fill:#c7e29f" transform="translate(-42.86705 -42.77001)"/>
+      <path d="M536.12 164.59c13.11-.04 26.22-.05 39.33.01 7.46 8.02 16.55 14.26 24.82 21.37-14.21-.01-28.42 0-42.63 0h-.45c-6.56-7.58-14.3-14.01-21.07-21.38z" style="opacity:1;fill:#80d39f" transform="translate(-42.86705 -42.77001)"/>
+      <path d="M575.45 164.6c11.85-.1 23.7-.01 35.56-.05 2.05-.22 3.85.87 5.44 2.05 8.83 6.52 17.98 12.61 26.71 19.29-14.3.18-28.59.02-42.89.08-8.27-7.11-17.36-13.35-24.82-21.37z" style="opacity:1;fill:#80c5a6" transform="translate(-42.86705 -42.77001)"/>
+      <path d="M42.87 185.92c14.28.09 28.56.02 42.83.04.06 19.86.03 39.72.03 59.57-14.27.02-28.53-.03-42.8.03-.13-19.88-.01-39.76-.06-59.64z" style="opacity:1;fill:#00b9f2" transform="translate(-42.86705 -42.77001)"/>
+      <path d="M85.7 185.96c14.31.02 28.62 0 42.92.01-.06 17.41-.07 34.81.01 52.22.02 11.01.05 22.03-.02 33.04-14.3-.06-28.59.01-42.88-.04v-25.66c0-19.85.03-39.71-.03-59.57z" style="opacity:1;fill:#008fd5" transform="translate(-42.86705 -42.77001)"/>
+      <path d="M128.62 185.97c14.24-.01 28.48.01 42.73-.01.14 17.41.02 34.82.06 52.22-14.26.01-28.52 0-42.78.01-.08-17.41-.07-34.81-.01-52.22z" style="opacity:1;fill:#034da2" transform="translate(-42.86705 -42.77001)"/>
+      <path d="M171.35 185.96h.43c14.27 0 28.53.01 42.8 0 .06 21.15.04 42.3.02 63.45-14.39.05-28.78 0-43.16.03-.03-3.75-.03-7.51-.03-11.26-.04-17.4.08-34.81-.06-52.22z" style="opacity:1;fill:#662e91" transform="translate(-42.86705 -42.77001)"/>
+      <path d="M214.58 185.96c14.23.02 28.45.02 42.67.01.2 24.77-.03 49.55.12 74.32.02 2.9.01 5.79.01 8.69-14.26.04-28.52.01-42.78.02-.01-6.53-.02-13.06 0-19.59.02-21.15.04-42.3-.02-63.45z" style="opacity:1;fill:#942977" transform="translate(-42.86705 -42.77001)"/>
+      <path d="M257.25 185.97c14.28 0 28.56.01 42.85 0-.02 19.42-.06 38.84.01 58.25.03 5.36.01 10.71.01 16.07-14.25.02-28.5.01-42.75 0-.15-24.77.08-49.55-.12-74.32z" style="opacity:1;fill:#bf245e" transform="translate(-42.86705 -42.77001)"/>
+      <path d="M300.1 185.97c14.3-.01 28.6-.01 42.9.01-.01 19.41.01 38.82-.01 58.23-14.29.03-28.59.01-42.88.01-.07-19.41-.03-38.83-.01-58.25z" style="opacity:1;fill:#ec1b30" transform="translate(-42.86705 -42.77001)"/>
+      <path d="M343 185.98c14.39 0 28.77.01 43.16-.01.07 18.22-.03 36.45.05 54.68.03 6.97 0 13.93.03 20.89-14.41.12-28.82.01-43.23.06-.02-5.79-.01-11.59-.02-17.39.02-19.41 0-38.82.01-58.23z" style="opacity:1;fill:#f36523" transform="translate(-42.86705 -42.77001)"/>
+      <path d="M386.16 185.97c14.23 0 28.45-.01 42.68 0-.18 18.23 0 36.46-.09 54.7-14.18-.04-28.36-.01-42.54-.02-.08-18.23.02-36.46-.05-54.68z" style="opacity:1;fill:#ffc20f" transform="translate(-42.86705 -42.77001)"/>
+      <path d="M428.84 185.97c14.15-.01 28.31.02 42.47-.03h.4c-.25 16.2-.1 32.4-.08 48.6.04 6.53-.01 13.07.03 19.6-14.32-.13-28.66.34-42.97-.25.1-4.41.07-8.81.06-13.22.09-18.24-.09-36.47.09-54.7z" style="opacity:1;fill:#ffec01" transform="translate(-42.86705 -42.77001)"/>
+      <path d="M471.71 185.94c14.41.07 28.83 0 43.24.04-.06 13.25 0 26.5-.03 39.75-.01 2.94-.01 5.87-.01 8.81-14.43-.01-28.86-.01-43.28 0-.02-16.2-.17-32.4.08-48.6z" style="opacity:1;fill:#cadb2a" transform="translate(-42.86705 -42.77001)"/>
+      <path d="M514.95 185.98c14.08-.02 28.16 0 42.24-.01h.45c-.11 13.25-.01 26.5-.06 39.76-14.22.01-28.44 0-42.66 0 .03-13.25-.03-26.5.03-39.75z" style="opacity:1;fill:#8ec63f" transform="translate(-42.86705 -42.77001)"/>
+      <path d="M557.64 185.97c14.21 0 28.42-.01 42.63 0 .09 20.25-.01 40.5.09 60.74-14.26.01-28.52.01-42.77 0 .01-6.99.01-13.99-.01-20.98.05-13.26-.05-26.51.06-39.76z" style="opacity:1;fill:#00a640" transform="translate(-42.86705 -42.77001)"/>
+      <path d="M600.27 185.97c14.3-.06 28.59.1 42.89-.08-.08 25.64-.01 51.28-.04 76.92-14.25-.01-28.5 0-42.75-.01.01-5.36.02-10.73-.01-16.09-.1-20.24 0-40.49-.09-60.74z" style="opacity:1;fill:#008a4c" transform="translate(-42.86705 -42.77001)"/>
+    </svg>
   </div>
-  <p id="d">Non spegnere il router. La pagina si aggiorna automaticamente.</p>
-  <div class="b"><i id="p"></i></div>
-  <div class="mt">
-    <span id="m">Inizializzazione...</span>
-    <span id="v">0%</span>
+
+  <div class="modal-container" id="c">
+    <div class="card-header-row">
+      <h2 id="t">Aggiornamento GUI in corso</h2>
+      <div class="spinner" id="s"></div>
+    </div>
+
+    <div class="alert alert-info" id="d">
+      Non scollegare o spegnere il router. La pagina verrà ricaricata automaticamente al termine.
+    </div>
+
+    <div class="progress">
+      <div class="bar" id="p" style="width: 0%;"></div>
+    </div>
+
+    <div class="status-row">
+      <span id="m">Preparazione aggiornamento...</span>
+      <span id="v">0%</span>
+    </div>
   </div>
-</div>
-<script>
-(function(){
-  function g(i){return document.getElementById(i)}
-  var p=g("p"),m=g("m"),v=g("v"),c=g("c"),s=g("s"),mx=0,f=0;
-  if(!/^it/i.test(navigator.language||"")){
-    g("t").textContent="GUI Upgrade in progress";
-    g("d").textContent="Do not power off the router. This page will reload automatically.";
-  }
-  function nx(){setTimeout(tk,1000)}
-  function ko(){f++;if(f>2&&mx>=50)pr();else nx()}
-  function pr(){
-    var x=new XMLHttpRequest();
-    x.open("GET","/login.lp?_="+Date.now());
-    x.timeout=4000;
-    x.onload=function(){
-      if(x.status==200)location.replace("/login.lp");
-      else nx();
-    };
-    x.onerror=x.ontimeout=nx;
-    x.send();
-  }
-  function tk(){
-    var x=new XMLHttpRequest();
-    x.open("GET","/gui_progress.json?_="+Date.now());
-    x.timeout=4000;
-    x.onload=function(){
-      var j=null;
-      try{j=JSON.parse(x.responseText)}catch(e){}
-      if(x.status!=200||!j)return ko();
-      f=0;
-      var n=+j.pct||0;
-      if(n>mx)mx=n>100?100:n;
-      p.style.width=mx+"%";
-      v.textContent=mx+"%";
-      if(j.msg)m.textContent=j.msg;
-      if(j.step=="error"){
-        c.className="c e";
+
+  <div class="copyright">
+    <p>&copy; Technicolor 2026</p>
+    <p>GUI MediaAccess</p>
+    <p>Fork & modifiche di <span class="accent">ZioCook</span> &bull; Codice originale di <span class="accent">Ansuel</span> e <a href="https://github.com/ZioCook/tch-nginx-gui/graphs/contributors" target="_blank">questi utenti GitHub.</a><br/>Utility di sblocco di <span class="accent">ADeltaX</span> - Traduzione GUI di <span class="accent">DarkNiko, bovirus</span></p>
+  </div>
+
+  <script>
+  (function(){
+    function g(i){return document.getElementById(i)}
+    var p=g("p"),m=g("m"),v=g("v"),c=g("c"),s=g("s"),mx=0,f=0;
+
+    if(!/^it/i.test(navigator.language||"")){
+      g("t").textContent="Gateway Upgrade in progress";
+      g("d").textContent="Do not disconnect or power off the router. This page will reload automatically.";
+      m.textContent="Preparing upgrade...";
+    }
+
+    function render(pct,step,msg){
+      pct=Math.max(mx,Math.min(100,parseInt(pct,10)||0));
+      mx=pct;
+      p.style.width=pct+"%";
+      v.textContent=pct+"%";
+      if(msg){m.textContent=msg;}
+      if(step==="error"){
+        c.className="modal-container error-state";
         s.style.display="none";
-        var a=document.createElement("a");
-        a.href="/login.lp";
-        a.textContent="[Riprova]";
-        m.appendChild(a);
-        return;
+        m.textContent=msg||"Si è verificato un errore durante l'aggiornamento.";
+        p.className="bar";
+        p.style.width="100%";
+        v.textContent="Errore";
+        if(!g("rb")){
+          var b=document.createElement("a");
+          b.id="rb";b.className="btn";b.href="/";b.textContent="Riprova";
+          c.appendChild(b);
+        }
+      }else if(pct>=100||step==="done"){
+        p.className="bar bar-success";
+        m.textContent="Aggiornamento completato. Ricarica interfaccia in corso...";
+        setTimeout(function(){window.location.replace("/");},2500);
       }
-      if(j.step=="done"||mx>=100){
-        s.style.borderTopColor="#22c55e";
-        return setTimeout(pr,1200);
-      }
-      nx();
-    };
-    x.onerror=x.ontimeout=ko;
-    x.send();
-  }
-  tk();
-})();
-</script>
+    }
+
+    function poll(){
+      var x=new XMLHttpRequest();
+      x.open("GET","/gui_progress.json?_="+Date.now(),true);
+      x.timeout=4000;
+      x.onload=function(){
+        f=0;
+        if(x.status>=200&&x.status<300){
+          try{
+            var d=JSON.parse(x.responseText);
+            var pct=(d.pct!==undefined)?d.pct:d.progress;
+            var step=d.step||d.status;
+            var msg=d.msg||d.message;
+            render(pct,step,msg);
+            if(d.done||step==="done"||pct>=100){
+              setTimeout(function(){window.location.replace("/");},2500);
+              return;
+            }
+          }catch(e){}
+        }else if(x.status===503){
+          m.textContent="Riavvio dei servizi di sistema in corso...";
+        }
+        setTimeout(poll,1000);
+      };
+      x.onerror=x.ontimeout=function(){
+        f++;
+        if(f>45){
+          render(mx,"warning","Il router sta impiegando più tempo del previsto. Se i LED sono stabili, prova a ricaricare.");
+          if(!g("rb")){
+            var b=document.createElement("a");
+            b.id="rb";b.className="btn";b.href="/";b.textContent="Ricarica Pagina";
+            c.appendChild(b);
+          }
+        }else{
+          m.textContent="Riconnessione al router in corso ("+f+")...";
+        }
+        setTimeout(poll,2000);
+      };
+      x.send();
+    }
+    setTimeout(poll,1000);
+  })();
+  </script>
 </body>
 </html>
