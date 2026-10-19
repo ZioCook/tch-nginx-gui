@@ -180,6 +180,14 @@ set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
     size = os.path.getsize(binary_path)
     print(f"Successfully built {config['out_binary']}! Size: {size:,} bytes ({size / 1024:.1f} KB)")
 
+    # Verify ELF ABI integrity for MIPS
+    if arch_name == 'mips':
+        res_readelf = subprocess.run([f"{config['prefix']}readelf", '-A', binary_path], capture_output=True, text=True)
+        if 'Tag_GNU_MIPS_ABI_FP: Hard float' not in res_readelf.stdout:
+            print("ERROR: MIPS FP ABI validation failed! Tag_GNU_MIPS_ABI_FP: Hard float was not found.")
+            return False
+        print("Verified MIPS ELF FP ABI: Hard float o32 unified.")
+
     # Copy to output
     out_dir = '/mnt/c/Users/Lorenzo/.gemini/antigravity/scratch/tch-nginx-gui/decompressed/gui_file/usr/bin'
     os.makedirs(out_dir, exist_ok=True)
