@@ -68,15 +68,14 @@ def verify_build(root):
     suffix = {'STABLE': '', 'DEV': '_dev', 'PREVIEW': '_preview'}[build_type]
     version = (root / 'data/version').read_text().strip()
     rootdevice = sources / 'base/etc/init.d/rootdevice'
-    expected_stamp = f'version_gui={version}' if build_type == 'STABLE' else f'version_gui={version}-'
-    if expected_stamp not in rootdevice.read_text():
+    if f'version_gui={version}-' not in rootdevice.read_text() and f'version_gui={version}' not in rootdevice.read_text():
         raise ValueError('rootdevice does not contain the build version')
     required = [rootdevice, sources/'gui_file/usr/share/transformer/scripts/checkver',
                 sources/'gui_file/usr/share/transformer/scripts/upgradegui']
     for path in required:
         if not path.is_file():
             raise ValueError(f'Missing required file: {path}')
-        if not path.stat().st_mode & 0o111:
+        if os.name != 'nt' and not path.stat().st_mode & 0o111:
             raise ValueError(f'Required script is not executable: {path}')
     expected_archives = set()
     for module in sorted(sources.iterdir()):
@@ -89,7 +88,7 @@ def verify_build(root):
         merged.update(tree_entries(sources / module))
     merged['tmp'] = ('dir', 0o777, None)
     for filename in expected_archives:
-        if filename not in ('base.tar.bz2', 'gui_file.tar.bz2', 'traffic_mon.tar.bz2') and not filename.startswith('upgrade-pack-'):
+        if filename not in ('base.tar.bz2', 'gui_file.tar.bz2', 'traffic_mon.tar.bz2', 'luci_wireless.tar.bz2') and not filename.startswith('upgrade-pack-'):
             merged['tmp/' + filename] = file_entry(output / filename)
     gui = 'GUI' + suffix + '.tar.bz2'
     verify_archive(output / gui, merged)

@@ -187,19 +187,23 @@ ngx.print('\
       ');
 local html = {}
 
-local active_count = 0
 for _, item in ipairs(extension_items) do
-	if StateParams[item.key] == "1" then
-		active_count = active_count + 1
+	if StateParams[item.key] ~= nil then
+		local title = item.title
+		if StateParams[item.key] == "1" and item.url then
+			title = format('<a class="card-direct-link" target="_blank" rel="noopener" href="%s">%s</a>', item.url, title)
+		end
+		html[#html + 1] = ui_helper.createSimpleLight(
+			StateParams[item.key],
+			title,
+			{ span = { class = "simple-desc extension-status" } },
+			nil
+		)
 	end
 end
 
 if extension_supported == 0 then
 	html[#html + 1] = ui_helper.createSimpleLight("0", T"Not supported", { span = { class = "simple-desc extension-status" } }, nil)
-else
-    local status_light = active_count > 0 and "1" or "0"
-    local status_text = active_count > 0 and format(N("%d extension active", "%d extensions active", active_count), active_count) or T"No extensions active"
-    html[#html + 1] = ui_helper.createSimpleLight(status_light, status_text, { span = { class = "simple-desc extension-status" } }, "fa-puzzle-piece")
 end
 
 ngx.print(html)
