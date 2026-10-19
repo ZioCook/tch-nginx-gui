@@ -1,3 +1,72 @@
+html, body {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(110, 10, 143, 0.50) transparent;
+}
+
+body::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+body::-webkit-scrollbar-button {
+  width: 0px;
+  height: 0px;
+}
+body::-webkit-scrollbar-thumb {
+  background: rgba(110, 10, 143, 0.50);
+}
+body::-webkit-scrollbar-thumb:hover {
+  background: rgba(124, 26, 116, 0.85);
+}
+body::-webkit-scrollbar-thumb:active {
+  background: rgba(68, 3, 89, 1);
+}
+body::-webkit-scrollbar-track {
+  background: transparent;
+}
+body::-webkit-scrollbar-track:hover {
+  background: transparent;
+}
+body::-webkit-scrollbar-track:active {
+  background: transparent;
+}
+body::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+.modal-body {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(110, 10, 143, 0.50) transparent;
+}
+.modal-body::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+.modal-body::-webkit-scrollbar-button {
+  width: 0px;
+  height: 0px;
+}
+.modal-body::-webkit-scrollbar-thumb {
+  background: rgba(110, 10, 143, 0.50);
+}
+.modal-body::-webkit-scrollbar-thumb:hover {
+  background: rgba(124, 26, 116, 0.85);
+}
+.modal-body::-webkit-scrollbar-thumb:active {
+  background: rgba(68, 3, 89, 1);
+}
+.modal-body::-webkit-scrollbar-track {
+  background: transparent;
+}
+.modal-body::-webkit-scrollbar-track:hover {
+  background: transparent;
+}
+.modal-body::-webkit-scrollbar-track:active {
+  background: transparent;
+}
+.modal-body::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
 .logo{
      margin-top: -30px;
 }

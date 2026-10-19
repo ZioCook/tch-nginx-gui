@@ -1,3 +1,7 @@
+html, body {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(54, 129, 221, 0.50) transparent;
+}
 
 body::-webkit-scrollbar {
   width: 10px;
@@ -29,6 +33,10 @@ body::-webkit-scrollbar-corner {
   background: transparent;
 }
 
+.modal-body {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(54, 129, 221, 0.50) transparent;
+}
 .modal-body::-webkit-scrollbar {
   width: 10px;
   height: 10px;
