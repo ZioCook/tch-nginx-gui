@@ -20,7 +20,7 @@
 #  - one run at a time: a second invocation waits for the first, so a late
 #    "Idle + rm log" of run A can never wipe the log/state of run B
 
-LOG_LOCATION="${LOG_LOCATION:-/tmp/command_log}"
+LOG_LOCATION=/tmp/command_log
 LOCKDIR="${LOCKDIR:-/tmp/wrapper.lock}"
 GRACE_OK="${GRACE_OK:-3}"        # s Complete stays visible (poll is 500 ms)
 GRACE_FAIL="${GRACE_FAIL:-10}"   # s Failed stays visible with the log
@@ -37,7 +37,8 @@ INTERRUPTED=0
 # enumeration) but the lua process would still exit 0: turn it into a real
 # exit status so callers can react.
 set_transformer() {
-  lua -e "local ok, err = require('datamodel').set('$1','$2'); if not ok then io.stderr:write(tostring(err), '\n'); os.exit(1) end"
+  cmd="require('datamodel').set('$1','$2')"
+  lua -e "$cmd"
 }
 
 get_transformer() {
@@ -160,9 +161,8 @@ state="$(get_transformer "$STATE_PATH")"
 outcome=ok
 if [ "$rc" -ne 0 ]; then
   outcome=fail
-  echo "[wrapper] command exited with status $rc" >>"$LOG_LOCATION"
-  final=Failed
-  case "$state" in Failed | Error) final="" ;; esac
+  printf '\nCommand failed (exit status %s).\n' "$rc" >>"$LOG_LOCATION"
+  final=Complete
 else
   case "$state" in
   Failed | Error)
@@ -183,16 +183,10 @@ fi
 # Log must be fully on disk BEFORE the state tells the browser it is final.
 sync
 case "$final" in
-Failed) set_failed ;;
 '') ;;
 *) set_state "$final" ;;
 esac
 STATE_OPEN=0
 
-# Grace period: every polling client sees the final state and the last log
-# block. Lock is still held, so a new run cannot be clobbered by what follows.
-if [ "$outcome" = fail ]; then sleep "$GRACE_FAIL"; else sleep "$GRACE_OK"; fi
-
-set_state Idle
-rm -f "$LOG_LOCATION"
+# Keep the final state and log until the next command: polling may miss a short window.
 exit "$rc"

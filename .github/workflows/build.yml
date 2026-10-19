@@ -40,7 +40,7 @@ jobs:
 
       - name: Lint Lua syntax
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y -qq lua5.1
+          sudo apt-get update -qq && sudo apt-get install -y -qq lua5.1 lua-bitop
           bash scripts/1-lint_lua_syntax.sh decompressed
 
       - name: Test release updates and archive verification

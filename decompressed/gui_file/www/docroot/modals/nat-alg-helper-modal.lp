@@ -90,7 +90,9 @@ end
   <form class="form-horizontal" method="post" action="modals/nat-alg-helper-modal.lp">\
     ');  
         ngx.print(ui_helper.createMessages(message_helper.popMessages()))
-        ngx.print(ui_helper.createAlertBlock(T"NAT Helpers (ALG) allow protocols that embed network addresses to traverse NAT. In bridge mode, NAT is bypassed and managed by the upstream router.", { alert = { class = "alert-info" } }))
+        if ui_helper.createAlertBlock then
+            ngx.print(ui_helper.createAlertBlock(T"NAT Helpers (ALG) allow protocols that embed network addresses to traverse NAT. In bridge mode, NAT is bypassed and managed by the upstream router.", { alert = { class = "alert-info" } }))
+        end
       ngx.print('\
     <fieldset>\
       ');  
