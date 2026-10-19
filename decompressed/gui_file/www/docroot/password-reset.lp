@@ -35,9 +35,9 @@ local current_year = (string.sub(year,1,4))
     <meta name="viewport" content="width=device-width, initial-scale=1.0">\
     <meta charset="UTF-8">\
     <meta name="CSRFtoken" content="');  ngx.print( ngx.ctx.session:getCSRFtoken() ); ngx.print('">\
-    <link href="/css/gw.css" rel="stylesheet">\
-    <link href="/css/responsive.css" rel="stylesheet">\
-    <script src="/js/main-min.js" ></script>\
+    <!--[if IE 7]><link rel="stylesheet" href="/css/font-awesome-ie7.css"><![endif]-->\
+    <script src="/js/jquery.min.js" ></script>\
+    <!--[if lt IE 9]> <script src="/js/media-min.js"></script> <![endif]-->\
     <script src="/js/srp-min.js" ></script>\
     <title>');  ngx.print( T"Login" ); ngx.print('</title>\
 </head>\
