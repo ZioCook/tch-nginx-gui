@@ -22,7 +22,7 @@ TOOLCHAINS = {
         'prefix': '/home/lorenzo/toolchains_bootlin/mips32--musl--stable-2026.08-1/bin/mips-linux-',
         'sysroot': '/home/lorenzo/toolchains_bootlin/mips32--musl--stable-2026.08-1/mips-buildroot-linux-musl/sysroot',
         'cflags': '-march=mips32 -mabi=32 -EB -Os -flto -ffunction-sections -fdata-sections -fno-asynchronous-unwind-tables -DNDEBUG',
-        'ldflags': '-static -flto -s -Wl,--gc-sections',
+        'ldflags': '-static -flto -s -Wl,--gc-sections -Wl,--fatal-warnings',
         'out_binary': 'fastfetch-mips'
     }
 }
@@ -182,6 +182,19 @@ set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
 
     # Verify ELF ABI integrity for MIPS
     if arch_name == 'mips':
+        # 1. Scan individual object files in build_dir
+        obj_files = glob.glob(f"{build_dir}/**/*.o", recursive=True)
+        soft_objects = []
+        for obj in obj_files:
+            res_obj = subprocess.run([f"{config['prefix']}readelf", '-A', obj], capture_output=True, text=True)
+            if 'Tag_GNU_MIPS_ABI_FP: Soft float' in res_obj.stdout or 'FP ABI: Soft float' in res_obj.stdout:
+                soft_objects.append(obj)
+        if soft_objects:
+            print(f"ERROR: {len(soft_objects)} object file(s) compiled with Soft float ABI! Examples: {soft_objects[:3]}")
+            return False
+        print(f"Verified {len(obj_files)} MIPS object files: 0 soft-float units detected.")
+
+        # 2. Check final binary tag
         res_readelf = subprocess.run([f"{config['prefix']}readelf", '-A', binary_path], capture_output=True, text=True)
         if 'Tag_GNU_MIPS_ABI_FP: Hard float' not in res_readelf.stdout:
             print("ERROR: MIPS FP ABI validation failed! Tag_GNU_MIPS_ABI_FP: Hard float was not found.")
