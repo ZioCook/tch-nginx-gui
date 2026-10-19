@@ -69,6 +69,7 @@ class ArchiveVerification(unittest.TestCase):
             source.mkdir()
             script = source/'run'
             script.write_bytes(b'good')
+            script.chmod(0o755)
             try:
                 (source/'link').symlink_to('run')
             except OSError:
