@@ -405,1095 +405,2089 @@ end
 -- HTML page (static template; the few dynamic values use @@NAME@@ placeholders)
 ------------------------------------------------------------------------------
 local PAGE_TEMPLATE = [==[<!DOCTYPE HTML>
+
 <html lang="it">
+
 <head>
+
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Rescue Console &mdash; Technicolor Gateway</title>
-  <link rel="icon" type="image/x-icon" href="/favicon.ico">
+
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <title>Technicolor Gateway - Rescue Console (@@PORT@@)</title>
+
   <style>
-    @font-face {
-      font-family: "Font Awesome 5 Free";
-      font-style: normal;
-      font-weight: 900;
-      src: url("/fonts/fa-solid-900.woff2") format("woff2"),
-           url("/fonts/fa-solid-900.woff") format("woff");
-    }
-    @font-face {
-      font-family: "Font Awesome 5 Brands";
-      font-style: normal;
-      font-weight: 400;
-      src: url("/fonts/fa-brands-400.woff2") format("woff2"),
-           url("/fonts/fa-brands-400.woff") format("woff");
-    }
-    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      color: #333;
-      background-color: #eee;
-      font: 14px/20px Helvetica,Arial,sans-serif;
-      min-height: 100vh;
-      -webkit-font-smoothing: antialiased;
-      overflow-x: hidden;
-    }
-    
-    /* Font Awesome Classes */
-    .fa { font-family: "Font Awesome 5 Free", sans-serif; font-weight: 900; font-style: normal; display: inline-block; }
-    .fb { font-family: "Font Awesome 5 Brands", sans-serif; font-weight: 400; font-style: normal; display: inline-block; }
-    .fa-microchip:before { content: "\f2db"; }
-    .fa-code-branch:before { content: "\f126"; }
-    .fa-memory:before { content: "\f538"; }
-    .fa-clock:before { content: "\f017"; }
-    .fa-shield-alt:before { content: "\f3ed"; }
-    .fa-exclamation-triangle:before { content: "\f071"; }
-    .fa-server:before { content: "\f233"; }
-    .fa-wrench:before { content: "\f0ad"; }
-    .fa-sync-alt:before { content: "\f021"; }
-    .fa-power-off:before { content: "\f011"; }
-    .fa-network-wired:before { content: "\f6ff"; }
-    .fa-file-alt:before { content: "\f15c"; }
-    .fa-terminal:before { content: "\f120"; }
-    .fa-upload:before { content: "\f093"; }
-    .fa-play:before { content: "\f04b"; }
-    .fa-eraser:before { content: "\f12d"; }
-    .fa-spinner:before { content: "\f110"; }
-    .fa-cogs:before { content: "\f085"; }
-    .fa-spin { animation: fa-spin 1s infinite linear; }
-    @keyframes fa-spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-    /* Technicolor Green Theme Gateway Background Globe Watermark */
-    .gateway_bg {
-      position: fixed;
-      left: 0;
-      top: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      z-index: 1;
-      overflow: hidden;
-    }
-    .gateway_bg:after {
-      font-family: "Font Awesome 5 Free";
-      font-weight: 900;
-      color: rgba(151, 187, 151, 0.30);
-      content: "\f0ac";
-      display: block;
-      position: fixed;
-      left: -380px;
-      top: 90px;
-      font-size: 1000px;
-      z-index: -1;
-      line-height: 1;
-    }
+    /* Reset & Base Technicolor gw.css + Bootstrap 2.3.2 */
 
-    /* Main Container */
-    .container {
-      max-width: 1240px;
-      margin: 0 auto;
-      padding: 0 20px 40px;
-      position: relative;
-      z-index: 2;
-    }
+    *, *::before, *::after {
 
-    /* Header */
-    .header {
-      padding: 26px 0 18px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-    .header-logo img {
-      width: 131px;
-      height: 50px;
-      display: block;
-      border: 0;
-    }
-    .header-lang {
-      display: flex;
-      align-items: center;
-      position: relative;
-      z-index: 10;
-    }
-    #webui_language {
-      height: 36px;
-      padding: 6px 14px;
-      font-size: 13px;
-      font-weight: bold;
-      font-family: Helvetica, Arial, sans-serif;
-      color: #333;
-      background-color: #ffffff;
-      background-image: linear-gradient(to bottom, #fff, #f5f5f5);
-      border: 1px solid #c6bec9;
-      border-radius: 4px;
-      box-shadow: inset 0 1px 1px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.05);
-      cursor: pointer;
-      outline: none;
-      transition: all .15s ease-in-out;
-    }
-    #webui_language:hover {
-      border-color: rgb(30, 116, 30);
-      box-shadow: 0 0 6px rgba(92, 247, 65, 0.45);
-    }
-    #webui_language:focus {
-      border-color: rgb(30, 116, 30);
-      box-shadow: 0 0 8px rgba(92, 247, 65, 0.6);
-    }
-
-    /* Warning Alert Banner */
-    .alert {
-      padding: 10px 20px;
-      margin-bottom: 24px;
-      text-shadow: 0 1px 0 rgba(255,255,255,0.5);
-      background-color: #fcf8e3;
-      border: 1px solid #fbeed5;
-      border-radius: 4px;
-      color: #c09853;
-      font-size: 14px;
-      line-height: 20px;
-      text-align: center;
-      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-    }
-
-    /* Balanced 4-Column Grid Layout */
-    .cards-grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 20px;
-    }
-
-    /* Card Styling - Pixel Perfect Replica of Technicolor .smallcard */
-    .sc {
-      position: relative;
-      display: flex;
-      flex-direction: column;
-      background: #fff;
-      overflow: hidden;
-      font-family: Helvetica,Arial,sans-serif;
-      font-size: 14px;
-      border-radius: 0;
-      border: none;
-      -webkit-box-shadow: 0 2px 20px 0px rgba(56, 132, 56, 0.65);
-      -moz-box-shadow: 0 2px 20px 0px rgba(56, 132, 56, 0.65);
-      box-shadow: 0 2px 20px 0px rgba(56, 132, 56, 0.65);
-      height: 100%;
-      z-index: 2;
-    }
-
-    /* Card Header - Thick, Bold Technicolor Green Gradient (Identical to Original GUI) */
-    .sh {
-      min-height: 44px;
-      height: 44px;
-      padding: 10px 14px;
-      font-size: 18px;
-      line-height: 22px;
-      font-weight: bold;
-      color: #fff;
-      text-shadow: 0 1px 1px #000;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      background-color: rgb(30, 116, 30);
-      background-image: linear-gradient(to bottom, rgb(30, 116, 30) 20%, rgb(29, 36, 29) 100%);
-      border: 1px solid rgb(30, 116, 30);
-      border-bottom: 1px solid rgb(25, 95, 25);
-      box-shadow: inset 0 1px 1px rgba(255,255,255,.2);
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
       box-sizing: border-box;
+
     }
 
-    /* Card Body */
-    .ct {
-      position: relative;
-      z-index: 1;
-      flex: 1;
-      box-sizing: border-box;
-      min-height: 180px;
-      padding: 14px 15px;
-      font-weight: 500;
-      display: flex;
-      flex-direction: column;
-      justify-content: space-between;
-    }
+    html, body {
 
-    /* Discreet Watermarks (Non-overlapping, Solid Glyph without cutouts) */
-    .bgi {
-      position: absolute;
-      right: 8px;
-      bottom: 30px;
-      z-index: 0;
-      font-size: 110px;
-      line-height: 1;
-      color: rgba(151, 187, 151, 0.18);
-      pointer-events: none;
-      user-select: none;
-    }
-
-    .li {
-      position: relative;
-      z-index: 1;
-      line-height: 22px;
-      margin-bottom: 5px;
-      color: #333;
-    }
-    .li i {
-      display: inline-block;
-      width: 20px;
-      color: #555;
-      font-size: 13px;
-      text-align: center;
-    }
-    .sub {
-      position: relative;
-      z-index: 1;
-      margin-bottom: 12px;
-      font-size: 13px;
-      line-height: 18px;
-      font-weight: 300;
-      color: #666;
-    }
-
-    /* Status LEDs */
-    .light {
-      width: 8px;
-      height: 8px;
-      display: inline-block;
-      border-radius: 10px;
-      margin-right: 8px;
-      vertical-align: 1px;
-    }
-    .light.red {
-      background-color: #cd3535;
-      border: 1px solid #912424;
-      box-shadow: inset 0 1px 3px rgba(255,255,255,.5), 0 0 4px rgba(255,0,0,1);
-    }
-    .light.green {
-      background-color: #69c469;
-      border: 1px solid #3fa13f;
-      box-shadow: inset 0 1px 3px rgba(255,255,255,.5), 0 0 4px rgba(0,220,0,1);
-    }
-
-    /* Buttons */
-    .btn-action {
-      position: relative;
-      z-index: 2;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      gap: 7px;
-      width: 100%;
-      padding: 8px 14px;
-      font-size: 14px;
-      line-height: 20px;
-      font-weight: bold;
-      font-family: inherit;
-      text-align: center;
-      vertical-align: middle;
-      border-radius: 4px;
-      cursor: pointer;
-      box-sizing: border-box;
-      transition: all .15s ease-in-out;
-    }
-    .btn-default {
-      color: rgb(30, 116, 30);
-      background-color: #f5f5f5;
-      background-image: linear-gradient(to bottom, #fff, #e6e6e6);
-      border: 1px solid #c6bec9;
-      border-bottom-color: #aea2b2;
-      box-shadow: inset 0 -1px 0 rgba(255,255,255,1), 0 1px 2px rgba(0,0,0,.1);
-    }
-    .btn-default:hover {
-      color: #ffffff;
-      background-color: rgb(30, 116, 30);
-      background-image: linear-gradient(to bottom, rgb(30, 116, 30) 20%, rgb(29, 36, 29) 100%);
-      border-color: rgb(30, 116, 30);
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.5), 0 0 6px rgb(92, 247, 65);
-      text-shadow: 0 1px 0 #000;
-    }
-    .btn-primary {
-      color: #ffffff;
-      text-shadow: 0 1px 0 #000;
-      background-color: rgb(30, 116, 30);
-      background-image: linear-gradient(to bottom, rgb(30, 116, 30) 20%, rgb(29, 36, 29) 100%);
-      border: 1px solid rgb(30, 116, 30);
-      border-radius: 3px;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.3), 0 2px 4px rgba(0,0,0,.5);
-    }
-    .btn-primary:hover {
-      background-image: linear-gradient(to bottom, rgb(45, 145, 45) 20%, rgb(25, 40, 25) 100%);
-      border-color: rgb(45, 145, 45);
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.4), 0 0 8px rgba(92, 247, 65, 0.75);
-    }
-    .btn-danger {
-      color: #fff;
-      text-shadow: 0 -1px 0 rgba(0,0,0,0.25);
-      background-color: #da4f49;
-      background-image: linear-gradient(to bottom, #ee5f5b, #bd362f);
-      border: 1px solid #bd362f;
-      border-radius: 4px;
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.2), 0 1px 2px rgba(0,0,0,.05);
-    }
-    .btn-danger:hover {
-      background-color: #bd362f;
-      background-image: linear-gradient(to bottom, #bd362f, #a9302a);
-      border-color: #802420;
-    }
-    .btn-action:disabled {
-      opacity: .55;
-      cursor: not-allowed;
-      background: #e6e6e6 !important;
-      color: #888 !important;
-      border-color: #ccc !important;
-      box-shadow: none !important;
-      text-shadow: none !important;
-    }
-
-    /* Card 6: Log Operativo & Root Shell (Spans 3 Columns on Row 2) */
-    .logt {
-      grid-column: span 3;
-    }
-    .btn-clear {
-      padding: 3px 10px;
-      font-size: 11px;
-      line-height: 16px;
-      border-radius: 3px;
-      background: #fff;
-      border: 1px solid #c6bec9;
-      color: rgb(30, 116, 30);
-      font-weight: bold;
-      cursor: pointer;
-    }
-    .btn-clear:hover {
-      background: rgb(30, 116, 30);
-      color: #fff;
-    }
-
-    /* Pure White Monospace Console */
-    .fake_console {
-      background-color: #0c0c0c;
-      border: 1px solid #222;
-      border-radius: 3px;
-      padding: 10px 14px;
-      box-sizing: border-box;
-      height: 200px;
-      position: relative;
-      z-index: 1;
-    }
-    pre.con {
       margin: 0;
+
       padding: 0;
-      background: transparent;
-      color: #ffffff;
-      font-family: Consolas, "SFMono-Regular", "Liberation Mono", Menlo, monospace;
-      font-size: 13px;
+
+      background-color: #eeeeee;
+
+      color: #333333;
+
+      font-family: Helvetica, Arial, sans-serif;
+
+      font-size: 14px;
+
       line-height: 20px;
-      height: 180px;
-      overflow-y: auto;
-      white-space: pre-wrap;
-      word-break: break-all;
+
+      -webkit-font-smoothing: antialiased;
+
     }
 
-    /* Root Shell Interactive Command Bar */
-    .shell-bar {
+    a {
+
+      color: #0088cc;
+
+      text-decoration: none;
+
+    }
+
+    a:hover {
+
+      color: #005580;
+
+      text-decoration: underline;
+
+    }
+
+
+
+    /* Contenitore Principale */
+
+    .rescue-container {
+
+      max-width: 1200px;
+
+      margin: 0 auto;
+
+      padding: 18px 20px 30px 20px;
+
+    }
+
+
+
+    /* Header (Fix strutturale: header-logo chiuso correttamente) */
+
+    .rescue-header {
+
       display: flex;
-      gap: 8px;
-      margin-top: 10px;
+
+      justify-content: space-between;
+
       align-items: center;
-      position: relative;
-      z-index: 2;
-    }
-    .shell-prompt {
-      color: #69c469;
-      font-family: Consolas, monospace;
-      font-size: 13px;
-      font-weight: bold;
-      white-space: nowrap;
-      user-select: none;
-    }
-    .shell-input {
-      flex: 1;
-      height: 36px;
-      padding: 6px 10px;
-      font-family: Consolas, monospace;
-      font-size: 13px;
-      background: #141414;
-      color: #fff;
-      border: 1px solid #333;
-      border-radius: 3px;
-      box-sizing: border-box;
-    }
-    .shell-input:focus {
-      outline: none;
-      border-color: rgb(30, 116, 30);
-      box-shadow: 0 0 5px rgba(92, 247, 65, 0.5);
-    }
-    .shell-btn {
-      width: auto !important;
-      height: 36px;
-      padding: 6px 18px !important;
-      margin: 0 !important;
+
+      margin-bottom: 16px;
+
+      min-height: 54px;
+
     }
 
-    /* Styled File Upload Container */
-    .file-wrap {
-      position: relative;
-      z-index: 2;
-      margin-bottom: 14px;
+    .header-logo {
+
+      display: inline-flex;
+
+      align-items: center;
+
     }
-    .file-wrap input[type="file"] {
+
+    .header-logo svg {
+
       display: block;
-      width: 100%;
-      box-sizing: border-box;
-      padding: 7px 8px;
-      font-size: 12px;
-      font-family: inherit;
-      background: #fafafa;
-      border: 1px solid #c6bec9;
+
+      width: 131px;
+
+      height: 50px;
+
+    }
+
+    .header-actions {
+
+      display: flex;
+
+      align-items: center;
+
+      gap: 10px;
+
+    }
+
+    #webui_language {
+
+      appearance: auto;
+
+      background-color: #ffffff;
+
+      background-image: linear-gradient(to bottom, #ffffff, #e6e6e6);
+
+      border: 1px solid #cccccc;
+
+      border-color: rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.1) rgba(0, 0, 0, 0.25);
+
       border-radius: 4px;
-      color: #333;
+
+      padding: 6px 12px;
+
+      font-family: Helvetica, Arial, sans-serif;
+
+      font-size: 13px;
+
+      line-height: 18px;
+
+      color: #333333;
+
       cursor: pointer;
-    }
-    .file-wrap input[type="file"]:hover {
-      background: #fff;
-      border-color: rgb(30, 116, 30);
+
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.2), 0 1px 2px rgba(0,0,0,0.05);
+
     }
 
-    /* Clean Footer showing GUI Version */
-    .copyright {
-      margin-top: 35px;
-      margin-bottom: 20px;
+    #webui_language:focus {
+
+      outline: none;
+
+      border-color: #1e741e;
+
+    }
+
+
+
+    /* Alert di Emergenza (Bootstrap 2.3.2 .alert-warning) */
+
+    .alert-warning {
+
+      width: 100%;
+
+      background-color: #fcf8e3;
+
+      border: 1px solid #fbeed5;
+
+      color: #c09853;
+
+      border-radius: 4px;
+
+      padding: 10px 16px;
+
+      margin-bottom: 22px;
+
       text-align: center;
-      font: 300 13px/20px Helvetica,Arial,sans-serif;
-      color: #666;
+
+      font-weight: bold;
+
+      font-size: 13.5px;
+
+      display: flex;
+
+      align-items: center;
+
+      justify-content: center;
+
+      gap: 8px;
+
+      text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
+
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+
+    }
+
+    .alert-warning svg {
+
+      width: 16px;
+
+      height: 16px;
+
+      fill: #c09853;
+
+      flex-shrink: 0;
+
+    }
+
+
+
+    /* Griglia 4 Colonne Technicolor */
+
+    .cards-grid {
+
+      display: grid;
+
+      grid-template-columns: repeat(4, 1fr);
+
+      gap: 22px;
+
+      align-items: stretch;
+
+    }
+
+    .card {
+
+      background-color: #ffffff;
+
+      border-radius: 4px;
+
+      box-shadow: 0 2px 20px 0 rgba(56, 132, 56, 0.45);
+
+      display: flex;
+
+      flex-direction: column;
+
+      overflow: hidden;
+
+      min-height: 255px;
+
+    }
+
+    .card.span-3 {
+
+      grid-column: span 3;
+
+      min-height: 360px;
+
+    }
+
+
+
+    /* Intestazione Card (.sh) */
+
+    .sh {
+
+      background: rgb(30, 116, 30);
+
+      background: linear-gradient(to bottom, rgb(30, 116, 30) 20%, rgb(29, 36, 29) 100%);
+
+      border-bottom: 1px solid rgb(25, 95, 25);
+
+      color: #ffffff;
+
+      font-weight: bold;
+
+      font-size: 16px;
+
+      line-height: 22px;
+
+      text-shadow: 0 1px 1px #000000;
+
+      padding: 10px 16px;
+
+      display: flex;
+
+      align-items: center;
+
+      justify-content: space-between;
+
+      border-top-left-radius: 4px;
+
+      border-top-right-radius: 4px;
+
+    }
+
+    .sh-title {
+
+      display: inline-flex;
+
+      align-items: center;
+
+      gap: 8px;
+
+    }
+
+
+
+    /* Corpo Card */
+
+    .card-body {
+
+      padding: 15px 16px 16px 16px;
+
+      flex: 1;
+
+      display: flex;
+
+      flex-direction: column;
+
+      justify-content: space-between;
+
+    }
+
+    .card-content {
+
+      display: flex;
+
+      flex-direction: column;
+
+      gap: 8px;
+
+    }
+
+    .card-footer-action {
+
+      margin-top: 14px;
+
+    }
+
+
+
+    /* Righe Informazioni & Micro-Icone SVG */
+
+    .info-row {
+
+      display: flex;
+
+      align-items: baseline;
+
+      gap: 7px;
+
+      font-size: 13.5px;
+
+      line-height: 19px;
+
+      color: #333333;
+
+      word-break: break-word;
+
+    }
+
+    .info-icon {
+
+      width: 14px;
+
+      height: 14px;
+
+      fill: #333333;
+
+      flex-shrink: 0;
+
       position: relative;
-      z-index: 2;
-    }
-    .copyright p { margin: 4px 0 0; }
-    .copyright strong { color: rgb(30, 116, 30); font-weight: 700; }
 
-    /* Responsive Breakpoints: Desktop (default 4 cols), Tablet (2 cols), Smartphone (1 col) */
-    @media (max-width: 1024px) {
-      .container {
-        padding: 0 16px 30px;
-      }
+      top: 2px;
+
+    }
+
+    .gui-ver {
+
+      color: #1e741e;
+
+      font-weight: bold;
+
+    }
+
+    .card-desc {
+
+      margin: 6px 0 0 0;
+
+      font-size: 12.5px;
+
+      line-height: 17px;
+
+      color: #555555;
+
+    }
+
+
+
+    /* Indicatori LED Technicolor */
+
+    .led-row {
+
+      display: flex;
+
+      align-items: center;
+
+      gap: 8px;
+
+      font-size: 13.5px;
+
+      line-height: 20px;
+
+    }
+
+    .led {
+
+      display: inline-block;
+
+      width: 10px;
+
+      height: 10px;
+
+      border-radius: 50%;
+
+      background-color: #999999;
+
+      box-shadow: 0 0 0 2px rgba(153, 153, 153, 0.25);
+
+      flex-shrink: 0;
+
+    }
+
+    .led.green, .led.led-green, .led.ok, .led.active, .led.running {
+
+      background-color: #46a546;
+
+      box-shadow: 0 0 5px rgba(70, 165, 70, 0.75), 0 0 0 2px rgba(70, 165, 70, 0.25);
+
+    }
+
+    .led.red, .led.led-red, .led.err, .led.error, .led.inactive, .led.stopped {
+
+      background-color: #d9534f;
+
+      box-shadow: 0 0 5px rgba(217, 83, 79, 0.75), 0 0 0 2px rgba(217, 83, 79, 0.25);
+
+    }
+
+    .led.orange, .led.yellow, .led.warn, .led.warning, .led.busy {
+
+      background-color: #f89406;
+
+      box-shadow: 0 0 5px rgba(248, 148, 6, 0.75), 0 0 0 2px rgba(248, 148, 6, 0.25);
+
+    }
+
+    .led.gray, .led.grey, .led.off, .led.none {
+
+      background-color: #8c8c8c;
+
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.3);
+
+    }
+
+
+
+    /* Pulsanti Technicolor / Bootstrap 2.3.2 */
+
+    .btn {
+
+      display: inline-flex;
+
+      align-items: center;
+
+      justify-content: center;
+
+      gap: 6px;
+
+      width: 100%;
+
+      padding: 8px 14px;
+
+      font-family: Helvetica, Arial, sans-serif;
+
+      font-size: 13.5px;
+
+      font-weight: bold;
+
+      line-height: 18px;
+
+      text-align: center;
+
+      border-radius: 4px;
+
+      cursor: pointer;
+
+      transition: filter 0.15s ease, opacity 0.15s ease;
+
+      user-select: none;
+
+    }
+
+    .btn:hover:not(:disabled) {
+
+      filter: brightness(1.06);
+
+    }
+
+    .btn:active:not(:disabled) {
+
+      transform: translateY(1px);
+
+    }
+
+    .btn:disabled {
+
+      opacity: 0.6;
+
+      cursor: not-allowed;
+
+    }
+
+    .btn svg {
+
+      width: 13px;
+
+      height: 13px;
+
+      flex-shrink: 0;
+
+    }
+
+
+
+    /* Pulsante Grigio Technicolor (Riavvia Servizi) */
+
+    .btn-default {
+
+      background-color: #f5f5f5;
+
+      background-image: linear-gradient(to bottom, #ffffff, #e6e6e6);
+
+      border: 1px solid #cccccc;
+
+      border-bottom-color: #b3b3b3;
+
+      color: #1e741e;
+
+      text-shadow: 0 1px 1px rgba(255, 255, 255, 0.75);
+
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 1px 2px rgba(0, 0, 0, 0.08);
+
+    }
+
+    .btn-default svg {
+
+      fill: #1e741e;
+
+    }
+
+
+
+    /* Pulsante Verde Technicolor (Flash da USB, Carica & Flash, Invia) */
+
+    .btn-tch {
+
+      background: rgb(30, 116, 30);
+
+      background: linear-gradient(to bottom, rgb(30, 116, 30) 20%, rgb(29, 36, 29) 100%);
+
+      border: 1px solid rgb(25, 95, 25);
+
+      color: #ffffff;
+
+      text-shadow: 0 1px 1px #000000;
+
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 2px 4px rgba(0, 0, 0, 0.2);
+
+    }
+
+    .btn-tch svg {
+
+      fill: #ffffff;
+
+    }
+
+
+
+    /* Pulsante Rosso Pericolo (Riavvia Modem) */
+
+    .btn-danger {
+
+      background-color: #da4f49;
+
+      background-image: linear-gradient(to bottom, #ee5f5b, #bd362f);
+
+      border: 1px solid #bd362f;
+
+      color: #ffffff;
+
+      text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.25);
+
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.2), 0 1px 2px rgba(0, 0, 0, 0.15);
+
+    }
+
+    .btn-danger svg {
+
+      fill: #ffffff;
+
+    }
+
+
+
+    /* Pulsante Bianco Header "Pulisci" */
+
+    .btn-clear {
+
+      width: auto;
+
+      padding: 4px 12px;
+
+      font-size: 12px;
+
+      line-height: 16px;
+
+      background: #ffffff;
+
+      color: #1e741e;
+
+      border: 1px solid rgba(0, 0, 0, 0.2);
+
+      border-radius: 3px;
+
+      text-shadow: none;
+
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+
+    }
+
+    .btn-clear svg {
+
+      width: 12px;
+
+      height: 12px;
+
+      fill: #1e741e;
+
+    }
+
+
+
+    /* Sezione Upload File & Progress Bar */
+
+    .file-input-box {
+
+      border: 1px solid #cccccc;
+
+      border-radius: 4px;
+
+      padding: 6px 8px;
+
+      background-color: #fafafa;
+
+      margin-top: 6px;
+
+    }
+
+    .file-input-box input[type="file"] {
+
+      width: 100%;
+
+      font-size: 12px;
+
+      color: #333333;
+
+      cursor: pointer;
+
+    }
+
+    .upload-meta {
+
+      font-size: 11px;
+
+      color: #777777;
+
+      margin-top: 2px;
+
+    }
+
+    .progress-wrap {
+
+      display: none;
+
+      width: 100%;
+
+      height: 18px;
+
+      background-color: #f5f5f5;
+
+      border-radius: 4px;
+
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+
+      overflow: hidden;
+
+      margin-top: 6px;
+
+      border: 1px solid #dddddd;
+
+    }
+
+    .progress-bar {
+
+      width: 0%;
+
+      height: 100%;
+
+      background-color: #1e741e;
+
+      background-image: linear-gradient(to bottom, #2b942b, #185c18);
+
+      color: #ffffff;
+
+      font-size: 11px;
+
+      font-weight: bold;
+
+      line-height: 18px;
+
+      text-align: center;
+
+      transition: width 0.2s ease;
+
+    }
+
+    .status-feedback {
+
+      font-size: 12px;
+
+      line-height: 16px;
+
+      min-height: 16px;
+
+      margin-top: 4px;
+
+      font-weight: bold;
+
+    }
+
+    .status-feedback.ok { color: #1e741e; }
+
+    .status-feedback.err { color: #bd362f; }
+
+    .status-feedback.warn { color: #c09853; }
+
+
+
+    /* Console Rescue & Tabs */
+
+    .console-tabs {
+
+      display: flex;
+
+      gap: 6px;
+
+      margin-bottom: 10px;
+
+    }
+
+    .tab-btn {
+
+      padding: 6px 14px;
+
+      font-family: Helvetica, Arial, sans-serif;
+
+      font-size: 13px;
+
+      font-weight: bold;
+
+      border-radius: 4px;
+
+      cursor: pointer;
+
+      border: 1px solid #cccccc;
+
+      background-color: #ffffff;
+
+      color: #1e741e;
+
+      transition: all 0.15s ease;
+
+    }
+
+    .tab-btn.active {
+
+      background: rgb(30, 116, 30);
+
+      background: linear-gradient(to bottom, rgb(30, 116, 30) 20%, rgb(29, 36, 29) 100%);
+
+      border-color: rgb(25, 95, 25);
+
+      color: #ffffff;
+
+      text-shadow: 0 1px 1px #000000;
+
+    }
+
+
+
+    /* Terminale Nero Monospace */
+
+    .terminal-box {
+
+      background-color: #0c0c0c;
+
+      color: #e8e8e8;
+
+      font-family: Consolas, "Liberation Mono", Menlo, Courier, monospace;
+
+      font-size: 12.5px;
+
+      line-height: 18px;
+
+      height: 225px;
+
+      padding: 12px 14px;
+
+      border-radius: 4px;
+
+      border: 1px solid #222222;
+
+      overflow-y: auto;
+
+      white-space: pre-wrap;
+
+      word-break: break-word;
+
+      margin: 0 0 12px 0;
+
+      box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.6);
+
+    }
+
+    .terminal-box .cmd-echo {
+
+      color: #58d68d;
+
+      font-weight: bold;
+
+    }
+
+    .terminal-box .cmd-err {
+
+      color: #ff6b6b;
+
+    }
+
+
+
+    /* Barra Input Comandi */
+
+    .cmd-bar {
+
+      display: flex;
+
+      align-items: center;
+
+      gap: 10px;
+
+    }
+
+    .cmd-prompt {
+
+      font-family: Consolas, "Liberation Mono", Menlo, Courier, monospace;
+
+      font-size: 13px;
+
+      font-weight: bold;
+
+      color: #2e8b36;
+
+      white-space: nowrap;
+
+      user-select: none;
+
+    }
+
+    .cmd-input {
+
+      flex: 1;
+
+      background-color: #111111;
+
+      color: #ffffff;
+
+      border: 1px solid #333333;
+
+      border-radius: 4px;
+
+      padding: 8px 12px;
+
+      font-family: Consolas, "Liberation Mono", Menlo, Courier, monospace;
+
+      font-size: 13px;
+
+      line-height: 18px;
+
+      outline: none;
+
+    }
+
+    .cmd-input:focus {
+
+      border-color: #1e741e;
+
+      box-shadow: 0 0 4px rgba(30, 116, 30, 0.5);
+
+    }
+
+    .cmd-input::placeholder {
+
+      color: #777777;
+
+    }
+
+    .btn-send {
+
+      width: auto;
+
+      min-width: 86px;
+
+      padding: 8px 16px;
+
+    }
+
+
+
+    /* Footer Technicolor */
+
+    .rescue-footer {
+
+      margin-top: 28px;
+
+      text-align: center;
+
+      font-size: 12px;
+
+      line-height: 19px;
+
+      color: #777777;
+
+    }
+
+    .rescue-footer p {
+
+      margin: 2px 0;
+
+    }
+
+    .rescue-footer .gh-green {
+
+      color: #1e741e;
+
+      font-weight: bold;
+
+    }
+
+
+
+    /* Responsività Tablet (2 colonne) & Mobile (1 colonna) */
+
+    @media (max-width: 992px) {
+
       .cards-grid {
+
         grid-template-columns: repeat(2, 1fr);
-        gap: 16px;
+
       }
-      .logt {
-        grid-column: 1 / -1;
+
+      .card.span-3 {
+
+        grid-column: span 2;
+
       }
+
     }
-    @media (max-width: 680px) {
-      .container {
-        padding: 0 10px 25px;
+
+    @media (max-width: 600px) {
+
+      .rescue-container {
+
+        padding: 12px;
+
       }
-      .header {
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
-        gap: 12px;
-        padding: 16px 0 12px;
-      }
-      .header-lang {
-        width: 100%;
-        justify-content: center;
-      }
-      #webui_language {
-        width: 100%;
-        max-width: 280px;
-      }
-      .alert {
-        word-break: break-word;
-        padding: 10px 12px;
-      }
+
       .cards-grid {
-        grid-template-columns: minmax(0, 1fr);
-        gap: 14px;
-        min-width: 0;
-        width: 100%;
+
+        grid-template-columns: 1fr;
+
       }
-      .sc {
-        min-width: 0;
-        max-width: 100%;
-        width: 100%;
+
+      .card.span-3 {
+
+        grid-column: span 1;
+
       }
-      .ct {
-        min-width: 0;
-      }
-      .shell-input {
-        min-width: 0;
-        width: 100%;
-      }
-      .sh {
-        font-size: 16px;
-        padding: 10px 12px;
-      }
-      .logt {
-        grid-column: 1;
-      }
-      .logt .sh {
+
+      .cmd-bar {
+
         flex-wrap: wrap;
-        gap: 6px;
+
       }
-      .shell-bar {
-        flex-direction: column;
-        align-items: stretch;
-        gap: 8px;
+
+      .cmd-input {
+
+        width: 100%;
+
+        flex: 1 1 100%;
+
       }
-      .shell-btn {
-        width: 100% !important;
-        justify-content: center;
+
+      .btn-send {
+
+        width: 100%;
+
       }
+
     }
 
-    /* ---- v3 additions ---- */
-    .light { background-color: #999; border: 1px solid #737373; box-shadow: inset 0 1px 3px rgba(255,255,255,.5); }
-    .guiver { color: rgb(30, 116, 30); font-weight: bold; }
-    .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-    .btn-clear { min-height: 32px; padding: 5px 12px; font-size: 12px; line-height: 20px; }
-    .tabs { position: relative; z-index: 2; display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
-    .tab { padding: 6px 16px; font: inherit; font-weight: bold; color: rgb(30, 116, 30); background: #fff;
-           border: 1px solid #c6bec9; border-radius: 4px; cursor: pointer; }
-    .tab:hover { border-color: rgb(30, 116, 30); }
-    .tab.on { color: #fff; border-color: rgb(30, 116, 30);
-              background: linear-gradient(to bottom, rgb(30, 116, 30) 20%, rgb(29, 36, 29) 100%); }
-    .pill { display: none; margin-left: 8px; padding: 2px 10px; font-size: 12px; font-weight: bold; color: #6b4000;
-            background: #fcf0d0; border: 1px solid #e0a030; border-radius: 10px; }
-    pre.con { display: none; }
-    pre.con.on { display: block; }
-    .prog { position: relative; z-index: 2; display: none; height: 14px; margin-bottom: 14px; overflow: hidden;
-            background: linear-gradient(to bottom, #f5f5f5, #f9f9f9); border-radius: 4px;
-            box-shadow: inset 0 1px 2px rgba(0,0,0,.1); }
-    .prog i { display: block; width: 0; height: 100%; transition: width .3s ease;
-              background: linear-gradient(to bottom, #62c462, #57a957); }
-    .tab:focus-visible, .btn-clear:focus-visible, .btn-action:focus-visible { outline: 2px solid rgb(92,247,65); outline-offset: 2px; }
   </style>
+
 </head>
-<body>
 
-<!-- Technicolor Green Globe Watermark -->
-<div class="gateway_bg"></div>
+<body data-rescue-version="@@VERSION@@" data-upload-max="@@UPLOAD_MAX@@">
 
-<div class="container">
 
-  <!-- Header with Technicolor Logo and language selector -->
-  <div class="header">
-    <div class="header-logo">
-      <a href="https://www.technicolor.com" target="_blank" rel="noopener noreferrer" title="Technicolor Gateway">
-        <img width="131px" height="50px" alt="Technicolor" src="/img/logo.png">
-      </a>
-    <div class="header-lang">
-      <select id="webui_language" name="webui_language" aria-label="Language">
-        <option value="it">Italiano</option>
-        <option value="en">English</option>
-      </select>
+
+  <div class="rescue-container">
+
+    <!-- HEADER -->
+
+    <header class="rescue-header">
+
+      <div class="header-logo" title="Technicolor Gateway">
+
+        <svg xmlns="http://www.w3.org/2000/svg" width="131" height="50" viewBox="0 0 600.29283 228.46002">
+
+          <path d="M237.78 42.8c3.25-.01 6.51-.01 9.77-.01.05 15.17-.05 30.34.04 45.52 4.2-3.26 8.57-6.59 13.88-7.74 6.97-1.65 15.14.41 19.61 6.26 2.71 4.15 3.17 9.3 3.13 14.13-.08 10.58.05 21.15-.07 31.73-3.24.04-6.47.02-9.7.03.02-10.58 0-21.15.03-31.73-.01-3.35-.36-7.08-2.83-9.6-3.69-4.1-10.17-3.76-14.76-1.5-3.39 1.75-7.15 3.57-9.21 6.9-.28 11.96-.03 23.95-.1 35.92-3.27.01-6.53.01-9.79.01-.03-29.97-.02-59.95 0-89.92zM496.82 42.8c3.24-.01 6.48-.01 9.73-.03.12 29.98.01 59.96.05 89.95h-9.76c-.04-29.97-.01-59.95-.02-89.92zM361.46 57.67c3.47-1.47 7.85.54 8.53 4.36 1.36 4.81-4.62 9.67-8.96 6.88-4.47-2.19-4.3-9.51.43-11.24zM91.71 71.63c3.14-2.53 6.35-4.98 9.59-7.4.04 5.64.03 11.29.01 16.93 5.07.04 10.14.02 15.22.04-.01 2.78-.01 5.55-.01 8.33-5.06.01-10.12.01-15.18 0-.03 9.18-.01 18.35-.03 27.53-.05 2.5.28 5.55 2.68 6.95 2.97 1.45 6.41.8 9.58.77.4 2.64.83 5.27 1.26 7.9-5.29.93-11.07 1.8-16.14-.48-5.14-2.62-6.91-8.8-6.95-14.17-.06-9.5.03-18.99-.03-28.48-2.93.02-5.85 0-8.76-.25 2.68-3.13 5.68-5.97 8.7-8.77.08-2.97.1-5.93.06-8.9zM129.06 90.99c6.77-11.08 23.26-14.47 33.78-6.81 8.08 5.54 9.95 16.41 9.08 25.54-12.65.07-25.31-.01-37.97.04.41 5.82 3.81 11.64 9.43 13.78 7.76 2.9 16.35 1.46 23.99-1.13.61 2.7 1.28 5.39 2 8.06-10.31 3.52-22.48 5.09-32.4-.42-5.96-2.98-10.09-8.97-11.75-15.31-1.35-8-1.05-16.91 3.84-23.75m9.49 1.54c-2.62 2.67-3.58 6.41-4.5 9.91 9.74.07 19.47.05 29.21.02-.82-3.85-1.57-8.24-4.93-10.76-5.39-4.98-14.83-4.6-19.78.83zM202.06 80.96c8.37-2.45 17.4.12 24.63 4.57-1.37 2.37-2.65 4.77-3.88 7.21-6.84-3.47-15.25-6.29-22.54-2.43-10.42 4.56-12.36 19.58-5.9 28.15 3.17 3.66 7.74 6.31 12.65 6.58 5.78.64 11.36-1.42 16.4-4.03 1.05 2.49 2.15 4.97 3.33 7.4-7.65 4.56-16.91 6.59-25.64 4.31-6.23-1.94-12.31-5.49-15.72-11.22-5.14-8.03-5.4-18.8-.95-27.18 3.42-6.85 10.28-11.58 17.62-13.36zM319.86 80.88c6.43-1.92 14.21-.67 18.9 4.4 3.35 3.27 3.93 8.23 3.98 12.69.01 11.58 0 23.17-.01 34.75h-9.6c-.04-10.58.06-21.17-.03-31.75-.31-3.45-.01-7.61-2.97-10.05-3.06-3.31-8.16-3.04-12.12-1.86-4.1 1.79-8.42 4.08-10.95 7.88-.32 11.91-.02 23.85-.13 35.78h-9.69c-.01-17.18-.02-34.36 0-51.53 3.03-.01 6.06-.01 9.1-.01 0 2.56.02 5.11.01 7.67 3.95-3.47 8.37-6.59 13.51-7.97zM386.2 91.3c4.02-5.98 10.9-9.5 17.84-10.84 7.65-1.49 15.44 1.01 22.11 4.68-.85 2.61-1.92 5.14-3.26 7.54-6.59-2.88-14.1-6.03-21.23-3.04-10.42 3.43-14.21 17.43-8.85 26.46 3.41 6.47 11.14 9.88 18.27 8.91 4.41-.19 8.37-2.25 12.31-4.04 1.2 2.49 2.12 5.12 2.77 7.82-9.28 5.17-21.13 6.93-30.77 1.69-7.3-3.38-12.36-10.61-13.96-18.38-1.53-7.2.48-14.9 4.77-20.8zM454.48 80.57c8.65-1.82 18.3 1.07 24.31 7.62 9.41 10.08 9.34 27.43-.07 37.5-10.15 11.27-30.51 10.52-39.52-1.8-8.85-11.08-7.19-29.03 3.85-38.05 3.36-2.57 7.27-4.42 11.43-5.27m.88 7.97c-3.89 1.15-7.56 3.64-9.4 7.35-2.96 4.79-3.05 10.7-2.29 16.11 1.12 5.37 4.52 10.69 9.91 12.55 5.17 2.23 11.42 1.31 15.89-2.04 9.43-7.82 9.16-24.85-1.01-31.93-3.74-2.78-8.71-2.73-13.1-2.04zM539.26 80.38c7.3-1.32 15.13.85 20.9 5.46 12.28 9.88 12.56 30.83.94 41.33-9.23 8.39-24.46 8.66-34.11.83-12.33-9.88-12.72-30.56-1.21-41.23 3.8-3.32 8.52-5.5 13.48-6.39m-.75 8.34c-3.8 1.47-7.45 4-9.09 7.86-3.4 7.12-3.12 16.2 1.28 22.85 5.48 7.68 17.95 8.5 24.33 1.49 7.8-8.47 6.82-24.39-3.27-30.7-3.86-2.58-8.9-2.36-13.25-1.5zM589.49 89.52c4.38-5.66 11.2-9.15 18.32-9.66.04 3.23.04 6.46.06 9.7-5.81.47-12.07 1.65-16.38 5.89-1.65 1.35-1.39 3.59-1.43 5.48.06 10.59.03 21.19.02 31.79h-9.94c-.01-17.18 0-34.36 0-51.53 3.12-.01 6.25-.01 9.38-.01.02 2.78.02 5.56-.03 8.34zM359.06 81.18c3.21 0 6.41 0 9.62.01v51.53h-9.55c.03-17.18-.04-34.36-.07-51.54z" style="opacity:1;fill:#6d6e72" transform="translate(-42.86705 -42.77001)"/>
+
+          <path d="M42.87 185.92c10.03-7.06 19.74-14.67 30.13-21.18 12.51-.42 25.08-.09 37.61-.14-7.74 7.75-16.78 14.03-24.91 21.36-14.27-.02-28.55.05-42.83-.04z" style="opacity:1;fill:#81dcf9" transform="translate(-42.86705 -42.77001)"/>
+
+          <path d="M110.61 164.6c12.95-.08 25.9-.07 38.84 0-6.6 7.44-13.96 14.18-20.83 21.37-14.3-.01-28.61.01-42.92-.01 8.13-7.33 17.17-13.61 24.91-21.36z" style="opacity:1;fill:#81c7eb" transform="translate(-42.86705 -42.77001)"/>
+
+          <path d="M149.45 164.6c12.93-.07 25.87-.02 38.8-.03-5.26 7.31-11.27 14.05-16.47 21.39h-.43c-14.25.02-28.49 0-42.73.01 6.87-7.19 14.23-13.93 20.83-21.37z" style="opacity:1;fill:#81a6d0" transform="translate(-42.86705 -42.77001)"/>
+
+          <path d="M188.25 164.57c12.74-.01 25.47-.02 38.21.01-3.54 7.35-8.05 14.18-11.88 21.38-14.27.01-28.53 0-42.8 0 5.2-7.34 11.21-14.08 16.47-21.39z" style="opacity:1;fill:#b296c7" transform="translate(-42.86705 -42.77001)"/>
+
+          <path d="M226.46 164.58c12.94-.02 25.88-.03 38.83 0-2.31 7.27-5.24 14.31-8.04 21.39-14.22.01-28.44.01-42.67-.01 3.83-7.2 8.34-14.03 11.88-21.38z" style="opacity:1;fill:#c894bb" transform="translate(-42.86705 -42.77001)"/>
+
+          <path d="M265.29 164.58c12.93-.03 25.87 0 38.8-.01-1.15 7.17-2.47 14.31-3.99 21.4-14.29.01-28.57 0-42.85 0 2.8-7.08 5.73-14.12 8.04-21.39z" style="opacity:1;fill:#de92ae" transform="translate(-42.86705 -42.77001)"/>
+
+          <path d="M304.09 164.57c12.98-.03 25.96-.02 38.94 0-.04 7.14-.02 14.27-.03 21.41-14.3-.02-28.6-.02-42.9-.01 1.52-7.09 2.84-14.23 3.99-21.4z" style="opacity:1;fill:#f78d97" transform="translate(-42.86705 -42.77001)"/>
+
+          <path d="M343.03 164.57c12.68.02 25.36.01 38.04.01 2.01 7.05 3.4 14.25 5.09 21.39-14.39.02-28.77.01-43.16.01.01-7.14-.01-14.27.03-21.41z" style="opacity:1;fill:#f9b292" transform="translate(-42.86705 -42.77001)"/>
+
+          <path d="M381.07 164.58c12.94-.04 25.89-.01 38.84-.02 3.08 7.09 6.08 14.21 8.93 21.41-14.23-.01-28.45 0-42.68 0-1.69-7.14-3.08-14.34-5.09-21.39z" style="opacity:1;fill:#ffe086" transform="translate(-42.86705 -42.77001)"/>
+
+          <path d="M419.91 164.56c12.91-.01 25.83-.04 38.75.01 3.96 7.28 9.23 13.8 12.65 21.37-14.16.05-28.32.02-42.47.03-2.85-7.2-5.85-14.32-8.93-21.41z" style="opacity:1;fill:#fff681" transform="translate(-42.86705 -42.77001)"/>
+
+          <path d="M458.66 164.57c13.02-.01 26.04-.05 39.06.02 5.51 7.31 11.44 14.3 17.23 21.39-14.41-.04-28.83.03-43.24-.04h-.4c-3.42-7.57-8.69-14.09-12.65-21.37z" style="opacity:1;fill:#e5ee95" transform="translate(-42.86705 -42.77001)"/>
+
+          <path d="M497.72 164.59c12.8-.04 25.6-.05 38.4 0 6.77 7.37 14.51 13.8 21.07 21.38-14.08.01-28.16-.01-42.24.01-5.79-7.09-11.72-14.08-17.23-21.39z" style="opacity:1;fill:#c7e29f" transform="translate(-42.86705 -42.77001)"/>
+
+          <path d="M536.12 164.59c13.11-.04 26.22-.05 39.33.01 7.46 8.02 16.55 14.26 24.82 21.37-14.21-.01-28.42 0-42.63 0h-.45c-6.56-7.58-14.3-14.01-21.07-21.38z" style="opacity:1;fill:#80d39f" transform="translate(-42.86705 -42.77001)"/>
+
+          <path d="M575.45 164.6c11.85-.1 23.7-.01 35.56-.05 2.05-.22 3.85.87 5.44 2.05 8.83 6.52 17.98 12.61 26.71 19.29-14.3.18-28.59.02-42.89.08-8.27-7.11-17.36-13.35-24.82-21.37z" style="opacity:1;fill:#80c5a6" transform="translate(-42.86705 -42.77001)"/>
+
+          <path d="M42.87 185.92c14.28.09 28.56.02 42.83.04.06 19.86.03 39.72.03 59.57-14.27.02-28.53-.03-42.8.03-.13-19.88-.01-39.76-.06-59.64z" style="opacity:1;fill:#00b9f2" transform="translate(-42.86705 -42.77001)"/>
+
+          <path d="M85.7 185.96c14.31.02 28.62 0 42.92.01-.06 17.41-.07 34.81.01 52.22.02 11.01.05 22.03-.02 33.04-14.3-.06-28.59.01-42.88-.04v-25.66c0-19.85.03-39.71-.03-59.57z" style="opacity:1;fill:#008fd5" transform="translate(-42.86705 -42.77001)"/>
+
+          <path d="M128.62 185.97c14.24-.01 28.48.01 42.73-.01.14 17.41.02 34.82.06 52.22-14.26.01-28.52 0-42.78.01-.08-17.41-.07-34.81-.01-52.22z" style="opacity:1;fill:#034da2" transform="translate(-42.86705 -42.77001)"/>
+
+          <path d="M171.35 185.96h.43c14.27 0 28.53.01 42.8 0 .06 21.15.04 42.3.02 63.45-14.39.05-28.78 0-43.16.03-.03-3.75-.03-7.51-.03-11.26-.04-17.4.08-34.81-.06-52.22z" style="opacity:1;fill:#662e91" transform="translate(-42.86705 -42.77001)"/>
+
+          <path d="M214.58 185.96c14.23.02 28.45.02 42.67.01.2 24.77-.03 49.55.12 74.32.02 2.9.01 5.79.01 8.69-14.26.04-28.52.01-42.78.02-.01-6.53-.02-13.06 0-19.59.02-21.15.04-42.3-.02-63.45z" style="opacity:1;fill:#942977" transform="translate(-42.86705 -42.77001)"/>
+
+          <path d="M257.25 185.97c14.28 0 28.56.01 42.85 0-.02 19.42-.06 38.84.01 58.25.03 5.36.01 10.71.01 16.07-14.25.02-28.5.01-42.75 0-.15-24.77.08-49.55-.12-74.32z" style="opacity:1;fill:#bf245e" transform="translate(-42.86705 -42.77001)"/>
+
+          <path d="M300.1 185.97c14.3-.01 28.6-.01 42.9.01-.01 19.41.01 38.82-.01 58.23-14.29.03-28.59.01-42.88.01-.07-19.41-.03-38.83-.01-58.25z" style="opacity:1;fill:#ec1b30" transform="translate(-42.86705 -42.77001)"/>
+
+          <path d="M343 185.98c14.39 0 28.77.01 43.16-.01.07 18.22-.03 36.45.05 54.68.03 6.97 0 13.93.03 20.89-14.41.12-28.82.01-43.23.06-.02-5.79-.01-11.59-.02-17.39.02-19.41 0-38.82.01-58.23z" style="opacity:1;fill:#f36523" transform="translate(-42.86705 -42.77001)"/>
+
+          <path d="M386.16 185.97c14.23 0 28.45-.01 42.68 0-.18 18.23 0 36.46-.09 54.7-14.18-.04-28.36-.01-42.54-.02-.08-18.23.02-36.46-.05-54.68z" style="opacity:1;fill:#ffc20f" transform="translate(-42.86705 -42.77001)"/>
+
+          <path d="M428.84 185.97c14.15-.01 28.31.02 42.47-.03h.4c-.25 16.2-.1 32.4-.08 48.6.04 6.53-.01 13.07.03 19.6-14.32-.13-28.66.34-42.97-.25.1-4.41.07-8.81.06-13.22.09-18.24-.09-36.47.09-54.7z" style="opacity:1;fill:#ffec01" transform="translate(-42.86705 -42.77001)"/>
+
+          <path d="M471.71 185.94c14.41.07 28.83 0 43.24.04-.06 13.25 0 26.5-.03 39.75-.01 2.94-.01 5.87-.01 8.81-14.43-.01-28.86-.01-43.28 0-.02-16.2-.17-32.4.08-48.6z" style="opacity:1;fill:#cadb2a" transform="translate(-42.86705 -42.77001)"/>
+
+          <path d="M514.95 185.98c14.08-.02 28.16 0 42.24-.01h.45c-.11 13.25-.01 26.5-.06 39.76-14.22.01-28.44 0-42.66 0 .03-13.25-.03-26.5.03-39.75z" style="opacity:1;fill:#8ec63f" transform="translate(-42.86705 -42.77001)"/>
+
+          <path d="M557.64 185.97c14.21 0 28.42-.01 42.63 0 .09 20.25-.01 40.5.09 60.74-14.26.01-28.52.01-42.77 0 .01-6.99.01-13.99-.01-20.98.05-13.26-.05-26.51.06-39.76z" style="opacity:1;fill:#00a640" transform="translate(-42.86705 -42.77001)"/>
+
+          <path d="M600.27 185.97c14.3-.06 28.59.1 42.89-.08-.08 25.64-.01 51.28-.04 76.92-14.25-.01-28.5 0-42.75-.01.01-5.36.02-10.73-.01-16.09-.1-20.24 0-40.49-.09-60.74z" style="opacity:1;fill:#008a4c" transform="translate(-42.86705 -42.77001)"/>
+
+        </svg>
+
+      </div>
+
+      <div class="header-actions">
+
+        <select id="webui_language" aria-label="Language">
+
+          <option value="it">Italiano</option>
+
+          <option value="en">English</option>
+
+        </select>
+
+      </div>
+
+    </header>
+
+
+
+    <!-- ALERT MODALITA' DI EMERGENZA -->
+
+    <div class="alert-warning" role="alert">
+
+      <svg viewBox="0 0 16 16" aria-hidden="true">
+
+        <path d="M8.982 1.566a1.13 1.13 0 0 0-1.96 0L.165 13.233c-.457.778.091 1.767.98 1.767h13.713c.889 0 1.438-.99.98-1.767L8.982 1.566zM8 5c.535 0 .954.462.9.995l-.35 3.507a.552.552 0 0 1-1.1 0L7.1 5.995A.905.905 0 0 1 8 5zm.002 6a1 1 0 1 1 0 2 1 1 0 0 1 0-2z"/>
+
+      </svg>
+
+      <span data-i18n="emergency_active">Modalità di Emergenza Attiva</span>
+
     </div>
+
+
+
+    <!-- GRIGLIA PRINCIPALE (RIGA 1 + RIGA 2) -->
+
+    <main class="cards-grid">
+
+
+
+      <!-- CARD 1: STATO DEL SISTEMA -->
+
+      <section class="card">
+
+        <div class="sh">
+
+          <span class="sh-title" data-i18n="card_sys_status">Stato del Sistema</span>
+
+        </div>
+
+        <div class="card-body">
+
+          <div class="card-content">
+
+            <div class="info-row">
+
+              <svg class="info-icon" viewBox="0 0 16 16"><path d="M5 0v2H3a1 1 0 0 0-1 1v2H0v2h2v2H0v2h2v2a1 1 0 0 0 1 1h2v2h2v-2h2v2h2v-2h2a1 1 0 0 0 1-1v-2h2V9h-2V7h2V5h-2V3a1 1 0 0 0-1-1h-2V0H9v2H7V0H5zm-1 4h8v8H4V4zm2 2v4h4V6H6z"/></svg>
+
+              <span><strong data-i18n="lbl_model">Modello:</strong> <span id="hw-val">@@HARDWARE@@</span></span>
+
+            </div>
+
+            <div class="info-row">
+
+              <svg class="info-icon" viewBox="0 0 16 16"><path d="M2 2a2 2 0 0 1 2-2h5.586a1 1 0 0 1 .707.293l4.414 4.414a1 1 0 0 1 .293.707V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2zm3.5 2a1.5 1.5 0 1 0 0 3 1.5 1.5 0 0 0 0-3z"/></svg>
+
+              <span><strong data-i18n="lbl_guiver">Versione GUI:</strong> <span class="gui-ver" id="guiver-val">@@GUIVER@@</span></span>
+
+            </div>
+
+            <div class="info-row">
+
+              <svg class="info-icon" viewBox="0 0 16 16"><path d="M1 3a1 1 0 0 0-1 1v8a1 1 0 0 0 1 1h4v-2h2v2h2v-2h2v2h4a1 1 0 0 0 1-1V4a1 1 0 0 0-1-1H1zm2 3h2v4H3V6zm4 0h2v4H7V6zm4 0h2v4h-2V6z"/></svg>
+
+              <span><strong data-i18n="lbl_ram">RAM:</strong> <span id="mem-val">@@MEM@@</span></span>
+
+            </div>
+
+            <div class="info-row">
+
+              <svg class="info-icon" viewBox="0 0 16 16"><path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm.5-13v4.793l2.854 2.853-.708.708L7.5 8.207V3h1z"/></svg>
+
+              <span><strong data-i18n="lbl_uptime">Uptime:</strong> <span id="uptime-val">@@UPTIME@@</span></span>
+
+            </div>
+
+            <div class="info-row">
+
+              <svg class="info-icon" viewBox="0 0 16 16"><path d="M8 0c-.69 0-1.843.265-2.928.56-1.11.3-2.229.655-2.887.87a1.54 1.54 0 0 0-1.044 1.262c-.596 4.477.787 7.795 2.465 9.99a11.777 11.777 0 0 0 2.517 2.453c.386.273.744.482 1.048.625.28.132.581.24.829.24s.548-.108.829-.24a7.159 7.159 0 0 0 1.048-.625 11.775 11.775 0 0 0 2.517-2.453c1.678-2.195 3.061-5.513 2.465-9.99a1.541 1.541 0 0 0-1.044-1.263 62.467 62.467 0 0 0-2.887-.87C9.843.266 8.69 0 8 0z"/></svg>
+
+              <span><strong data-i18n="lbl_kernel">Kernel:</strong> <span id="kernel-val">@@KERNEL@@</span></span>
+
+            </div>
+
+          </div>
+
+        </div>
+
+      </section>
+
+
+
+      <!-- CARD 2: SERVIZI WEB -->
+
+      <section class="card">
+
+        <div class="sh">
+
+          <span class="sh-title" data-i18n="card_web_services">Servizi Web</span>
+
+        </div>
+
+        <div class="card-body">
+
+          <div class="card-content">
+
+            <div class="led-row">
+
+              <span id="nginx-led" class="led @@NGINX_LED@@"></span>
+
+              <span><strong>Nginx:</strong> <span id="nginx-txt" data-state="@@NGINX_STATE@@">@@NGINX_TXT@@</span></span>
+
+            </div>
+
+            <div class="led-row">
+
+              <span id="trans-led" class="led @@TRANS_LED@@"></span>
+
+              <span><strong>Transformer:</strong> <span id="trans-txt" data-state="@@TRANS_STATE@@">@@TRANS_TXT@@</span></span>
+
+            </div>
+
+            <p class="card-desc" data-i18n="web_services_desc">
+
+              Nginx e Transformer gestiscono l'accesso web primario (porta 80).
+
+            </p>
+
+            <div id="srv-feedback" class="status-feedback"></div>
+
+          </div>
+
+          <div class="card-footer-action">
+
+            <button type="button" class="btn btn-default" id="btn-restart-srv" onclick="restartServices()">
+
+              <svg viewBox="0 0 16 16"><path d="M8 3a5 5 0 1 0 4.546 2.914.5.5 0 0 1 .908-.417A6 6 0 1 1 8 2v1z"/><path d="M8 4.466V.534a.25.25 0 0 1 .41-.192l2.36 1.966c.12.1.12.284 0 .384L8.41 4.658A.25.25 0 0 1 8 4.466z"/></svg>
+
+              <span data-i18n="btn_restart_srv">Riavvia Servizi</span>
+
+            </button>
+
+          </div>
+
+        </div>
+
+      </section>
+
+
+
+      <!-- CARD 3: RIPRISTINO USB -->
+
+      <section class="card">
+
+        <div class="sh">
+
+          <span class="sh-title" data-i18n="card_usb_recovery">Ripristino USB</span>
+
+        </div>
+
+        <div class="card-body">
+
+          <div class="card-content">
+
+            <div class="led-row">
+
+              <span id="usb-led" class="led @@USB_LED@@"></span>
+
+              <span id="usb-txt">@@USB_TXT@@</span>
+
+            </div>
+
+            <p class="card-desc" data-i18n="usb_recovery_desc">
+
+              Inserisci una chiavetta USB con il pacchetto di ripristino della GUI per avviare il flashing automatico.
+
+            </p>
+
+            <div id="usb-feedback" class="status-feedback"></div>
+
+          </div>
+
+          <div class="card-footer-action">
+
+            <button type="button" class="btn btn-tch" id="btn-usb-flash" onclick="usbRecovery()">
+
+              <svg viewBox="0 0 16 16"><path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/></svg>
+
+              <span data-i18n="btn_usb_flash">Flash da USB</span>
+
+            </button>
+
+          </div>
+
+        </div>
+
+      </section>
+
+
+
+      <!-- CARD 4: CARICA PACCHETTO -->
+
+      <section class="card">
+
+        <div class="sh">
+
+          <span class="sh-title" data-i18n="card_pkg_upload">Carica Pacchetto</span>
+
+        </div>
+
+        <div class="card-body">
+
+          <div class="card-content">
+
+            <p class="card-desc" style="margin-top:0;" data-i18n="pkg_upload_desc">
+
+              Seleziona il pacchetto di ripristino dal computer:
+
+            </p>
+
+            <div class="file-input-box">
+
+              <input type="file" id="pkg-file" accept=".tar.bz2,.bz2,.tar.gz,.tgz,.ipk">
+
+            </div>
+
+            <div class="upload-meta">
+
+              <span data-i18n="lbl_max_size">Max:</span> <span id="upload-max-val">@@UPLOAD_MAX@@</span>
+
+            </div>
+
+            <div class="progress-wrap" id="upload-prog-wrap">
+
+              <div class="progress-bar" id="upload-prog-bar">0%</div>
+
+            </div>
+
+            <div id="upload-feedback" class="status-feedback"></div>
+
+          </div>
+
+          <div class="card-footer-action">
+
+            <button type="button" class="btn btn-tch" id="btn-upload-flash" onclick="uploadPackage()">
+
+              <svg viewBox="0 0 16 16"><path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z"/><path d="M7.646 1.146a.5.5 0 0 1 .708 0l3 3a.5.5 0 0 1-.708.708L8.5 2.707V11.5a.5.5 0 0 1-1 0V2.707L5.354 4.854a.5.5 0 1 1-.708-.708l3-3z"/></svg>
+
+              <span data-i18n="btn_upload_flash">Carica &amp; Flash</span>
+
+            </button>
+
+          </div>
+
+        </div>
+
+      </section>
+
+
+
+      <!-- CARD 5: GESTIONE MODEM (1 Colonna) -->
+
+      <section class="card">
+
+        <div class="sh">
+
+          <span class="sh-title" data-i18n="card_modem_mgmt">Gestione Modem</span>
+
+        </div>
+
+        <div class="card-body">
+
+          <div class="card-content">
+
+            <div class="info-row">
+
+              <svg class="info-icon" viewBox="0 0 16 16"><path d="M2 2a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2H2zm1 3h2v2H3V5zm4 0h2v2H7V5zm4 0h2v2h-2V5z"/></svg>
+
+              <span><strong data-i18n="lbl_port">Porta rescue:</strong> <span id="port-val">@@PORT@@</span></span>
+
+            </div>
+
+            <div class="info-row">
+
+              <svg class="info-icon" viewBox="0 0 16 16"><path d="M4 0h5.5L14 4.5V14a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V2a2 2 0 0 1 2-2zm5.5 1.5V5H13L9.5 1.5z"/></svg>
+
+              <span><strong data-i18n="lbl_log">Log:</strong> <span id="logfile-val">@@LOGFILE@@</span></span>
+
+            </div>
+
+            <p class="card-desc" data-i18n="modem_reboot_desc">
+
+              Riavvio hardware a basso livello del gateway.
+
+            </p>
+
+            <div id="reboot-feedback" class="status-feedback"></div>
+
+          </div>
+
+          <div class="card-footer-action">
+
+            <button type="button" class="btn btn-danger" id="btn-reboot" onclick="rebootModem()">
+
+              <svg viewBox="0 0 16 16"><path d="M7.5 1v7h1V1h-1z"/><path d="M3 8.812a4.999 4.999 0 0 1 2.578-4.375l-.485-.874A6 6 0 1 0 11 3.616l-.501.865A5 5 0 1 1 3 8.812z"/></svg>
+
+              <span data-i18n="btn_reboot">Riavvia Modem</span>
+
+            </button>
+
+          </div>
+
+        </div>
+
+      </section>
+
+
+
+      <!-- CARD 6: CONSOLE RESCUE & ROOT SHELL (Spanna 3 Colonne) -->
+
+      <section class="card span-3">
+
+        <div class="sh">
+
+          <span class="sh-title">
+
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="#ffffff">
+
+              <path d="M6 9a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3A.5.5 0 0 1 6 9zM3.854 4.146a.5.5 0 1 0-.708.708L4.793 6.5 3.146 8.146a.5.5 0 1 0 .708.708l2-2a.5.5 0 0 0 0-.708l-2-2z"/>
+
+              <path d="M2 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2H2zm12 1a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1h12z"/>
+
+            </svg>
+
+            <span data-i18n="card_rescue_console">Console Rescue</span>
+
+          </span>
+
+          <button type="button" class="btn btn-clear" id="btn-clear-console" onclick="clearConsole()">
+
+            <span data-i18n="btn_clear">Pulisci</span>
+
+          </button>
+
+        </div>
+
+        <div class="card-body">
+
+          <div>
+
+            <!-- Tab Interattivi -->
+
+            <div class="console-tabs">
+
+              <button type="button" class="tab-btn active" id="tab-btn-shell" onclick="switchTab('shell')" data-i18n="tab_shell">Shell Root</button>
+
+              <button type="button" class="tab-btn" id="tab-btn-log" onclick="switchTab('log')" data-i18n="tab_log">Log</button>
+
+            </div>
+
+
+
+            <!-- Box Terminale Nero: Vista Shell Root -->
+
+            <pre class="terminal-box" id="shell-output"></pre>
+
+
+
+            <!-- Box Terminale Nero: Vista Log Operativo -->
+
+            <pre class="terminal-box" id="log-output" style="display:none;"></pre>
+
+          </div>
+
+
+
+          <!-- Barra Input Comandi -->
+
+          <div class="cmd-bar" id="cmd-bar">
+
+            <span class="cmd-prompt" id="cmd-prompt">root@rescue:/#</span>
+
+            <input type="text" id="cmd-input" class="cmd-input" placeholder="Comando shell root (es. ls -la, ifconfig, df -h)..." data-i18n-placeholder="cmd_placeholder" autocomplete="off" spellcheck="false">
+
+            <button type="button" class="btn btn-tch btn-send" id="btn-send-cmd" onclick="execCommand()">
+
+              <svg viewBox="0 0 16 16"><path d="m11.596 8.697-6.363 3.692c-.54.313-1.233-.066-1.233-.697V4.308c0-.63.692-1.01 1.233-.696l6.363 3.692a.802.802 0 0 1 0 1.393z"/></svg>
+
+              <span data-i18n="btn_send">Invia</span>
+
+            </button>
+
+          </div>
+
+        </div>
+
+      </section>
+
+
+
+    </main>
+
+
+
+    <!-- FOOTER TECHNICOLOR -->
+
+    <footer class="rescue-footer">
+
+      <p>&copy; Technicolor 2026 &bull; Rescue Console (<span data-i18n="footer_port">Porta</span> @@PORT@@) &bull; v@@VERSION@@</p>
+
+      <p><span data-i18n="footer_guiver">Versione GUI:</span> <span class="gui-ver" id="footer-guiver">@@GUIVER@@</span></p>
+
+      <p>
+
+        <span data-i18n="footer_credits_1">Fork &amp; modifiche di</span>
+
+        <a href="https://github.com/ziocook" target="_blank" rel="noopener">ZioCook</a> &bull;
+
+        <span data-i18n="footer_credits_2">Codice originale di</span>
+
+        <a href="https://github.com/Ansuel" target="_blank" rel="noopener">Ansuel</a>
+
+        <span data-i18n="footer_credits_3">e</span>
+
+        <a href="https://github.com/Ansuel/tch-nginx-gui/graphs/contributors" target="_blank" rel="noopener" class="gh-green" data-i18n="footer_credits_4">questi utenti GitHub.</a>
+
+      </p>
+
+      <p>
+
+        <span data-i18n="footer_credits_5">Utility di sblocco di</span>
+
+        <a href="https://github.com/ADeltaX" target="_blank" rel="noopener">ADeltaX</a> -
+
+        <span data-i18n="footer_credits_6">Traduzione GUI di</span>
+
+        <a href="https://github.com/DarkNiko" target="_blank" rel="noopener">DarkNiko</a>,
+
+        <a href="https://github.com/bovirus" target="_blank" rel="noopener">bovirus</a>
+
+      </p>
+
+    </footer>
+
   </div>
 
-  <!-- Warning Alert Banner -->
-  <div class="alert">
-    <i class="fa fa-exclamation-triangle" style="margin-right: 6px;"></i>
-    <strong data-i18n="alert_title">Modalit&agrave; di Emergenza Attiva</strong>
-  </div>
 
-  <!-- 4-column grid: 4 cards on row 1, 1 card + 3-column console on row 2 -->
-  <div class="cards-grid">
 
-    <!-- Card 1: Stato del Sistema -->
-    <div class="sc">
-      <div class="sh" data-i18n="c1_title">Stato del Sistema</div>
-      <div class="ct">
-        <span class="bgi fa">&#xf129;</span>
-        <div>
-          <div class="li"><i class="fa fa-microchip"></i> <strong data-i18n="c1_model">Modello:</strong> <span id="v-model">@@HARDWARE@@</span></div>
-          <div class="li"><i class="fa fa-code-branch"></i> <strong data-i18n="c1_guiver">Versione GUI:</strong> <span id="v-gui" class="guiver">@@GUIVER@@</span></div>
-          <div class="li"><i class="fa fa-memory"></i> <strong data-i18n="c1_ram">RAM:</strong> <span id="v-ram">@@MEM@@</span></div>
-          <div class="li"><i class="fa fa-clock"></i> <strong data-i18n="c1_uptime">Uptime:</strong> <span id="v-uptime">@@UPTIME@@</span></div>
-          <div class="li"><i class="fa fa-shield-alt"></i> <strong data-i18n="c1_kernel">Kernel:</strong> <span id="v-kernel">@@KERNEL@@</span></div>
-        </div>
-      </div>
-    </div>
+  <!-- LOGICA JAVASCRIPT STANDALONE -->
 
-    <!-- Card 2: Servizi Web -->
-    <div class="sc">
-      <div class="sh" data-i18n="c2_title">Servizi Web</div>
-      <div class="ct">
-        <span class="bgi fa">&#xf085;</span>
-        <div>
-          <div class="li"><span id="led-nginx" class="light @@NGINX_LED@@"></span><strong data-i18n="c2_nginx">Nginx:</strong> <span id="st-nginx" data-state="@@NGINX_STATE@@">@@NGINX_TXT@@</span></div>
-          <div class="li"><span id="led-trans" class="light @@TRANS_LED@@"></span><strong data-i18n="c2_trans">Transformer:</strong> <span id="st-trans" data-state="@@TRANS_STATE@@">@@TRANS_TXT@@</span></div>
-          <div class="sub" data-i18n="c2_desc" style="margin-top: 10px; margin-bottom: 14px;">Nginx e Transformer gestiscono l'accesso web primario (porta 80).</div>
-        </div>
-        <div>
-          <button id="btnRestart" class="btn-action btn-default" type="button">
-            <i class="fa fa-sync-alt"></i> <span data-i18n="btn_restart">Riavvia Servizi</span>
-          </button>
-        </div>
-      </div>
-    </div>
+  <script>
+    (function () {
+      "use strict";
 
-    <!-- Card 3: Ripristino Zero-Touch USB -->
-    <div class="sc">
-      <div class="sh" data-i18n="c3_title">Ripristino USB</div>
-      <div class="ct">
-        <span class="bgi fb">&#xf287;</span>
-        <div class="li"><span id="led-usb" class="light @@USB_LED@@"></span><span id="st-usb">@@USB_TXT@@</span></div>
-        <div class="sub" data-i18n="c3_desc" style="margin: 8px 0 16px;">
-          Inserisci una chiavetta USB con il pacchetto di ripristino della GUI per avviare il flashing automatico.
-        </div>
-        <div>
-          <button id="btnUsb" class="btn-action btn-primary" type="button">
-            <i class="fa fa-play"></i> <span data-i18n="btn_usb">Flash da USB</span>
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Card 4: Caricamento Pacchetto da PC -->
-    <div class="sc">
-      <div class="sh" data-i18n="c4_title">Carica Pacchetto</div>
-      <div class="ct">
-        <span class="bgi fa">&#xf093;</span>
-        <div class="sub" data-i18n="c4_desc" style="margin-bottom: 8px;">
-          Seleziona il pacchetto di ripristino dal computer:
-        </div>
-        <div class="file-wrap">
-          <label for="guiFile" class="sr-only">Package</label>
-          <input id="guiFile" type="file" accept=".tar.bz2,.bz2">
-        </div>
-        <div id="upProg" class="prog" role="progressbar" aria-valuemin="0" aria-valuemax="100"><i id="upFill"></i></div>
-        <div>
-          <button id="btnUpload" class="btn-action btn-primary" type="button">
-            <i class="fa fa-upload"></i> <span data-i18n="btn_upload">Carica &amp; Flash</span>
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Card 5: Gestione Modem -->
-    <div class="sc">
-      <div class="sh" data-i18n="c5_title">Gestione Modem</div>
-      <div class="ct">
-        <span class="bgi fa">&#xf011;</span>
-        <div>
-          <div class="li"><i class="fa fa-network-wired"></i> <strong data-i18n="c5_port">Porta rescue:</strong> @@PORT@@</div>
-          <div class="li"><i class="fa fa-file-alt"></i> <strong data-i18n="c5_log">Log:</strong> @@LOGFILE@@</div>
-          <div class="sub" data-i18n="c5_desc" style="margin-top: 10px; margin-bottom: 14px;">Riavvio hardware a basso livello del gateway.</div>
-        </div>
-        <div>
-          <button id="btnReboot" class="btn-action btn-danger" type="button">
-            <i class="fa fa-power-off"></i> <span data-i18n="btn_reboot">Riavvia Modem</span>
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <!-- Card 6: Console (root shell + live log), spans 3 columns -->
-    <div class="sc logt">
-      <div class="sh">
-        <span><i class="fa fa-terminal"></i> <span data-i18n="c6_title">Console Rescue</span></span>
-        <button id="btnClear" class="btn-clear" type="button"><i class="fa fa-eraser"></i> <span data-i18n="btn_clear">Pulisci</span></button>
-      </div>
-      <div class="ct" style="min-height: auto; padding: 14px;">
-        <div class="tabs" role="tablist">
-          <button id="tabShell" class="tab on" type="button" role="tab" aria-selected="true" data-i18n="tab_shell">Shell Root</button>
-          <button id="tabLog" class="tab" type="button" role="tab" aria-selected="false" data-i18n="tab_log">Log</button>
-          <span id="busyNote" class="pill" data-i18n="busy_note">Operazione in corso</span>
-        </div>
-        <div class="fake_console">
-          <pre id="shellBox" class="con on"></pre>
-          <pre id="logBox" class="con" aria-live="off"></pre>
-        </div>
-        <!-- Interactive Root Shell Command Bar -->
-        <form id="shellForm" class="shell-bar">
-          <span id="shellPrompt" class="shell-prompt">root@rescue:/#</span>
-          <input type="text" id="shellInput" class="shell-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" aria-label="Shell">
-          <button type="submit" id="btnShell" class="btn-action btn-primary shell-btn">
-            <i class="fa fa-play"></i> <span data-i18n="btn_send">Invia</span>
-          </button>
-        </form>
-      </div>
-    </div>
-
-  </div><!-- /cards-grid -->
-
-  <!-- Footer showing current GUI version -->
-  <div class="copyright">
-    <p><span data-i18n="footer_copy">&copy; Technicolor &bull; Rescue Console</span> (<span data-i18n="footer_port">Porta</span> @@PORT@@)</p>
-    <p><span data-i18n="footer_guiver">Versione GUI rilevata sul router:</span> <strong id="f-gui">@@GUIVER@@</strong></p>
-  </div>
-
-</div><!-- /container -->
-
-<script>
-(function () {
-  'use strict';
-
-  var UPLOAD_MAX = @@UPLOAD_MAX@@;
-
-  var I18N = {
-    it: {
-      page_title: "Rescue Console \u2014 Technicolor Gateway",
-      alert_title: "Modalit\u00e0 di Emergenza Attiva",
-      c1_title: "Stato del Sistema", c1_model: "Modello:", c1_guiver: "Versione GUI:", c1_ram: "RAM:",
-      c1_uptime: "Uptime:", c1_kernel: "Kernel:",
-      c2_title: "Servizi Web", c2_nginx: "Nginx:", c2_trans: "Transformer:",
-      c2_desc: "Nginx e Transformer gestiscono l'accesso web primario (porta 80).",
-      btn_restart: "Riavvia Servizi",
-      c3_title: "Ripristino USB",
-      c3_desc: "Inserisci una chiavetta USB con il pacchetto di ripristino della GUI per avviare il flashing automatico.",
-      btn_usb: "Flash da USB", usb_scanning: "Scansione USB...",
-      usb_found: "Chiavetta rilevata: {0}", usb_none: "Nessuna chiavetta rilevata",
-      c4_title: "Carica Pacchetto", c4_desc: "Seleziona il pacchetto di ripristino dal computer:",
-      btn_upload: "Carica & Flash", upload_btn_loading: "Caricamento",
-      c5_title: "Gestione Modem", c5_port: "Porta rescue:", c5_log: "Log:",
-      c5_desc: "Riavvio hardware a basso livello del gateway.", btn_reboot: "Riavvia Modem",
-      c6_title: "Console Rescue", tab_shell: "Shell Root", tab_log: "Log", btn_clear: "Pulisci", btn_send: "Invia",
-      busy_note: "Operazione in corso",
-      shell_placeholder: "Comando shell root (es. ls -la, ifconfig, df -h)...",
-      welcome_text: "Technicolor Emergency Root Shell\nDigita un comando root (es. ls -la, ps, df -h, free -m) e premi Invio.\nOgni comando gira in una shell separata; 'cd' viene ricordato dalla console.",
-      footer_copy: "\u00a9 Technicolor \u2022 Rescue Console", footer_port: "Porta",
-      footer_guiver: "Versione GUI rilevata sul router:", gui_unknown: "Non rilevata / Corrotta",
-      st_on: "Attivo", st_off: "Non attivo",
-      confirm_restart: "Vuoi riavviare i demoni Transformer e Nginx?",
-      confirm_reboot: "Confermi il riavvio completo del router?",
-      confirm_upload: "Il pacchetto \"{0}\" verr\u00e0 estratto sul filesystem principale e sovrascriver\u00e0 i file esistenti. Procedere?",
-      m_nofile: "Seleziona prima un file .tar.bz2 valido dal tuo computer.",
-      m_toobig: "File troppo grande (massimo {0} MB).",
-      m_usb_req: "--> [USB] Avvio scansione periferiche USB per il ripristino...",
-      m_upload_req: "--> [UPLOAD] Invio pacchetto GUI: {0} ({1} MB)...",
-      m_restart_req: "--> [SERVIZI] Richiesta riavvio di Nginx e Transformer...",
-      m_reboot_req: "--> [MODEM] Invio comando di reboot del gateway...",
-      m_neterr: "[ERRORE] Server non raggiungibile.",
-      m_http: "[ERRORE] Risposta HTTP {0}",
-      m_shell_err: "[ERRORE] Impossibile contattare la shell."
-    },
-    en: {
-      page_title: "Rescue Console \u2014 Technicolor Gateway",
-      alert_title: "Emergency Recovery Mode Active",
-      c1_title: "System Status", c1_model: "Model:", c1_guiver: "GUI Version:", c1_ram: "RAM:",
-      c1_uptime: "Uptime:", c1_kernel: "Kernel:",
-      c2_title: "Web Services", c2_nginx: "Nginx:", c2_trans: "Transformer:",
-      c2_desc: "Nginx and Transformer handle primary web access (port 80).",
-      btn_restart: "Restart Services",
-      c3_title: "USB Recovery",
-      c3_desc: "Insert a USB drive containing the GUI recovery package to start automatic flashing.",
-      btn_usb: "Flash from USB", usb_scanning: "Scanning USB...",
-      usb_found: "USB drive detected: {0}", usb_none: "No USB drive detected",
-      c4_title: "Upload Package", c4_desc: "Select the recovery package from your computer:",
-      btn_upload: "Upload & Flash", upload_btn_loading: "Uploading",
-      c5_title: "Modem Management", c5_port: "Rescue port:", c5_log: "Log:",
-      c5_desc: "Low-level hardware reboot of the gateway.", btn_reboot: "Reboot Gateway",
-      c6_title: "Rescue Console", tab_shell: "Root Shell", tab_log: "Log", btn_clear: "Clear", btn_send: "Send",
-      busy_note: "Operation in progress",
-      shell_placeholder: "Root shell command (e.g. ls -la, ifconfig, df -h)...",
-      welcome_text: "Technicolor Emergency Root Shell\nType a root command (e.g. ls -la, ps, df -h, free -m) and press Enter.\nEach command runs in a separate shell; 'cd' is remembered by the console.",
-      footer_copy: "\u00a9 Technicolor \u2022 Rescue Console", footer_port: "Port",
-      footer_guiver: "Detected router GUI version:", gui_unknown: "Not detected / Corrupted",
-      st_on: "Active", st_off: "Inactive",
-      confirm_restart: "Do you want to restart Transformer and Nginx?",
-      confirm_reboot: "Are you sure you want to reboot the gateway?",
-      confirm_upload: "The package \"{0}\" will be extracted onto the main filesystem and will overwrite existing files. Continue?",
-      m_nofile: "Please select a valid .tar.bz2 file from your computer first.",
-      m_toobig: "File too large (maximum {0} MB).",
-      m_usb_req: "--> [USB] Starting USB device scan for recovery...",
-      m_upload_req: "--> [UPLOAD] Sending GUI package: {0} ({1} MB)...",
-      m_restart_req: "--> [SERVICES] Restart of Nginx and Transformer requested...",
-      m_reboot_req: "--> [MODEM] Sending gateway reboot command...",
-      m_neterr: "[ERROR] Server unreachable.",
-      m_http: "[ERROR] HTTP response {0}",
-      m_shell_err: "[ERROR] Unable to reach the shell."
-    }
-  };
-
-  var lang = 'it';
-  var cwd = '/';
-  var cmdHistory = [], histIdx = -1;
-  var logPos = -1, lastStatus = null;
-  var busy = false, uploading = false, shellDirty = false;
-
-  function $(id) { return document.getElementById(id); }
-
-  function t(key, args) {
-    var s = (I18N[lang] && I18N[lang][key]) || I18N.it[key] || key;
-    if (args) { s = s.replace(/\{(\d+)\}/g, function (m, i) { return args[i]; }); }
-    return s;
-  }
-
-  // ---------- HTTP ----------
-  function request(method, url, body, done, fail, setup) {
-    var x = new XMLHttpRequest();
-    x.open(method, url, true);
-    if (method === 'POST') { x.setRequestHeader('X-Rescue', '1'); }
-    if (setup) { setup(x); }
-    x.onload = function () { if (done) { done(x); } };
-    x.onerror = function () { if (fail) { fail(x); } };
-    x.send(body === undefined ? null : body);
-    return x;
-  }
-  function parse(x) {
-    try { return JSON.parse(x.responseText); } catch (e) { return null; }
-  }
-
-  // ---------- console panes ----------
-  var shellBox = $('shellBox'), logBox = $('logBox');
-
-  function append(box, text) {
-    var near = box.scrollHeight - box.scrollTop - box.clientHeight < 40;
-    box.textContent += text;
-    if (box.textContent.length > 200000) { box.textContent = box.textContent.slice(-150000); }
-    if (near) { box.scrollTop = box.scrollHeight; }
-  }
-  function line(box, text) {
-    var cur = box.textContent;
-    append(box, (cur && cur.slice(-1) !== '\n' ? '\n' : '') + text + '\n');
-  }
-  function showTab(name) {
-    var shell = (name === 'shell');
-    shellBox.className = 'con' + (shell ? ' on' : '');
-    logBox.className = 'con' + (shell ? '' : ' on');
-    $('tabShell').className = 'tab' + (shell ? ' on' : '');
-    $('tabLog').className = 'tab' + (shell ? '' : ' on');
-    $('tabShell').setAttribute('aria-selected', shell ? 'true' : 'false');
-    $('tabLog').setAttribute('aria-selected', shell ? 'false' : 'true');
-    $('shellForm').style.display = shell ? 'flex' : 'none';
-    if (shell) { $('shellInput').focus(); }
-  }
-  function isShellTab() { return shellBox.classList.contains('on'); }
-  // Action feedback goes to the log tab, which is switched to automatically.
-  function note(msg) { line(logBox, msg); showTab('log'); }
-
-  // ---------- i18n ----------
-  function paintStates() {
-    var els = document.querySelectorAll('[data-state]');
-    for (var i = 0; i < els.length; i++) {
-      els[i].textContent = t(els[i].getAttribute('data-state') === 'active' ? 'st_on' : 'st_off');
-    }
-  }
-  function paintUsb(s) {
-    if (!s) { return; }
-    var label = s.usb_name + (s.usb_fs ? ' (' + s.usb_fs + ')' : '');
-    $('st-usb').textContent = s.usb ? t('usb_found', [label]) : t('usb_none');
-  }
-  function applyLang(l) {
-    if (!I18N[l]) { l = 'it'; }
-    lang = l;
-    try { localStorage.setItem('rescue_lang', l); } catch (e) {}
-    document.documentElement.lang = l;
-    document.title = t('page_title');
-    var els = document.querySelectorAll('[data-i18n]');
-    for (var i = 0; i < els.length; i++) {
-      var key = els[i].getAttribute('data-i18n');
-      if (I18N[l][key] !== undefined) { els[i].innerHTML = I18N[l][key]; }
-    }
-    paintStates();
-    paintUsb(lastStatus);
-    $('shellInput').placeholder = t('shell_placeholder');
-    $('webui_language').value = l;
-    if (!shellDirty) { shellBox.textContent = t('welcome_text'); }   // only the untouched banner
-  }
-
-  // ---------- live status ----------
-  function paintGui(v) {
-    ['v-gui', 'f-gui'].forEach(function (id) {
-      var el = $(id);
-      if (v) { el.removeAttribute('data-i18n'); el.textContent = v; }
-      else { el.setAttribute('data-i18n', 'gui_unknown'); el.textContent = t('gui_unknown'); }
-    });
-  }
-  function paintService(name, active) {
-    $('led-' + name).className = 'light ' + (active ? 'green' : 'red');
-    $('st-' + name).setAttribute('data-state', active ? 'active' : 'inactive');
-  }
-  function applyBusy() {
-    var off = busy || uploading;
-    ['btnUsb', 'btnUpload', 'btnRestart'].forEach(function (id) { $(id).disabled = off; });
-    $('busyNote').style.display = off ? 'inline-block' : 'none';
-  }
-  function pollStatus() {
-    if (document.hidden || uploading) { return; }
-    request('GET', '/status', undefined, function (x) {
-      var s = (x.status === 200) ? parse(x) : null;
-      if (!s) { return; }
-      lastStatus = s;
-      $('v-model').textContent = s.hardware;
-      $('v-kernel').textContent = s.kernel;
-      $('v-ram').textContent = s.mem;
-      $('v-uptime').textContent = s.uptime;
-      paintGui(s.gui_version);
-      paintService('nginx', s.nginx);
-      paintService('trans', s.transformer);
-      $('led-usb').className = 'light' + (s.usb ? ' green' : '');
-      paintStates();
-      paintUsb(s);
-      busy = !!s.busy;
-      applyBusy();
-    });
-  }
-  function pollLog() {
-    if (document.hidden || uploading) { return; }
-    request('GET', '/log?pos=' + logPos, undefined, function (x) {
-      if (x.status !== 200) { return; }
-      var pos = parseInt(x.getResponseHeader('X-Log-Pos'), 10);
-      if (x.getResponseHeader('X-Log-Reset') === '1') { logBox.textContent = ''; }
-      if (x.responseText) { append(logBox, x.responseText); }
-      if (!isNaN(pos)) { logPos = pos; }
-    });
-  }
-
-  // ---------- button helpers ----------
-  function btnState(id, icon, key, raw) {
-    var b = $(id), i = b.querySelector('i'), s = b.querySelector('span');
-    i.className = 'fa ' + icon;
-    if (key) { s.setAttribute('data-i18n', key); s.textContent = t(key); }
-    else { s.removeAttribute('data-i18n'); s.textContent = raw; }
-  }
-  function report(x, tag) {
-    var j = parse(x);
-    note(tag + ' ' + (j && j.message ? j.message : t('m_http', [x.status])));
-  }
-
-  // ---------- shell ----------
-  function shellQuote(s) { return "'" + s.replace(/'/g, "'\\''") + "'"; }
-  function setPrompt() { $('shellPrompt').textContent = 'root@rescue:' + cwd + '#'; }
-
-  function runShell(ev) {
-    ev.preventDefault();
-    var inp = $('shellInput'), btn = $('btnShell'), cmd = inp.value.trim();
-    if (!cmd) { return; }
-    if (!cmdHistory.length || cmdHistory[cmdHistory.length - 1] !== cmd) { cmdHistory.push(cmd); }
-    histIdx = -1;
-    inp.value = '';
-    shellDirty = true;
-    if (cmd === 'clear') { shellBox.textContent = ''; return; }
-
-    var cd = /^cd(?:\s+(.*))?$/.exec(cmd);
-    var body = 'cd ' + shellQuote(cwd) + ' 2>/dev/null\n' + (cd ? 'cd ' + (cd[1] || '') + ' && pwd' : cmd);
-    line(shellBox, 'root@rescue:' + cwd + '# ' + cmd);
-    btn.disabled = true;
-    request('POST', '/exec', body, function (x) {
-      var j = parse(x), out = (j && j.output) ? j.output : '';
-      btn.disabled = false;
-      inp.focus();
-      if (!j) { line(shellBox, t('m_http', [x.status])); return; }
-      if (cd) {
-        var m = /^(\/[^\n]*)\n*$/.exec(out);
-        if (m) { cwd = m[1]; setPrompt(); return; }        // cd succeeded: stay silent like a real shell
-      }
-      if (out) { line(shellBox, out.replace(/\n+$/, '')); }
-    }, function () {
-      btn.disabled = false;
-      inp.focus();
-      line(shellBox, t('m_shell_err'));
-    }, function (x) { x.setRequestHeader('Content-Type', 'text/plain; charset=utf-8'); });
-  }
-
-  // ---------- actions ----------
-  function onUsb() {
-    note(t('m_usb_req'));
-    btnState('btnUsb', 'fa-spinner fa-spin', 'usb_scanning');
-    $('btnUsb').disabled = true;
-    function restore() { btnState('btnUsb', 'fa-play', 'btn_usb'); pollStatus(); }
-    request('POST', '/usb_recovery', undefined, function (x) {
-      report(x, '[USB]');
-      setTimeout(restore, 3000);
-    }, function () { note(t('m_neterr')); restore(); });
-  }
-
-  function startUpload(file) {
-    var fill = $('upFill'), prog = $('upProg');
-    uploading = true;
-    applyBusy();
-    prog.style.display = 'block';
-    fill.style.width = '0%';
-    btnState('btnUpload', 'fa-spinner fa-spin', null, t('upload_btn_loading') + ' (' + (file.size / 1048576).toFixed(1) + ' MB)...');
-    note(t('m_upload_req', [file.name, (file.size / 1048576).toFixed(2)]));
-    function finish() {
-      uploading = false;
-      btnState('btnUpload', 'fa-upload', 'btn_upload');
-      applyBusy();
-      setTimeout(function () { pollStatus(); pollLog(); }, 500);
-    }
-    request('POST', '/upload', file, function (x) {
-      if (x.status === 200) { fill.style.width = '100%'; }
-      report(x, '[UPLOAD]');
-      finish();
-    }, function () { note(t('m_neterr')); finish(); }, function (x) {
-      x.setRequestHeader('Content-Type', 'application/octet-stream');
-      x.upload.onprogress = function (e) {
-        if (!e.lengthComputable) { return; }
-        var p = Math.round(e.loaded * 100 / e.total);
-        fill.style.width = p + '%';
-        prog.setAttribute('aria-valuenow', p);
-        btnState('btnUpload', 'fa-spinner fa-spin', null, t('upload_btn_loading') + ' ' + p + '%...');
+      var I18N = {
+        it: {
+          emergency_active: "Modalità di Emergenza Attiva",
+          card_sys_status: "Stato del Sistema",
+          lbl_model: "Modello:",
+          lbl_guiver: "Versione GUI:",
+          lbl_ram: "RAM:",
+          lbl_uptime: "Uptime:",
+          lbl_kernel: "Kernel:",
+          card_web_services: "Servizi Web",
+          web_services_desc: "Nginx e Transformer gestiscono l'accesso web primario (porta 80).",
+          btn_restart_srv: "Riavvia Servizi",
+          card_usb_recovery: "Ripristino USB",
+          usb_recovery_desc: "Inserisci una chiavetta USB con il pacchetto di ripristino della GUI per avviare il flashing automatico.",
+          btn_usb_flash: "Flash da USB",
+          card_pkg_upload: "Carica Pacchetto",
+          pkg_upload_desc: "Seleziona il pacchetto di ripristino dal computer:",
+          lbl_max_size: "Max:",
+          btn_upload_flash: "Carica & Flash",
+          card_modem_mgmt: "Gestione Modem",
+          lbl_port: "Porta rescue:",
+          lbl_log: "Log:",
+          modem_reboot_desc: "Riavvio hardware a basso livello del gateway.",
+          btn_reboot: "Riavvia Modem",
+          card_rescue_console: "Console Rescue",
+          btn_clear: "Pulisci",
+          tab_shell: "Shell Root",
+          tab_log: "Log",
+          cmd_placeholder: "Comando shell root (es. ls -la, ifconfig, df -h)...",
+          btn_send: "Invia",
+          footer_port: "Porta",
+          footer_guiver: "Versione GUI:",
+          footer_credits_1: "Fork & modifiche di",
+          footer_credits_2: "Codice originale di",
+          footer_credits_3: "e",
+          footer_credits_4: "questi utenti GitHub.",
+          footer_credits_5: "Utility di sblocco di",
+          footer_credits_6: "Traduzione GUI di",
+          state_active: "Attivo",
+          state_inactive: "Inattivo",
+          usb_none: "Nessuna chiavetta rilevata",
+          usb_detected_prefix: "Chiavetta rilevata",
+          shell_banner: "Technicolor Emergency Root Shell\nDigita un comando root (es. ls -la, ps, df -h, free -m) e premi Invio.\nOgni comando gira in una shell separata; 'cd' viene ricordato dalla console.\n",
+          msg_restarting_srv: "Riavvio servizi in corso...",
+          msg_restarted_srv: "Servizi riavviati correttamente.",
+          msg_usb_starting: "Avvio ripristino da USB in corso...",
+          msg_usb_done: "Procedura USB avviata. Controlla il tab Log.",
+          msg_select_file: "Seleziona prima un file .tar.bz2 valido.",
+          msg_uploading: "Caricamento e flash in corso...",
+          msg_upload_ok: "Pacchetto caricato e installato con successo!",
+          msg_upload_err: "Errore durante il caricamento del pacchetto.",
+          msg_reboot_confirm: "Sei sicuro di voler riavviare il modem?",
+          msg_rebooting: "Riavvio hardware del modem inviato...",
+          msg_log_cleared: "[Log svuotato]\n"
+        },
+        en: {
+          emergency_active: "Emergency Mode Active",
+          card_sys_status: "System Status",
+          lbl_model: "Model:",
+          lbl_guiver: "GUI Version:",
+          lbl_ram: "RAM:",
+          lbl_uptime: "Uptime:",
+          lbl_kernel: "Kernel:",
+          card_web_services: "Web Services",
+          web_services_desc: "Nginx and Transformer manage primary web access (port 80).",
+          btn_restart_srv: "Restart Services",
+          card_usb_recovery: "USB Recovery",
+          usb_recovery_desc: "Insert a USB drive containing the GUI recovery package to start automatic flashing.",
+          btn_usb_flash: "Flash from USB",
+          card_pkg_upload: "Upload Package",
+          pkg_upload_desc: "Select the recovery package from your computer:",
+          lbl_max_size: "Max:",
+          btn_upload_flash: "Upload & Flash",
+          card_modem_mgmt: "Modem Management",
+          lbl_port: "Rescue port:",
+          lbl_log: "Log:",
+          modem_reboot_desc: "Low-level hardware reboot of the gateway.",
+          btn_reboot: "Reboot Modem",
+          card_rescue_console: "Rescue Console",
+          btn_clear: "Clear",
+          tab_shell: "Root Shell",
+          tab_log: "Log",
+          cmd_placeholder: "Root shell command (e.g. ls -la, ifconfig, df -h)...",
+          btn_send: "Send",
+          footer_port: "Port",
+          footer_guiver: "GUI Version:",
+          footer_credits_1: "Fork & modifications by",
+          footer_credits_2: "Original code by",
+          footer_credits_3: "and",
+          footer_credits_4: "these GitHub users.",
+          footer_credits_5: "Unlock utility by",
+          footer_credits_6: "GUI translation by",
+          state_active: "Active",
+          state_inactive: "Inactive",
+          usb_none: "No USB drive detected",
+          usb_detected_prefix: "USB drive detected",
+          shell_banner: "Technicolor Emergency Root Shell\nType a root command (e.g. ls -la, ps, df -h, free -m) and press Enter.\nEach command runs in a separate shell; 'cd' is remembered by the console.\n",
+          msg_restarting_srv: "Restarting web services...",
+          msg_restarted_srv: "Services restarted successfully.",
+          msg_usb_starting: "Starting USB recovery...",
+          msg_usb_done: "USB recovery triggered. Check the Log tab.",
+          msg_select_file: "Please select a valid .tar.bz2 file first.",
+          msg_uploading: "Uploading and flashing package...",
+          msg_upload_ok: "Package uploaded and flashed successfully!",
+          msg_upload_err: "Error uploading package.",
+          msg_reboot_confirm: "Are you sure you want to reboot the modem?",
+          msg_rebooting: "Hardware reboot command sent...",
+          msg_log_cleared: "[Log cleared]\n"
+        }
       };
-    });
-  }
-  function onUpload() {
-    var fi = $('guiFile'), file = fi.files && fi.files[0];
-    if (!file) { note(t('m_nofile')); return; }
-    if (file.size > UPLOAD_MAX) { note(t('m_toobig', [Math.floor(UPLOAD_MAX / 1048576)])); return; }
-    if (!/\.bz2$/i.test(file.name)) { note(t('m_nofile')); return; }
-    if (confirm(t('confirm_upload', [file.name]))) { startUpload(file); }
-  }
 
-  function simplePost(url, confirmKey, reqKey, tag) {
-    if (!confirm(t(confirmKey))) { return; }
-    note(t(reqKey));
-    request('POST', url, undefined, function (x) { report(x, tag); setTimeout(pollStatus, 3000); },
-            function () { note(t('m_neterr')); });
-  }
+      var currentLang = "it";
+      try {
+        currentLang = localStorage.getItem("rescue_lang") || "it";
+      } catch (e) {}
+      if (!I18N[currentLang]) currentLang = "it";
 
-  function onClear() {
-    if (isShellTab()) { shellBox.textContent = ''; shellDirty = true; $('shellInput').focus(); return; }
-    request('POST', '/clear_log', undefined, function () { logBox.textContent = ''; logPos = -1; pollLog(); });
-  }
+      var activeTab = "shell";
+      var logPos = 0;
+      var cmdHistory = [];
+      var historyIdx = -1;
+      var currentCwd = "/";
+      var shellTouched = false;
+      var uploading = false;
 
-  // ---------- init ----------
-  $('btnUsb').addEventListener('click', onUsb);
-  $('btnUpload').addEventListener('click', onUpload);
-  $('btnRestart').addEventListener('click', function () { simplePost('/restart_services', 'confirm_restart', 'm_restart_req', '[SERVIZI]'); });
-  $('btnReboot').addEventListener('click', function () { simplePost('/reboot', 'confirm_reboot', 'm_reboot_req', '[MODEM]'); });
-  $('btnClear').addEventListener('click', onClear);
-  $('tabShell').addEventListener('click', function () { showTab('shell'); });
-  $('tabLog').addEventListener('click', function () { showTab('log'); });
-  $('shellForm').addEventListener('submit', runShell);
-  $('webui_language').addEventListener('change', function () { applyLang(this.value); });
-  $('shellInput').addEventListener('keydown', function (e) {
-    var inp = this;
-    if (e.key === 'ArrowUp') {
-      if (cmdHistory.length) {
-        histIdx = (histIdx === -1) ? cmdHistory.length - 1 : Math.max(0, histIdx - 1);
-        inp.value = cmdHistory[histIdx];
+      function t(key) {
+        return (I18N[currentLang] && I18N[currentLang][key]) || I18N.it[key] || key;
       }
-      e.preventDefault();
-    } else if (e.key === 'ArrowDown' && histIdx !== -1) {
-      histIdx++;
-      if (histIdx >= cmdHistory.length) { histIdx = -1; inp.value = ''; } else { inp.value = cmdHistory[histIdx]; }
-      e.preventDefault();
-    }
-  });
 
-  var initial = 'it';
-  try {
-    var q = new URLSearchParams(window.location.search).get('lang');
-    initial = q || localStorage.getItem('rescue_lang') || '';
-  } catch (e) {}
-  if (!initial) {
-    var nav = (navigator.language || 'it').substring(0, 2).toLowerCase();
-    initial = (nav === 'en') ? 'en' : 'it';
-  }
-  applyLang(initial);
-  setPrompt();
-  applyBusy();
-  pollLog();
-  pollStatus();
-  setInterval(pollLog, 1500);
-  setInterval(pollStatus, 4000);
-})();
-</script>
+      function translateServiceState(el) {
+        if (!el) return;
+        var st = (el.getAttribute("data-state") || "").toLowerCase();
+        if (st === "active" || st === "running" || st === "1" || st === "ok") {
+          el.textContent = t("state_active");
+        } else if (st === "inactive" || st === "stopped" || st === "0" || st === "err") {
+          el.textContent = t("state_inactive");
+        }
+      }
+
+      function applyLanguage(lang) {
+        if (!I18N[lang]) lang = "it";
+        currentLang = lang;
+        try {
+          localStorage.setItem("rescue_lang", lang);
+        } catch (e) {}
+
+        var sel = document.getElementById("webui_language");
+        if (sel && sel.value !== lang) sel.value = lang;
+        document.documentElement.lang = lang;
+
+        var nodes = document.querySelectorAll("[data-i18n]");
+        for (var i = 0; i < nodes.length; i++) {
+          var key = nodes[i].getAttribute("data-i18n");
+          if (key) nodes[i].textContent = t(key);
+        }
+
+        var inputs = document.querySelectorAll("[data-i18n-placeholder]");
+        for (var j = 0; j < inputs.length; j++) {
+          var pKey = inputs[j].getAttribute("data-i18n-placeholder");
+          if (pKey) inputs[j].setAttribute("placeholder", t(pKey));
+        }
+
+        translateServiceState(document.getElementById("nginx-txt"));
+        translateServiceState(document.getElementById("trans-txt"));
+
+        var ut = document.getElementById("usb-txt");
+        if (ut && (ut.textContent === "Nessuna chiavetta rilevata" || ut.textContent === "No USB drive detected")) {
+          ut.textContent = t("usb_none");
+        }
+
+        var shellEl = document.getElementById("shell-output");
+        if (shellEl && !shellTouched) {
+          shellEl.textContent = t("shell_banner");
+        }
+      }
+
+      window.switchTab = function (tab) {
+        activeTab = tab === "log" ? "log" : "shell";
+        var btnShell = document.getElementById("tab-btn-shell");
+        var btnLog = document.getElementById("tab-btn-log");
+        var outShell = document.getElementById("shell-output");
+        var outLog = document.getElementById("log-output");
+
+        if (activeTab === "shell") {
+          btnShell.classList.add("active");
+          btnLog.classList.remove("active");
+          outShell.style.display = "block";
+          outLog.style.display = "none";
+          outShell.scrollTop = outShell.scrollHeight;
+        } else {
+          btnLog.classList.add("active");
+          btnShell.classList.remove("active");
+          outLog.style.display = "block";
+          outShell.style.display = "none";
+          outLog.scrollTop = outLog.scrollHeight;
+        }
+      };
+
+      function rescuePost(url, body, contentType, callback) {
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", url, true);
+        xhr.setRequestHeader("X-Rescue", "1");
+        if (contentType) {
+          xhr.setRequestHeader("Content-Type", contentType);
+        }
+        xhr.onreadystatechange = function () {
+          if (xhr.readyState === 4) {
+            var data = null;
+            try {
+              data = JSON.parse(xhr.responseText);
+            } catch (e) {
+              data = { raw: xhr.responseText };
+            }
+            callback(xhr.status >= 200 && xhr.status < 300, data, xhr);
+          }
+        };
+        xhr.send(body !== undefined && body !== null ? body : "");
+      }
+
+      function setFeedback(id, msg, type) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        el.className = "status-feedback " + (type || "");
+        el.textContent = msg || "";
+      }
+
+      function pollStatus() {
+        if (document.hidden || uploading) return;
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", "/status?_=" + new Date().getTime(), true);
+        xhr.onreadystatechange = function () {
+          if (xhr.readyState === 4 && xhr.status === 200) {
+            try {
+              var d = JSON.parse(xhr.responseText);
+              if (d.mem) document.getElementById("mem-val").textContent = d.mem;
+              if (d.uptime) document.getElementById("uptime-val").textContent = d.uptime;
+              if (d.hardware) document.getElementById("hw-val").textContent = d.hardware;
+              if (d.kernel) document.getElementById("kernel-val").textContent = d.kernel;
+              var gv = d.gui_version || d.guiver || d.gui_ver;
+              if (gv) {
+                document.getElementById("guiver-val").textContent = gv;
+                var fgv = document.getElementById("footer-guiver");
+                if (fgv) fgv.textContent = gv;
+              }
+
+              var nginxOk = !!d.nginx;
+              var nLed = document.getElementById("nginx-led");
+              if (nLed) nLed.className = "led " + (nginxOk ? "green" : "red");
+              var nTxt = document.getElementById("nginx-txt");
+              if (nTxt) {
+                nTxt.setAttribute("data-state", nginxOk ? "active" : "inactive");
+                nTxt.textContent = nginxOk ? t("state_active") : t("state_inactive");
+              }
+
+              var transOk = !!d.transformer;
+              var tLed = document.getElementById("trans-led");
+              if (tLed) tLed.className = "led " + (transOk ? "green" : "red");
+              var tTxt = document.getElementById("trans-txt");
+              if (tTxt) {
+                tTxt.setAttribute("data-state", transOk ? "active" : "inactive");
+                tTxt.textContent = transOk ? t("state_active") : t("state_inactive");
+              }
+
+              var usbOk = !!d.usb;
+              var uLed = document.getElementById("usb-led");
+              if (uLed) uLed.className = "led " + (usbOk ? "green" : "");
+              var uTxt = document.getElementById("usb-txt");
+              if (uTxt) {
+                if (usbOk) {
+                  var label = (d.usb_name || "") + (d.usb_fs ? " (" + d.usb_fs + ")" : "");
+                  uTxt.textContent = t("usb_detected_prefix") + (label ? ": " + label : "");
+                } else {
+                  uTxt.textContent = t("usb_none");
+                }
+              }
+            } catch (e) {}
+          }
+        };
+        xhr.send();
+      }
+
+      function pollLog() {
+        if (document.hidden || uploading) return;
+        var xhr = new XMLHttpRequest();
+        xhr.open("GET", "/log?pos=" + encodeURIComponent(logPos) + "&_=" + new Date().getTime(), true);
+        xhr.onreadystatechange = function () {
+          if (xhr.readyState === 4 && xhr.status === 200) {
+            var logEl = document.getElementById("log-output");
+            var reset = xhr.getResponseHeader("X-Log-Reset");
+            if (reset === "1") {
+              logEl.textContent = "";
+            }
+            var posHeader = xhr.getResponseHeader("X-Log-Pos");
+            var pos = parseInt(posHeader, 10);
+            if (!isNaN(pos)) {
+              logPos = pos;
+            }
+            if (xhr.responseText) {
+              logEl.textContent += xhr.responseText;
+              logEl.scrollTop = logEl.scrollHeight;
+            }
+          }
+        };
+        xhr.send();
+      }
+
+      window.execCommand = function () {
+        var input = document.getElementById("cmd-input");
+        var shellOut = document.getElementById("shell-output");
+        var promptEl = document.getElementById("cmd-prompt");
+        var btn = document.getElementById("btn-shell-send");
+        var cmd = (input.value || "").trim();
+        if (!cmd) return;
+
+        if (activeTab !== "shell") {
+          window.switchTab("shell");
+        }
+
+        shellTouched = true;
+        if (cmdHistory.length === 0 || cmdHistory[cmdHistory.length - 1] !== cmd) {
+          cmdHistory.push(cmd);
+        }
+        historyIdx = cmdHistory.length;
+        input.value = "";
+
+        shellOut.textContent += (shellOut.textContent ? "\n" : "") + promptEl.textContent + " " + cmd + "\n";
+        shellOut.scrollTop = shellOut.scrollHeight;
+
+        var cd = /^cd(?:\s+(.*))?$/.exec(cmd);
+        var qCwd = "'" + currentCwd.replace(/'/g, "'\\''") + "'";
+        var body = 'cd ' + qCwd + ' 2>/dev/null\n' + (cd ? 'cd ' + (cd[1] || '') + ' && pwd' : cmd);
+
+        if (btn) btn.disabled = true;
+        rescuePost("/exec", body, "text/plain; charset=utf-8", function (ok, d, xhr) {
+          if (btn) btn.disabled = false;
+          input.focus();
+          if (d && d.status === "ok") {
+            var out = d.output || "";
+            if (cd) {
+              var m = /^(\/[^\n]*)\n*$/.exec(out);
+              if (m) {
+                currentCwd = m[1];
+                promptEl.textContent = "root@rescue:" + currentCwd + "#";
+                shellOut.scrollTop = shellOut.scrollHeight;
+                return;
+              }
+            }
+            if (out) {
+              shellOut.textContent += out + (out.slice(-1) === "\n" ? "" : "\n");
+            }
+          } else {
+            var err = (d && (d.output || d.error || d.message || d.raw)) || ("HTTP Error " + xhr.status);
+            shellOut.textContent += err + (err.slice(-1) === "\n" ? "" : "\n");
+          }
+          shellOut.scrollTop = shellOut.scrollHeight;
+        });
+      };
+
+      window.uploadPackage = function () {
+        var fileInput = document.getElementById("pkg-file");
+        var progWrap = document.getElementById("upload-prog-wrap");
+        var progBar = document.getElementById("upload-prog-bar");
+        var btn = document.getElementById("btn-upload-flash");
+
+        if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+          setFeedback("upload-feedback", t("msg_select_file"), "err");
+          return;
+        }
+
+        var file = fileInput.files[0];
+        uploading = true;
+        btn.disabled = true;
+        progWrap.style.display = "block";
+        progBar.style.width = "0%";
+        progBar.textContent = "0%";
+        setFeedback("upload-feedback", t("msg_uploading"), "warn");
+
+        var xhr = new XMLHttpRequest();
+        xhr.open("POST", "/upload", true);
+        xhr.setRequestHeader("X-Rescue", "1");
+        xhr.setRequestHeader("Content-Type", "application/octet-stream");
+
+        if (xhr.upload) {
+          xhr.upload.onprogress = function (ev) {
+            if (ev.lengthComputable) {
+              var pct = Math.round((ev.loaded / ev.total) * 100);
+              progBar.style.width = pct + "%";
+              progBar.textContent = pct + "%";
+            }
+          };
+        }
+
+        xhr.onreadystatechange = function () {
+          if (xhr.readyState === 4) {
+            uploading = false;
+            btn.disabled = false;
+            var res = null;
+            try { res = JSON.parse(xhr.responseText); } catch (e) {}
+            if (xhr.status >= 200 && xhr.status < 300 && (!res || res.status !== "error")) {
+              progBar.style.width = "100%";
+              progBar.textContent = "100%";
+              setFeedback("upload-feedback", (res && (res.message || res.msg)) ? (res.message || res.msg) : t("msg_upload_ok"), "ok");
+              pollStatus();
+              pollLog();
+            } else {
+              setFeedback("upload-feedback", (res && (res.message || res.error || res.msg)) ? (res.message || res.error || res.msg) : t("msg_upload_err"), "err");
+            }
+          }
+        };
+        xhr.send(file);
+      };
+
+      window.usbRecovery = function () {
+        var btn = document.getElementById("btn-usb-flash");
+        btn.disabled = true;
+        setFeedback("usb-feedback", t("msg_usb_starting"), "warn");
+        rescuePost("/usb_recovery", "", "application/x-www-form-urlencoded", function (ok, d) {
+          btn.disabled = false;
+          if (ok && (!d || d.status !== "error")) {
+            setFeedback("usb-feedback", (d && (d.message || d.msg)) ? (d.message || d.msg) : t("msg_usb_done"), "ok");
+            window.switchTab("log");
+          } else {
+            setFeedback("usb-feedback", (d && (d.message || d.error || d.msg)) ? (d.message || d.error || d.msg) : "USB Recovery Error", "err");
+          }
+          pollStatus();
+          pollLog();
+        });
+      };
+
+      window.restartServices = function () {
+        var btn = document.getElementById("btn-restart-srv");
+        btn.disabled = true;
+        setFeedback("srv-feedback", t("msg_restarting_srv"), "warn");
+        rescuePost("/restart_services", "", "application/x-www-form-urlencoded", function (ok, d) {
+          btn.disabled = false;
+          if (ok && (!d || d.status !== "error")) {
+            setFeedback("srv-feedback", (d && (d.message || d.msg)) ? (d.message || d.msg) : t("msg_restarted_srv"), "ok");
+          } else {
+            setFeedback("srv-feedback", (d && (d.message || d.error || d.msg)) ? (d.message || d.error || d.msg) : "Error", "err");
+          }
+          pollStatus();
+          pollLog();
+        });
+      };
+
+      window.rebootModem = function () {
+        if (!window.confirm(t("msg_reboot_confirm"))) return;
+        var btn = document.getElementById("btn-reboot");
+        btn.disabled = true;
+        setFeedback("reboot-feedback", t("msg_rebooting"), "warn");
+        rescuePost("/reboot", "", "application/x-www-form-urlencoded", function () {
+          setTimeout(function () { btn.disabled = false; }, 10000);
+        });
+      };
+
+      window.clearConsole = function () {
+        if (activeTab === "shell") {
+          shellTouched = false;
+          document.getElementById("shell-output").textContent = t("shell_banner");
+        }
+        rescuePost("/clear_log", "", "application/x-www-form-urlencoded", function () {
+          logPos = 0;
+          document.getElementById("log-output").textContent = t("msg_log_cleared");
+        });
+      };
+
+      document.addEventListener("DOMContentLoaded", function () {
+        var langSelect = document.getElementById("webui_language");
+        if (langSelect) {
+          langSelect.addEventListener("change", function () {
+            applyLanguage(this.value);
+          });
+        }
+
+        var cmdInput = document.getElementById("cmd-input");
+        if (cmdInput) {
+          cmdInput.addEventListener("keydown", function (e) {
+            if (e.key === "Enter") {
+              e.preventDefault();
+              window.execCommand();
+            } else if (e.key === "ArrowUp") {
+              if (cmdHistory.length > 0 && historyIdx > 0) {
+                e.preventDefault();
+                historyIdx--;
+                cmdInput.value = cmdHistory[historyIdx];
+              }
+            } else if (e.key === "ArrowDown") {
+              if (historyIdx < cmdHistory.length - 1) {
+                e.preventDefault();
+                historyIdx++;
+                cmdInput.value = cmdHistory[historyIdx];
+              } else {
+                historyIdx = cmdHistory.length;
+                cmdInput.value = "";
+              }
+            }
+          });
+        }
+
+        var maxEl = document.getElementById("upload-max-val");
+        if (maxEl) {
+          var b = parseInt(maxEl.textContent, 10);
+          if (!isNaN(b) && b > 0) {
+            maxEl.textContent = Math.round(b / (1024 * 1024)) + " MB";
+          }
+        }
+
+        applyLanguage(currentLang);
+        pollStatus();
+        pollLog();
+        setInterval(pollStatus, 4000);
+        setInterval(pollLog, 1500);
+      });
+    })();
+  </script>
+
 </body>
+
 </html>
 ]==]
 
