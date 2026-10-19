@@ -1,0 +1,19 @@
+#!/bin/sh
+# Fastfetch Multi-Architecture Dispatcher for Homeware / OpenWrt
+# Automatically executes the native binary for ARM (Cortex-A9 soft-float) or MIPS (BMIPS4350 soft-float)
+
+case "$(uname -m)" in
+    arm*|aarch64*)
+        if [ -x /usr/bin/fastfetch-arm ]; then
+            exec /usr/bin/fastfetch-arm "$@"
+        fi
+        ;;
+    mips*)
+        if [ -x /usr/bin/fastfetch-mips ]; then
+            exec /usr/bin/fastfetch-mips "$@"
+        fi
+        ;;
+esac
+
+echo "fastfetch: no compatible binary found for architecture $(uname -m)" >&2
+exit 1
