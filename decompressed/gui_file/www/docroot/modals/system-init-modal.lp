@@ -7,39 +7,51 @@ local proxy = require("datamodel")
 local ui_helper = require("web.ui_helper")
 local post_helper = require("web.post_helper")
 
-local function sendcmd(cmd,name)
-	proxy.set("rpc.system.init."..cmd, name)
-	ngx.header.content_type = "application/json"
-	ngx.print('{ "success":"true" }')
-	ngx.timer.at(0, function()
-		proxy.apply()
-	end)
-	ngx.exit(ngx.HTTP_OK)
+local function valid_init(name)
+	if type(name) ~= "string" or not name:match("^[%w_.%-]+$") then
+		return false
+	end
+	local file = io.open("/etc/init.d/" .. name, "r")
+	if not file then return false end
+	file:close()
+	return true
 end
 
 if ngx.req.get_method() == "POST" then
-	local action = string.untaint(ngx.req.get_post_args().action)
-	if action:match("restart") then
-		local name = action:gsub("restart_","")
-		sendcmd("restart",name)
-	elseif action:match("start") then
-		local name = action:gsub("start_","")
-		sendcmd("start",name)
-	elseif action:match("stop") then
-		local name = action:gsub("stop_","")
-		sendcmd("stop",name)
-	elseif action:match("enable") then
-		local name = action:gsub("enable_","")
-		sendcmd("enable",name)
-	elseif action:match("disable") then
-		local name = action:gsub("disable_","")
-		sendcmd("disable",name)
+	local action = ngx.req.get_post_args().action
+	local cmd, name
+	if action then
+		action = string.untaint(action)
+		cmd, name = action:match("^([a-z]+)_([%w_.%-]+)$")
 	end
+	ngx.header.content_type = "application/json"
+	if valid_init(name) then
+		if cmd == "status" then
+			local function state(parameter)
+				local result = proxy.get("rpc.system.init.files.@" .. name .. "." .. parameter)
+				return result and result[1] and result[1].value == "1"
+			end
+			ngx.print('{"success":true,"running":' .. tostring(state("running")) .. ',"enabled":' .. tostring(state("active")) .. '}')
+			return ngx.exit(ngx.HTTP_OK)
+		elseif cmd == "start" or cmd == "stop" or cmd == "restart" or cmd == "enable" or cmd == "disable" then
+			local ok, err = proxy.set("rpc.system.init." .. cmd, name)
+			if ok then ok, err = proxy.apply() end
+			if ok then
+				ngx.print('{"success":true}')
+				return ngx.exit(ngx.HTTP_OK)
+			end
+			ngx.log(ngx.ERR, "init action failed: ", err or "unknown error")
+			ngx.print('{"success":false}')
+			return ngx.exit(ngx.HTTP_OK)
+		end
+	end
+	ngx.print('{"success":false}')
+	return ngx.exit(ngx.HTTP_OK)
 end
 
 local init_columns = {
 	{ --[1]
-		header = T"Enabled",
+		header = T"Enabled at boot",
 		name = "active",
 		param = "active",
 		type = "light",
@@ -157,41 +169,38 @@ local init_data, sipnet_helpmsg = post_helper.handleTableQuery(init_columns, ini
   </fieldset>\
   </div>\
   <script>\
-	function handleInitAction(btn, action) {\
-		var $btn = $(btn);\
-		var originalHtml = $btn.html();\
-		$btn.prop("disabled", true).html("<i class=\\"fas fa-spinner fa-spin\\"></i>");\
-		$.post("/modals/system-init-modal.lp", {\
-			action: action,\
-			CSRFtoken: $("meta[name=CSRFtoken]").attr("content")\
-		}, function(res) {\
-			setTimeout(function() {\
-				tch.loadModal("/modals/system-init-modal.lp");\
-			}, 1200);\
-		}, "json").fail(function() {\
-			$btn.prop("disabled", false).html(originalHtml);\
-		});\
-	}\
-\
-	$(document).off("click", ".btn-disable").on("click", ".btn-disable", function(e){\
+	$("#inittable .btn-start, #inittable .btn-stop, #inittable .btn-restart, #inittable .btn-enable, #inittable .btn-disable").on("click", function(e){\
 		e.preventDefault();\
-		handleInitAction(this, "disable_" + $(this).data("name"));\
-	});\
-	$(document).off("click", ".btn-enable").on("click", ".btn-enable", function(e){\
-		e.preventDefault();\
-		handleInitAction(this, "enable_" + $(this).data("name"));\
-	});\
-	$(document).off("click", ".btn-start").on("click", ".btn-start", function(e){\
-		e.preventDefault();\
-		handleInitAction(this, "start_" + $(this).data("name"));\
-	});\
-	$(document).off("click", ".btn-stop").on("click", ".btn-stop", function(e){\
-		e.preventDefault();\
-		handleInitAction(this, "stop_" + $(this).data("name"));\
-	});\
-	$(document).off("click", ".btn-restart").on("click", ".btn-restart", function(e){\
-		e.preventDefault();\
-		handleInitAction(this, "restart_" + $(this).data("name"));\
+		var button = $(this);\
+		var row = button.closest("tr");\
+		var name = button.data("name");\
+		var actionMatch = button.attr("class").match(/btn-(start|stop|restart|enable|disable)/);\
+		if (!actionMatch) return;\
+		var action = actionMatch[1];\
+		var result = row.find(".init-action-status");\
+		if (!result.length) {\
+			result = $("<span>").addClass("init-action-status").attr("role", "status").css({ "margin-left": "8px", "font-size": "12px", "color": "#555" }).appendTo(button.parent());\
+		}\
+		result.html("<i class=\\"fas fa-spinner fa-spin\\"></i> Sending " + action + "...");\
+		button.prop("disabled", true);\
+		$.post("/modals/system-init-modal.lp", { action: action + "_" + name, CSRFtoken: $("meta[name=CSRFtoken]").attr("content") }, null, "json")\
+			.done(function(response) {\
+				if (!response.success) { result.text("Command failed"); button.prop("disabled", false); return; }\
+				result.html("<i class=\\"fas fa-spinner fa-spin\\"></i> Checking status...");\
+				setTimeout(function() {\
+					$.post("/modals/system-init-modal.lp", { action: "status_" + name, CSRFtoken: $("meta[name=CSRFtoken]").attr("content") }, null, "json")\
+						.done(function(status) {\
+							button.prop("disabled", false);\
+							var toggle = row.find(".btn-enable, .btn-disable");\
+							toggle.removeClass("btn-enable btn-disable").addClass(status.enabled ? "btn-disable" : "btn-enable")\
+								.text(status.enabled ? "Disable" : "Enable");\
+							row.find("td:first .light").removeClass("green off").addClass(status.enabled ? "green" : "off");\
+							result.text((status.running ? "Running" : "Stopped") + "; " + (status.enabled ? "enabled" : "disabled") + " at boot");\
+						})\
+						.fail(function() { button.prop("disabled", false); result.text("Command sent; status unavailable"); });\
+				}, 1500);\
+			})\
+			.fail(function() { button.prop("disabled", false); result.text("Command failed"); });\
 	});\
   </script>\
 ');  ngx.print(ui_helper.createFooter() ); ngx.print('\
