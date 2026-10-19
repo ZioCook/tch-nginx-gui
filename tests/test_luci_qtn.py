@@ -11,22 +11,71 @@ BIT_SHIM = r'''
 unpack = unpack or table.unpack
 if not pcall(require, 'bit') then
   package.preload.bit = function()
-    return assert(load([[
-      local mask=0xffffffff
-      local function fold(op,...)
-        local a={...}; local v=a[1]&mask
-        for i=2,#a do if op=='and' then v=v&a[i] elseif op=='xor' then v=v~a[i] end end
-        return v&mask
-      end
+    local ok_b32, b32 = pcall(require, 'bit32')
+    if ok_b32 and b32 then
       return {
-        band=function(...) return fold('and',...) end,
-        bxor=function(...) return fold('xor',...) end,
-        bnot=function(a) return (~a)&mask end,
-        rshift=function(a,n) return (a&mask)>>n end,
-        rol=function(a,n) a=a&mask; return ((a<<n)|(a>>(32-n)))&mask end,
-        tobit=function(a) a=a&mask; return a>=0x80000000 and a-0x100000000 or a end
+        band = b32.band,
+        bxor = b32.bxor,
+        bnot = b32.bnot,
+        rshift = b32.rshift,
+        rol = b32.lrotate,
+        tobit = function(a) a = a % 0x100000000; return a >= 0x80000000 and a - 0x100000000 or a end
       }
-    ]]))()
+    end
+    local load_fn = loadstring or load
+    local ok_load, mod = pcall(function()
+      return assert(load_fn([[
+        local mask=0xffffffff
+        local function fold(op,...)
+          local a={...}; local v=a[1]&mask
+          for i=2,#a do if op=='and' then v=v&a[i] elseif op=='xor' then v=v~a[i] end end
+          return v&mask
+        end
+        return {
+          band=function(...) return fold('and',...) end,
+          bxor=function(...) return fold('xor',...) end,
+          bnot=function(a) return (~a)&mask end,
+          rshift=function(a,n) return (a&mask)>>n end,
+          rol=function(a,n) a=a&mask; return ((a<<n)|(a>>(32-n)))&mask end,
+          tobit=function(a) a=a&mask; return a>=0x80000000 and a-0x100000000 or a end
+        }
+      ]]))()
+    end)
+    if ok_load and mod then return mod end
+
+    local band_tab, bxor_tab = {}, {}
+    for i = 0, 255 do
+      band_tab[i], bxor_tab[i] = {}, {}
+      for j = 0, 255 do
+        local a, b, res_and, res_xor, p = i, j, 0, 0, 1
+        for _ = 0, 7 do
+          local ba, bb = a % 2, b % 2
+          if ba == 1 and bb == 1 then res_and = res_and + p end
+          if ba ~= bb then res_xor = res_xor + p end
+          a, b, p = math.floor(a / 2), math.floor(b / 2), p * 2
+        end
+        band_tab[i][j], bxor_tab[i][j] = res_and, res_xor
+      end
+    end
+    local function norm(a) return math.floor(a % 4294967296) end
+    local function byte_op(tab, a, b)
+      a, b = norm(a), norm(b)
+      local a0, a1, a2, a3 = a % 256, math.floor(a / 256) % 256, math.floor(a / 65536) % 256, math.floor(a / 16777216) % 256
+      local b0, b1, b2, b3 = b % 256, math.floor(b / 256) % 256, math.floor(b / 65536) % 256, math.floor(b / 16777216) % 256
+      return tab[a0][b0] + tab[a1][b1] * 256 + tab[a2][b2] * 65536 + tab[a3][b3] * 16777216
+    end
+    local function tobit(a)
+      a = norm(a)
+      return a >= 2147483648 and a - 4294967296 or a
+    end
+    return {
+      band = function(...) local a = {...}; local v = a[1] or 0; for i = 2, #a do v = byte_op(band_tab, v, a[i]) end; return tobit(v) end,
+      bxor = function(...) local a = {...}; local v = a[1] or 0; for i = 2, #a do v = byte_op(bxor_tab, v, a[i]) end; return tobit(v) end,
+      bnot = function(a) return tobit(4294967295 - norm(a)) end,
+      rshift = function(a, n) return tobit(math.floor(norm(a) / (2 ^ (n % 32)))) end,
+      rol = function(a, n) n = n % 32; local na = norm(a); return tobit((na * (2 ^ n)) + math.floor(na / (2 ^ (32 - n)))) end,
+      tobit = tobit
+    }
   end
 end
 '''
