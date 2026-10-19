@@ -96,6 +96,9 @@ SYSTEM_INIT_.get = {
 
 SYSTEM_INIT_.set = {
     toggle = function(mapping, param, value)
+        if not initTable[value] then
+            return nil, "Invalid init process name"
+        end
         if getState(value) == "1" then
             return initHelperFunction(value,"disable")
         else
@@ -144,6 +147,10 @@ local SYSTEM_INIT_i_ = {
             active = {
                 access = "readOnly",
                 type = "boolean",
+            },
+            running = {
+                access = "readOnly",
+                type = "boolean",
             }
         }
     }
@@ -173,6 +180,10 @@ SYSTEM_INIT_i_.get = {
     end,
     active = function(mapping, param, key)
         return getState(key)
+    end,
+    running = function(mapping, param, key)
+        local command = string.format("/etc/init.d/%s running >/dev/null 2>&1", key)
+        return os.execute(command) == 0 and "1" or "0"
     end,
 }
 
