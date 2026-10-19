@@ -185,14 +185,17 @@ set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
         # 1. Scan individual object files in build_dir
         obj_files = glob.glob(f"{build_dir}/**/*.o", recursive=True)
         soft_objects = []
+        hard_count = 0
         for obj in obj_files:
             res_obj = subprocess.run([f"{config['prefix']}readelf", '-A', obj], capture_output=True, text=True)
             if 'Tag_GNU_MIPS_ABI_FP: Soft float' in res_obj.stdout or 'FP ABI: Soft float' in res_obj.stdout:
                 soft_objects.append(obj)
+            elif 'Tag_GNU_MIPS_ABI_FP: Hard float' in res_obj.stdout or 'FP ABI: Hard float' in res_obj.stdout:
+                hard_count += 1
         if soft_objects:
             print(f"ERROR: {len(soft_objects)} object file(s) compiled with Soft float ABI! Examples: {soft_objects[:3]}")
             return False
-        print(f"Verified {len(obj_files)} MIPS object files: 0 soft-float units detected.")
+        print(f"Verified {len(obj_files)} MIPS object files: all {hard_count} carry explicit Hard float tag, 0 soft-float units.")
 
         # 2. Check final binary tag
         res_readelf = subprocess.run([f"{config['prefix']}readelf", '-A', binary_path], capture_output=True, text=True)
