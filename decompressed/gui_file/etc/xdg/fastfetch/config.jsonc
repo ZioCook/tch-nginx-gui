@@ -20,7 +20,8 @@
     "swap",
     {
       "type": "disk",
-      "folders": "/"
+      "folders": "/",
+      "hideFS": "rootfs"
     },
     "break",
     "colors"
