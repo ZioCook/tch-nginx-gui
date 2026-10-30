@@ -18,7 +18,10 @@
       "type": "memory"
     },
     "swap",
-    "disk",
+    {
+      "type": "disk",
+      "folders": "/"
+    },
     "break",
     "colors"
   ]
