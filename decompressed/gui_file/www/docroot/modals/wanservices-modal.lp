@@ -48,6 +48,7 @@ local vSIIP = post_helper.validateStringIsIP
 local vSIM = post_helper.validateStringIsMAC	
 
 local del_pfw_index = nil
+local del_pfw_data = nil
 
 local action
 if ngx.var.request_method == "POST" then
@@ -235,9 +236,8 @@ local function globalValid(data)
     local p1,p2
     local err, msg
 
-    local allowedIndexes
     if del_pfw_index ~= nil then
-        del_pfw_data, allowedIndexes = content_helper.loadTableData("rpc.network.firewall.portforward.", pfw_columns, nil, "name")
+        del_pfw_data = content_helper.loadTableData("rpc.network.firewall.portforward.", pfw_columns, nil, "name")
     end
 
     for i,v in ipairs(data) do
@@ -393,7 +393,8 @@ end
 
 
 local function onDelete(index)
-    if del_pfw_index == nil then
+    if del_pfw_index == nil or del_pfw_data == nil or not del_pfw_data[del_pfw_index] then
+        del_pfw_index = nil
         return
     end
 
