@@ -6,7 +6,7 @@ local ok_em, em = pcall(require, "easymesh_helper")
 local ui_helper = require("web.ui_helper")
 if not (ok_em and em and em.is_supported and em.is_supported()) then
   ngx.print(ui_helper.createHeader(T"EasyMesh", false, true))
-  ngx.print(ui_helper.createAlert({ class = "alert-warning" }, T"EasyMesh is not available on this device."))
+  ngx.print(ui_helper.createAlertBlock(T"EasyMesh is not available on this device.", { class = "alert-warning" }))
   ngx.print(ui_helper.createFooter())
   return
 end
@@ -122,7 +122,7 @@ local agents = {}
 local ok_count, count = pcall(proxy.get, "rpc.multiap.ExtenderNumberOfEntries")
 if not ok_count or type(count) ~= "table" or not count[1] then
   ngx.print(ui_helper.createHeader(T"EasyMesh", false, true))
-  ngx.print(ui_helper.createAlert({ class = "alert-warning" }, T"EasyMesh service is not available."))
+  ngx.print(ui_helper.createAlertBlock(T"EasyMesh service is not available.", { class = "alert-warning" }))
   ngx.print(ui_helper.createFooter())
   return
 end

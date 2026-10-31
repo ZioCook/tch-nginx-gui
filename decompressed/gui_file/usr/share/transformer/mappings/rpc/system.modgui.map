@@ -135,6 +135,10 @@ local commands_helper = {
   resetDslDriver = '/usr/share/transformer/scripts/wrapper.sh "/usr/share/transformer/scripts/xdsl_firmware_utils.sh clean"',
   upgradegui = 'start-stop-daemon -S -b -x /usr/share/transformer/scripts/wrapper.sh "/usr/share/transformer/scripts/upgradegui GuiRequest"',
   genSysupgradeBackup = function(filename)
+    filename = tostring(filename):gsub("[^%w%-%_%.]", "")
+    if filename == "" or filename:find("%.%.") then
+      return nil, "Invalid filename"
+    end
     return '/usr/share/transformer/scripts/wrapper.sh "sysupgrade -b /tmp/' .. filename .. '"'
   end,
   restoreSysupgradeBackup = "sysupgrade -r /tmp/sysupgrade_backup.tar.gz;reboot"
@@ -172,7 +176,11 @@ local SYSTEM_MODGUI_UTILITY_ = {
         return nil, "Invalid command"
       end
       if type(command) == "function" then
-        command = command(args)
+        local err
+        command, err = command(args)
+        if not command then
+          return nil, err or "Invalid command"
+        end
       elseif args and args == "terminate" then
         local clean_comm =
           "for pid in $(pgrep -f " .. command .. "); do logger terminating :  $pid && kill -KILL $pid;done"

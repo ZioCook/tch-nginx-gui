@@ -4,6 +4,8 @@
   gettext.textdomain('webui-core')
 
   local ngx = ngx
+  local session = ngx.ctx.session
+  local role = session and session:getrole()
   local proxy = require("datamodel")
   local ui_helper = require("web.ui_helper")
   local post_helper = require("web.post_helper")
@@ -73,7 +75,7 @@
   local ok_em, em_helper = pcall(require, "easymesh_helper")
   if not (ok_em and em_helper and em_helper.is_supported and em_helper.is_supported()) then
     ngx.print(ui_helper.createHeader(T"EasyMesh", false, true))
-    ngx.print(ui_helper.createAlert({ class = "alert-warning" }, T"EasyMesh is not supported on this device."))
+    ngx.print(ui_helper.createAlertBlock(T"EasyMesh is not supported on this device.", { class = "alert-warning" }))
     return
   end
 

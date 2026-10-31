@@ -17,6 +17,7 @@ local untaint_mt = require("web.taint").untaint_mt
 local setmetatable = setmetatable
 local untaint = string.untaint
 local session = ngx.ctx.session
+local isTableLoaded = false
 
 -- Localization
 gettext.textdomain('webui-core')
@@ -143,6 +144,7 @@ for i,v in ipairs(radioNames) do
     end
 end
 table.sort(radios)
+local radio = curradio
 
 ajax_helper.handleAjaxQuery({
     phy_rate = "rpc.wireless.radio.@" .. curradio .. ".phy_rate",
@@ -1403,7 +1405,7 @@ end
     -- Show if the AP is enabled
     if isguest == "1" then
 		if content["admin_state"] == "0" then
-		html[#html + 1] = ui_helper.createAlertBlock(string.format("%s",T"WARNING: If you would like to connect to the GuestSSID, please activate your Main SSID"),SUB_PF_CSS)
+		html[#html + 1] = ui_helper.createAlertBlock(string.format("%s",T"WARNING: If you would like to connect to the GuestSSID, please activate your Main SSID"), nil)
 		else
 		html[#html + 1] = ui_helper.createSwitch(T"Enabled", "ap_enabled", content["ap_enabled"])
 		end
@@ -1486,9 +1488,7 @@ end
         local monitorradius = {
                 class ="monitor-security monitor-wpa monitor-wpa2 monitor-wpa-wpa2",
         }
-        local ipclass = {
-          pattern="^(((([1]?\\d)?\\d|2[0-4]\\d|25[0-5])\\.){3}(([1]?\\d)?\\d|2[0-4]\\d|25[0-5]))|([\\da-fA-F]{1,4}(\\:[\\da-fA-F]{1,4}){7})|(([\\da-fA-F]{1,4}:){0,5}::([\\da-fA-F]{1,4}:){0,5}[\\da-fA-F]{1,4})$"
-        }
+        local ipclass = {}
         local serverclass = {
             group = monitorradius,
             input = ipclass
@@ -1611,7 +1611,7 @@ end
                 }
             }
 
-            local isTableLoaded =  false
+            isTableLoaded =  false
             if ngx.req.get_method() == "POST" and  ngx.req.get_post_args().action ~="nil" and string.find(ngx.req.get_post_args().action, "TABLE") ~= nil then
                 local tableid = ngx.req.get_post_args().tableid
                 if tableid == "acl_whitelist" then
@@ -1689,7 +1689,7 @@ else
 </canvas>\
 \
 ');  
-    html = {}
+    local html = {}
 
     local freq = "2"
     if radio == "radio_5G" then freq = "5" or "2" end
