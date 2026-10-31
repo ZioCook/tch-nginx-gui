@@ -310,13 +310,13 @@ end
 
 local function removeSpace(validation)
   return function(value, postdata, key)
-  local sucess,msg
+  local success, msg
   if value and value ~= "" then
     value = string.gsub(value," " ,"")
     postdata[key] = value
-    success,msg = validation(value)
+    success, msg = validation(value)
   end
-  return success,msg
+  return success, msg
  end
 end
 
@@ -737,10 +737,10 @@ ngx.print(ui_helper.createMessages(message_helper.popMessages()))
         ui_helper.createAlertBlock(T"In <strong>user mode</strong>, individual firewall rules may be configured as well as the default behavior.", user_attr)
     )
     if role == "engineer" then
-      ngx.print(ui_helper.createSwitch(T"IPv4 Stealth Mode ", "fwv4_stealthmode", content["fwv4_stealthmode"], switch_class_enable))
-      ngx.print(ui_helper.createAlertBlock(T"<strong>Enabling this will overwrite InternetIPv4 ping selections</strong>,firewall will drop all ICMPv4 services for incoming connections",ipv6_stealthmode_attr))
-      ngx.print(ui_helper.createSwitch(T"IPv6 Stealth Mode ", "fwv6_stealthmode", content["fwv6_stealthmode"], switch_class_enable))
-      ngx.print(ui_helper.createAlertBlock(T"<strong>Enabling this will overwrite InternetIPv6 ping selections</strong>,firewall will drop all ICMPv6 services for incoming connections",ipv4_stealthmode_attr))
+      ngx.print(ui_helper.createSwitch(T"IPv4 Stealth Mode ", "fwv4_stealthmode", content["fwv4_stealthmode"]))
+      ngx.print(ui_helper.createAlertBlock(T"<strong>Enabling this will overwrite InternetIPv4 ping selections</strong>,firewall will drop all ICMPv4 services for incoming connections",ipv4_stealthmode_attr))
+      ngx.print(ui_helper.createSwitch(T"IPv6 Stealth Mode ", "fwv6_stealthmode", content["fwv6_stealthmode"]))
+      ngx.print(ui_helper.createAlertBlock(T"<strong>Enabling this will overwrite InternetIPv6 ping selections</strong>,firewall will drop all ICMPv6 services for incoming connections",ipv6_stealthmode_attr))
     end
   ngx.print('\
 </fieldset>\

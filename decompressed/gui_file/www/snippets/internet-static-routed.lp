@@ -272,7 +272,7 @@ ngx.print(ui_helper.createMessages(message_helper.popMessages()))
         html[#html+1] = ui_helper.createInputText(T"IP Address", "wanIpAddrParam", content["wanIpAddrParam"], wanIPClass, helpmsg["wanIpAddrParam"])
         html[#html+1] = ui_helper.createInputText(T"Subnet Mask", "wanNetmaskParam", content["wanNetmaskParam"], wanNetmaskClass, helpmsg["wanNetmaskParam"])
         html[#html+1] = ui_helper.createInputText(T"Gateway", "wanGatewayParam", content["wanGatewayParam"], wanGatewayClass, helpmsg["wanGatewayParam"])
-        if dns_loopback ~= "" then
+        if content_dns.loopbackdns and content_dns.loopbackdns ~= "" then
 	    ajax_attr.span.id = "loopbackdns"
             html[#html+1] = ui_helper.createLabel(T"DNS Servers", content_dns.loopbackdns,ajax_attr)
         end

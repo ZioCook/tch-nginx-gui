@@ -167,8 +167,6 @@ local content1 = {
       html[#html + 1] = ui_helper.createLabel( T"Trellis", format("%s %s %s %s", iconUp, T(trellisus), iconDown, T(trellisds)) )
       html[#html + 1] = '</form></fieldset><fieldset id="diagnostics-xdsl-ginp" class="advanced hide">'
       html[#html + 1] = '<legend>' .. T"G.INP stats" .. '</legend><form class="form-horizontal">'
-      local iconUp = "<i class=\"icon-upload icon-large gray\"></i> "
-      local iconDown = "<i class=\"icon-download icon-large gray\"></i>"
       local statusIcon
       if content["xdsl_ginp_status"] == "0" then
         statusIcon = "<div class=\"light red\"></div>"
@@ -331,8 +329,8 @@ columns[16][7] = "sys.class.xdsl.@line0.DownstreamLOMSinceSync"
 local dsl_stats={}
 for i=1, 16 do
   local column = columns[i]
-  for i=2, 7 do
-    dsl_stats[#dsl_stats+1]= column[i]
+  for j=2, 7 do
+    dsl_stats[#dsl_stats+1]= column[j]
   end
 end
 --Here we saved around 8 seconds by querying with required parameters.
@@ -356,8 +354,7 @@ local content ={
    firmware_version="sys.class.xdsl.@line0.FirmwareVersion"
 }
 content_helper.getExactContent(content)
-if content["showBondingStats"] == 1 then
-  showBondingStats = true
+if content["showBondingStats"] == "1" then
   columns1[1][1] = T"Upstream FEC"
   columns1[2][1] = T"Downstream FEC"
   columns1[3][1] = T"Upstream CRC"
@@ -478,15 +475,15 @@ if content["showBondingStats"] == 1 then
   columns1[16][7] = "sys.class.xdsl.@line1.DownstreamLOMSinceSync"
   local dsl_stats1={}
   for i=1, 16 do
-    local column = columns[i]
-    for i=2, 7 do
-      dsl_stats1[#dsl_stats+1]= column[i]
+    local column = columns1[i]
+    for j=2, 7 do
+      dsl_stats1[#dsl_stats1+1]= column[j]
     end
   end
-  local result = proxy.get(unpack(dsl_stats1)) or {}
-  if result ~= nil  and #result > 0 then
+  local result1 = proxy.get(unpack(dsl_stats1)) or {}
+  if result1 ~= nil and #result1 > 0 then
     local temp1 = {}
-      for _,v in ipairs(result1) do
+    for _,v in ipairs(result1) do
       temp1[v.path..v.param] = v.value
     end
     for k = 2, #columns1[1] do
@@ -495,9 +492,6 @@ if content["showBondingStats"] == 1 then
       end
     end
   end
-  xdsl_BitLoading1 = temp1[xdsl_BitLoading1]
-else
-  showBondingStats = false
 end
 
 -- Datarows Names

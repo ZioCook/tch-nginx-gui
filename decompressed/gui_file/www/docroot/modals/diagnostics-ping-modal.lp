@@ -324,7 +324,7 @@ ngx.print(ui_helper.createHeader(T"Diagnostics Ping & Traceroute", false, false,
 
     if ngx.var.request_method == "POST" and gsuccess then
         ippingSuccessCount = cping.ipping_SuccessCount
-        ippingFaliureCount = cping.ipping_FailureCount
+        ippingFailureCount = cping.ipping_FailureCount
         if statusPingTest and session:retrieve("diag_ping_action") =="TRUE" then
             if statusPingTest == "Complete" then
                if #ping_trace_data == 0 then
@@ -385,7 +385,7 @@ local ping_trace_data, ping_trace_helpmsg = post_helper.handleTableQuery(ping_tr
         ui_helper.createLabel(T"Min Resp Time:", format("%s ms", cping.ipping_minresptime)),
         ui_helper.createLabel(T"Max Resp Time:", format("%s ms", cping.ipping_maxresptime)),
         ui_helper.createLabel(T"Avg Resp Time:", format("%s ms", cping.ipping_avgresptime)),
-        ui_helper.createTable(ping_trace_columns, ping_trace_data, ping_trace_options, ping_trace_attributes, ping_trace_helpmsg)
+        ui_helper.createTable(ping_trace_columns, ping_trace_data, ping_trace_options, nil, ping_trace_helpmsg)
     )
       ngx.print('\
 </fieldset>\
@@ -413,7 +413,7 @@ local ping_trace_data, ping_trace_helpmsg = post_helper.handleTableQuery(ping_tr
         ui_helper.createInputText(T"Max Hop Count:","MaxHopCount", ctracert.tracert_hopcount, pattern_hopcount, helpmsg["MaxHopCount"]),
         ui_helper.createInputText(T"Size (bytes):","MaxSize", ctracert.tracert_size, attrTrace, helpmsg["MaxSize"]),
         -- ui_helper.createInputText(T"Tries:","Tries", ctracert.tracert_tries, attrTrace, helpmsg["Tries"]),
-        ui_helper.createTable(rh_columns, rh_data, rh_options, rh_attributes, rh_helpmsg)
+        ui_helper.createTable(rh_columns, rh_data, rh_options, nil, rh_helpmsg)
     )
       ngx.print('\
     </div>\

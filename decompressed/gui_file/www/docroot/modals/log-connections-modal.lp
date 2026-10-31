@@ -90,7 +90,7 @@ local udp_ignore = {
     ["0.0.0.0"] = true,
 }
 logdata:gsub(pattern, function(proto, subString)
-  local srcAddr, srcPort, dstAddr, dstPort, state
+  local sport, dport, state
   local source, destination
   if proto == "tcp" then
     subString:gsub(tcpPattern,function(state_, srcAddr_, dstAddr_, srcPort_, dstPort_)
