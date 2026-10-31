@@ -209,7 +209,6 @@ ngx.print( ui_helper.createHeader(T"Telephony", false, true, autorefresh) ); ngx
         local html = {}
         local base_name_class = {
             input = {
-                pattern= "^([a-zA-Z]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,6}$",
                 maxlength= "16",
                 class= "span4",
             }
