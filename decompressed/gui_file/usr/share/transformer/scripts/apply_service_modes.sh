@@ -126,8 +126,15 @@ case "$detected_mode" in
 
         # 7. Manage QoS in bridge mode according to user preference (default off in bridge)
         qos_pref=$(uci -q get modgui.var.qos_enabled)
-        if [ "$qos_pref" != "1" ]; then
-            /usr/share/transformer/scripts/toggle_qos.sh 0
+        if [ "$qos_pref" = "1" ]; then
+            :
+        else
+            if [ -f /var/run/qos.pid ] || pidof qos >/dev/null 2>&1 || pgrep qos >/dev/null 2>&1; then
+                /usr/share/transformer/scripts/toggle_qos.sh 0 >/dev/null 2>&1 &
+            else
+                uci -q set modgui.var.qos_enabled='0'
+                uci -q commit modgui 2>/dev/null
+            fi
         fi
 
         # 8. Ensure the active WAN interface is attached to br-lan in bridge mode (fixes #1068)
