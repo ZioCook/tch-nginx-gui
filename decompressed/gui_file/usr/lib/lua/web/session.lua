@@ -359,6 +359,7 @@ function M.new(sessionAddress, mgr)
     remoteIP = sessionAddress.remote,
     serverIP = sessionAddress.server,
     timestamp = clock_gettime(CLOCK_MONOTONIC),
+    created = clock_gettime(CLOCK_MONOTONIC),
     storage = {},
   }
   generateNewIdentity(session)
