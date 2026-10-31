@@ -26,13 +26,13 @@ gettext.textdomain('web-framework-tch')
 
 local includepath
 
-module ("wizard")
+local M = {}
 
-function setpath(path)
+function M.setpath(path)
   includepath = path
 end
 
-function cards()
+function M.cards()
   local result = {}
   if includepath and lfs.attributes(includepath, 'mode') == 'directory' then
     for file in lfs.dir(includepath) do
@@ -45,7 +45,7 @@ function cards()
   return result
 end
 
-function createFooter()
+function M.createFooter()
   return format([[
      <div class="modal-footer">
       <div id="modal-changes">
@@ -68,7 +68,7 @@ end
 --                      is nil, then msg should contain an error message, otherwise err should be true
 -- @return #table,#table it returns a dictionary containing for each input name, the retrieved value from UCI
 --          and another dictionary containing for each failed validation the help message
-function handleQuery(mapParams, mapValidation)
+function M.handleQuery(mapParams, mapValidation)
     setlanguage()
     -- if GET, we'll need to retrieve everything. Code path in POST can change that based on input
     local content = {}
@@ -151,3 +151,5 @@ function handleQuery(mapParams, mapValidation)
 
     return content, helpmsg
 end
+
+return M
