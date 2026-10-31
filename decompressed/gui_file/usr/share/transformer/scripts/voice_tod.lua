@@ -30,7 +30,7 @@ local function is_in_table(value, table)
     return false
 end
 
-function get_all_profiles(profile_list)
+local function get_all_profiles(profile_list)
     cursor:foreach("mmpbx", "service", function(s)
         if (s.type == "DND") then
             local profiles = s["profile"]
@@ -43,7 +43,7 @@ function get_all_profiles(profile_list)
     end)
 end
 
-function scan_for_profile_with_schedule(active_profile, inactive_profile)
+local function scan_for_profile_with_schedule(active_profile, inactive_profile)
     cursor:foreach("tod","action", function(s)
         local object = nil
         if ((s.activedaytime ~= nil) and (s.object:match("^voicednd"))) then
@@ -72,11 +72,11 @@ function scan_for_profile_with_schedule(active_profile, inactive_profile)
     end)
 end
 
-function update_current_state(profile_name,ringing_state)
+local function update_current_state(profile_name,ringing_state)
     conn:send ("mmpbx.profile.dnd", { profile = profile_name, dnd = ringing_state })
     cursor:foreach("mmpbx", "service", function(s)
         if (s["type"] == "DND") and ((is_in_table(profile_name, s["profile"]))== true) then
-            current_state = cursor:get("mmpbx", s['.name'], "activated")
+            local current_state = cursor:get("mmpbx", s['.name'], "activated")
             if (current_state ~= nil) and (current_state ~= translate_dnd_action[ringing_state]) then
                  cursor:set("mmpbx", s['.name'], "activated", translate_dnd_action[ringing_state])
             end
@@ -85,7 +85,7 @@ function update_current_state(profile_name,ringing_state)
     cursor:commit("mmpbx")
 end
 
-function notify_new_state()
+local function notify_new_state()
     cursor:load("tod")
     cursor:load("mmpbx")
     local all_profiles = { }

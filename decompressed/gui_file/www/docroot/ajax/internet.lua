@@ -8,6 +8,7 @@ local json = require("dkjson")
 local post_helper = require("web.post_helper")
 local ngx = ngx
 
+local datatype
 if ngx.req.get_method() == "POST" then
 	datatype = ngx.req.get_uri_args().datatype
 end
@@ -105,7 +106,7 @@ if datatype and datatype== "xdsl" then
 		end
 	end
 else
-	local ppp_status, ppp_light_map, ppp_state_map
+	local ppp_status, ppp_light_map, ppp_state_map, ppp_light, ppp_state, ipv6_light, ipv6_state
 
 	local table = table
 	local format = string.format
@@ -268,7 +269,7 @@ else
 		local attributes = { light = { } ,span = { } }
 
 		if content_uci.wan_mode == "pppoe" or content_uci.wan_mode == "pppoa" then
-			local ppp_state_map = {
+			ppp_state_map = {
 				disabled = T"PPP disabled",
 				disconnecting = T"PPP disconnecting",
 				connected = T"PPP connected",
@@ -279,10 +280,9 @@ else
 				NEGOTIATION_FAILED = T"PPP negotiation failed",
 			}
 
-			local untaint_mt = require("web.taint").untaint_mt
 			setmetatable(ppp_state_map, untaint_mt)
 
-			local ppp_light_map = {
+			ppp_light_map = {
 				disabled = "0",--"off"
 				disconnected = "4",--"red"
 				disconnecting = "2",--"orange"
@@ -295,7 +295,6 @@ else
 
 			setmetatable(ppp_light_map, untaint_mt)
 
-			local ppp_status
 			if content_uci.wan_auto ~= "0" then
 			-- WAN enabled
 			content_uci.wan_auto = "1"
@@ -318,7 +317,7 @@ else
 			ppp_status = "disabled"
 			end
 
-			local ppp_light, ppp_state, WAN_IP, ipv6_light, ipv6_state
+			local WAN_IP
 			if ppp_status then
 				ppp_light = ppp_light_map[ppp_status]
 				ppp_state = ppp_state_map[ppp_status]

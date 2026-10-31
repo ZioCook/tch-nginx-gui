@@ -126,7 +126,6 @@ local function dns_filter(tab)
 	return ipv4_dns, ipv6_dns
 end
 -- Process POST query
-local post_helper = require("web.post_helper")
 local firewall_zone = proxy.get("uci.firewall.zone.")
 local firewall_zone_path = content_helper.convertResultToObject("uci.firewall.zone.",firewall_zone)
 local zonenum = ""
@@ -293,8 +292,6 @@ local cs = {
     dns_loopback = "rpc.network.interface.@loopback.dnsservers", -- Added to include static dns servers configured on loopback interface (for TI custo)
 }
 
-local internethelper = require("internethelper")
-
 for v6Key, v6Value in pairs(internethelper.getIpv6Content()) do
 	cs[v6Key] = v6Value
 end
@@ -306,7 +303,7 @@ local dhcp_lease = {
         lease_expires = "uci.network.interface.@wan.lease_expires",
 }
 
-function getLeaseTime(uptime, lease, expires)
+local function getLeaseTime(uptime, lease, expires)
     local leaseobtained = os.date("%F %T", os.time() - (tonumber(uptime) - (tonumber(expires ~="" and expires or 0) - tonumber(lease ~="" and lease or 0))))
     local leaseexpires = os.date("%F %T", os.time() + (tonumber(expires ~="" and expires or 0) - tonumber(uptime)))
     return leaseobtained, leaseexpires

@@ -47,19 +47,18 @@ local parental_data = post_helper.handleTableQuery(parental_columns, parental_op
 local rulecount = 0
 
 -- Parental Control data
-function updataParentalTableData ()
+local function updateParentalTableData()
     local data = parental_data
     local urlCount = 0
-    local id = 0
 
     -- just looking for a count of entries to return for now
-    for id, val in ipairs (data) do
+    for id in ipairs(data) do
 	    urlCount = id
     end
     return data, urlCount
 end
 
-parental_data, rulecount = updataParentalTableData()
+parental_data, rulecount = updateParentalTableData()
 
 local blockenabled = true
 local switchtext

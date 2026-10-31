@@ -29,11 +29,11 @@ local gVSLIR = post_helper.getValidateStringLengthInRange
 local gAV = post_helper.getAndValidation
 
 -- Start for legacy migration: GUI username/password [NG-48489]
-local users = content_helper.getMatchedContent("uci.web.user.")
+local legacy_users = content_helper.getMatchedContent("uci.web.user.")
 local userNames = ""
 local legacySalts = ""
 
-for _, user in ipairs(users) do
+for _, user in ipairs(legacy_users) do
   if user.legacy_salt and user.legacy_salt ~= "" then
     userNames = userNames .. user.name ..","
     legacySalts = legacySalts .. user.legacy_salt .. ","
@@ -368,7 +368,9 @@ if ngx.req.get_method() == "POST" then
 end
 -- End for legacy migration: GUI username/password [NG-48489]
 
-if ngx.req.get_method() == "POST" and (ngx.req.get_post_args().action == "TABLE-EDIT" or (ngx.req.get_post_args().action == "TABLE-MODIFY" and umgr_helpmsg and next(umgr_helpmsg))) then
+local umgr_helpmsg
+local post_args = ngx.req.get_method() == "POST" and ngx.req.get_post_args() or {}
+if post_args.action == "TABLE-EDIT" or post_args.action == "TABLE-MODIFY" then
     local oldpassword = {
         header = T"Old Password",
         name = "oldpassword",
@@ -380,7 +382,8 @@ else
   session:store("editedUserName", nil)
 end
 
-local umgr_data, umgr_helpmsg = post_helper.handleTableQuery(umgr_columns, umgr_options, umgr_filter, umgr_defaultObject, umgr_valid)
+local umgr_data
+umgr_data, umgr_helpmsg = post_helper.handleTableQuery(umgr_columns, umgr_options, umgr_filter, umgr_defaultObject, umgr_valid)
 
 if ngx.req.get_method() == "POST" and ngx.req.get_post_args().action == "TABLE-MODIFY" and ngx.req.get_post_args().name == session:getusername() and not (umgr_helpmsg and next(umgr_helpmsg)) then
     -- When password changed successfully for the current user with no error message
@@ -412,14 +415,10 @@ end
 <fieldset>\
 <legend>');  ngx.print( T"Users list" ); ngx.print('</legend>\
 ');  
-    if ngx.var.request_method == "POST" then
-        local post_args = ngx.req.get_post_args()
-        local action = post_args.action
-        if action == "TABLE-EDIT" then
-            local index = post_args.index
-            if umgr_data[tonumber(index)][1] == currentuser then
-                umgr_columns[2].readonly = true
-            end
+    if post_args.action == "TABLE-EDIT" then
+        local index = post_args.index
+        if index and umgr_data[tonumber(index)] and umgr_data[tonumber(index)][1] == currentuser then
+            umgr_columns[2].readonly = true
         end
     end
     ngx.print(ui_helper.createTable(umgr_columns, umgr_data, umgr_options, umgr_attributes, umgr_helpmsg))

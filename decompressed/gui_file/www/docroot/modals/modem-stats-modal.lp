@@ -14,7 +14,7 @@ local function getStatsData(dtype)
     local data = {}
 	local datatime = {}
     local filename = format("/tmp/trafficmon/stats_%s", dtype)
-    f = io.open(filename, "r")
+    local f = io.open(filename, "r")
     if f then
         for line in f:lines() do
             if (nline < 2 ) then

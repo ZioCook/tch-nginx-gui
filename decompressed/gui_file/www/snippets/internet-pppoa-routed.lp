@@ -66,7 +66,7 @@ local ajax_attr_light = {
     }
 }
 
-function get_dhcp_state(wan_auto, wan_ppp, wan_error, ipaddr)
+local function get_dhcp_state(wan_auto, wan_ppp, wan_error, ipaddr)
     -- Figure out interface state
 	if wan_auto ~= "0" then
 	  -- WAN enabled

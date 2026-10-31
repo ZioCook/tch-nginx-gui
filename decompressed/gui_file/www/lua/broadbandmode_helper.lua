@@ -8,7 +8,7 @@ local ui_helper = require("web.ui_helper")
 local content_helper = require("web.content_helper")
 local message_helper = require("web.uimessage_helper")
 local post_helper = require("web.post_helper")
-format, match = string.format, string.match
+local format, match = string.format, string.match
 
 local ok_sfp, sfp_module = pcall(require, "transformer.shared.sfp")
 local sfp

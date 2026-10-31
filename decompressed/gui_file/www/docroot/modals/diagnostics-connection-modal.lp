@@ -408,6 +408,7 @@ else
     end
 end
 if gponboard or is_gpon then
+	local statusIconGpon
 	if content_rpc_gpon["gpon_status"] == "OPERATION (O5)" or content_rpc_gpon["gpon_status"] == "Up" then
         statusIconGpon = "<i class=\"icon-ok icon-large green\"></i> "
     else

@@ -26,21 +26,21 @@ local gVSLIR = post_helper.getValidateStringLengthInRange
 
 local site = ""
 
-function siteFilter(site)
+local function siteFilter(url)
   --removes white space after the url
-  site = site and gsub(site, " ", "")
-  site = site and string.lower(site)
+  url = url and gsub(url, " ", "")
+  url = url and string.lower(url)
   --extract only domain part in URL
-  if site and site:match("://") then
-    site = site:match("//([^/]+)")
+  if url and url:match("://") then
+    url = url:match("//([^/]+)")
   end
   -- check the site has www then remove trailing path information from URL.
-  if site and site:match("www") then
-    site = site:match("%.(%S+)")
+  if url and url:match("www") then
+    url = url:match("%.(%S+)")
   end
   -- if site contains '/' then remove trailing path information from URL.
-  site = site and site:match("([^/]+)")
-  return site
+  url = url and url:match("([^/]+)")
+  return url
 end
 
 local function validateSiteAndDuplicateCheck(value,data,key)
@@ -242,7 +242,7 @@ local exporting_alert = {
       }
 local text_mac
 if ngx.var.request_method == "POST" then
-  post_data = ngx.req.get_post_args()
+  local post_data = ngx.req.get_post_args()
   if (post_data.tableid == "URLfilter") and ( post_data.action == "TABLE-MODIFY" or  post_data.action == "TABLE-EDIT"  or  post_data.action == "TABLE-ADD") then
     local text_mac_index = tonumber(post_data.index)
     if  post_data.action == "TABLE-ADD" then

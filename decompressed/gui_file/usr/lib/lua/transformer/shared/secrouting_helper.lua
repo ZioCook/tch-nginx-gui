@@ -30,7 +30,7 @@ end
 
 --Fetch the Device name(l3_device) name and associated rttable from the route Interface
 --@param rtTableIntfMap - Table that contains the map between secondary routing tables and their interfaces.
-function getDeviceRtTableMap(rtTableIntfMap)
+local function getDeviceRtTableMap(rtTableIntfMap)
   local deviceRtTableMap = {}
   for interface, rttable in pairs(rtTableIntfMap) do
     local ubusStatus = getUbusInterfaceStatus(interface)

@@ -21,10 +21,10 @@ ipv4_count = ipv4_count and #ipv4_count or 0
 
 --DNS
 
-function split(x,sep)
+local function split(x, sep)
         x = tostring(x)
-        local sep, fields = sep or ":", {}
-        local pattern = format("([^%s]+)", sep)
+        local separator, fields = sep or ":", {}
+        local pattern = format("([^%s]+)", separator)
         x:gsub(pattern, function(c) fields[#fields+1] = c end)
         return fields
 end

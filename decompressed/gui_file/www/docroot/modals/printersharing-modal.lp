@@ -139,7 +139,7 @@ removeDuplicateEntry(usbpart_data)
   <form class="form-horizontal" method="post" action="modals/printersharing-modal.lp">\
     ');  ngx.print(ui_helper.createMessages(message_helper.popMessages())); ngx.print('\
     ');  
-      html = {}
+      local html = {}
       html[#html+1] = ui_helper.createSwitch(T"Enabled", "printersharing_enabled", content["printersharing_enabled"], attributes)
       html[#html+1] = ui_helper.createSwitch(T"Web Interface", "printersharing_webui", content["printersharing_webui"], attributes)
       html[#html+1] = ui_helper.createAlertBlock(format(T"CUPS Web Interface at <a href=\"http://%s:631\">http://%s:631</a> or <a href=\"http://%s:631\">http://%s:631</a>",content_samba.localdevIP,content_samba.localdevIP,content_samba.hostname,content_samba.hostname), info_box)
@@ -151,7 +151,7 @@ removeDuplicateEntry(usbpart_data)
           html[#html+1] = format("<div class=\"simple-desc span4\">"..T"SMB/CIFS is disabled".."</div>")
         end
       end
-      html[#html+1] = ui_helper.createTable(usbdev_columms, usbpart_data, usbdev_options, nil, usbdev_helpmsg)
+      html[#html+1] = ui_helper.createTable(usbdev_columms, usbpart_data, usbdev_options, nil, nil)
       html[#html+1] = "</fieldset>"
       ngx.print(html)
       ngx.print('\

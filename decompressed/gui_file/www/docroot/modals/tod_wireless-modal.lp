@@ -431,7 +431,7 @@ ngx.print('\
 \
   <form class="form-horizontal" method="post" action="/modals/tod_wireless-modal.lp">\
     <legend>');  ngx.print( T"Time of day wireless control" ); ngx.print('</legend>\
-    ');  ngx.print(ui_helper.createTable(tod_columns, tod_data, tod_options, nil, tod_helpmsg)); ngx.print('\
+    ');  ngx.print(ui_helper.createTable(tod_columns, tod_data, tod_options, nil, nil)); ngx.print('\
     ');  if ngx.var.request_method == "POST" and (ngx.req.get_post_args().action == "TABLE-NEW" or ngx.req.get_post_args().action == "TABLE-EDIT") then  ngx.print('\
       <script type="text/javascript">\
         var warning = \'<div class="control-group"><div style="padding-top: 12px;" class="controls"><span class="alert">\'\

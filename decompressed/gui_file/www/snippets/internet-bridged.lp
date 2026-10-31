@@ -10,9 +10,7 @@ local message_helper = require("web.uimessage_helper")
 local post_helper = require("web.post_helper")
 
 -- Process POST query
-local post_helper = require("web.post_helper")
-
-mode_options = {{"bridge", T"No Connection"},{"dhcp", T"DHCP"},{"static", T"Static IP"},{"pppoe", T"PPPoE"}}
+local mode_options = {{"bridge", T"No Connection"},{"dhcp", T"DHCP"},{"static", T"Static IP"},{"pppoe", T"PPPoE"}}
 
 local mapParams = {
     wan_proto = "uci.network.interface.@wan.proto",

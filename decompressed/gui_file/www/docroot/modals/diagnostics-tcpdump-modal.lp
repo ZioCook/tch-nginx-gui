@@ -299,7 +299,7 @@ ngx.print(ui_helper.createMessages(message_helper.popMessages()))
     end
   end
 
-  html = {}
+  local html = {}
   if(tcpdump_data.state == "Complete" and tcpdump_data.saveonusb == "0") then
     if captureFileInfo(tcpdump_data.file) then
       html[#html + 1] = ui_helper.createButton(T"", T"Download", "icon-download-alt", tcpdump_download)

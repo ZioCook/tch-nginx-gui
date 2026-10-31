@@ -79,9 +79,12 @@ end
 
 hosts_mac[#hosts_mac+1] = {"custom",T"custom"}
 
+local dhcpDefaultExist
 if lfs.attributes("/www/lua/dhcpreset_helper.lua", "mode") == "file" then
    dhcpDefaultExist = require("dhcpreset_helper")
 end
+
+local isQtnGuestWiFi
 
 local function num2ipv4(ip)
     local ret = bit.band(ip, 255)
@@ -690,7 +693,7 @@ local function validateDNS(value, object, key)
     end
 end
 
-function isQtnGuestWiFi(intf)
+isQtnGuestWiFi = function(intf)
     if wireless_radio[untaint(intf)] then
         local radio = proxy.get(format("rpc.wireless.ssid.@%s.radio", intf))
         local isRemote = proxy.get(format("rpc.wireless.radio.@%s.remotely_managed", radio[1].value))
@@ -1581,9 +1584,9 @@ $(function() {\
     var currentlanip = "');  ngx.print( content["localdevIP"] ); ngx.print('";\
     $("[name=\'localdevIP\']").on("change", function(){\
 	  var NewIp = $(this).val();\
-	  var StartDHCP = $("[name=\'dhcpStartAddress\']").val().replace(currentlanip.match(/[0-9]+\.[0-9]+\.[0-9]+\./g),\'\');\
-	  var EndDHCP = $("[name=\'dhcpEndAddress\']").val().replace(currentlanip.match(/[0-9]+\.[0-9]+\.[0-9]+\./g),\'\');\
-	  var NewIpBase = NewIp.match(/[0-9]+\.[0-9]+\.[0-9]+\./g);\
+	  var StartDHCP = $("[name=\'dhcpStartAddress\']").val().replace(currentlanip.match(/[0-9]+\\.[0-9]+\\.[0-9]+\\./g),\'\');\
+	  var EndDHCP = $("[name=\'dhcpEndAddress\']").val().replace(currentlanip.match(/[0-9]+\\.[0-9]+\\.[0-9]+\\./g),\'\');\
+	  var NewIpBase = NewIp.match(/[0-9]+\\.[0-9]+\\.[0-9]+\\./g);\
       if (currentlanip == $("[name=\'dnsServer\']").val()){\
           $("[name=\'dnsServer\']").val(NewIp);\
           currentlanip = NewIp;\

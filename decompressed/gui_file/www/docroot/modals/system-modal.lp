@@ -369,7 +369,7 @@ if telnet_content then
 	<legend>');  ngx.print( T"Telnet Access" ); ngx.print('</legend>\
 		');
 		local html = {}
-		html[#html + 1] = ui_helper.createSwitch(T"LAN", "telnet_enable", telnet_content["telnet_enable"], basic)
+		html[#html + 1] = ui_helper.createSwitch(T"LAN", "telnet_enable", telnet_content["telnet_enable"])
 		ngx.print(html)
 		ngx.print('\
 	</fieldset>');

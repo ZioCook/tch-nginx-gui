@@ -30,7 +30,7 @@ local mapValid = {
 	wsens = vB,
 }
 
-content, helpmsg = post_helper.handleQuery(mapParam, mapValid)
+local content, helpmsg = post_helper.handleQuery(mapParam, mapValid)
 
 if not tabdata.current.ajax then
 	-- only display if not doing an ajax request

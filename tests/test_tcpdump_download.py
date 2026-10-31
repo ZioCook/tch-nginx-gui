@@ -11,7 +11,7 @@ SOURCE = ROOT / 'decompressed/gui_file/www/docroot/modals/diagnostics-tcpdump-mo
 def regression_script():
     source = SOURCE.read_text()
     functions = source[source.index('local capture_unavailable'):source.index('local function restartTest')]
-    render = source[source.index('  html = {}'):source.index('  html[#html + 1] = ui_helper.createInputCheckbox')]
+    render = source[source.index('  local html = {}'):source.index('  html[#html + 1] = ui_helper.createInputCheckbox')]
     return r'''
 local T = function(s) return s end
 local untaint = string.untaint or function(s) return s end
