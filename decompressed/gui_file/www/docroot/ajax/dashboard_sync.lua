@@ -69,30 +69,37 @@ local function html_flatten(tbl)
     return table.concat(parts)
 end
 
--- Parse requested modules from POST or GET
-local req_modules_str = ""
-if ngx.req and ngx.req.get_method and ngx.req.get_method() == "POST" then
-    pcall(ngx.req.read_body)
-    local post_args = ngx.req.get_post_args and ngx.req.get_post_args()
-    req_modules_str = (post_args and post_args.modules) or ""
-end
-if req_modules_str == "" and ngx.req and ngx.req.get_uri_args then
-    local uri_args = ngx.req.get_uri_args()
-    req_modules_str = (uri_args and uri_args.modules) or ""
-end
-
-req_modules_str = untaint(req_modules_str)
+-- Parse requested modules from POST or GET (only allowed for authenticated non-default sessions)
+local session = ngx.ctx and ngx.ctx.session
+local is_default = not session or (session.isdefaultuser and session:isdefaultuser())
+local username = (session and session.getusername and tostring(untaint(session:getusername()))) or ""
+local is_authenticated = (username ~= "" and not is_default)
 
 local requested = {}
-if req_modules_str ~= "" and req_modules_str ~= "all" then
-    for mod in req_modules_str:gmatch("([^,]+)") do
-        local m = untaint(mod:gsub("%s+", ""))
-        if m ~= "" then
-            requested[m] = true
-        end
+if is_authenticated then
+    local req_modules_str = ""
+    if ngx.req and ngx.req.get_method and ngx.req.get_method() == "POST" then
+        pcall(ngx.req.read_body)
+        local post_args = ngx.req.get_post_args and ngx.req.get_post_args()
+        req_modules_str = (post_args and post_args.modules) or ""
     end
-else
-    requested["all"] = true
+    if req_modules_str == "" and ngx.req and ngx.req.get_uri_args then
+        local uri_args = ngx.req.get_uri_args()
+        req_modules_str = (uri_args and uri_args.modules) or ""
+    end
+
+    req_modules_str = untaint(req_modules_str)
+
+    if req_modules_str ~= "" and req_modules_str ~= "all" then
+        for mod in req_modules_str:gmatch("([^,]+)") do
+            local m = untaint(mod:gsub("%s+", ""))
+            if m ~= "" then
+                requested[m] = true
+            end
+        end
+    else
+        requested["all"] = true
+    end
 end
 
 local function need(mod)
@@ -759,14 +766,13 @@ if not _jcache then
     _G._dashboard_jcache = _jcache
 end
 
-local session = ngx.ctx and ngx.ctx.session
-local role = (session and session.getRoleId and session:getRoleId()) or "default"
+local role_id = (session and session.getRoleId and session:getRoleId()) or "default"
 
 local function module_json(name, ttl, builder)
-    local bucket = _jcache[role]
+    local bucket = _jcache[role_id]
     if not bucket then
         bucket = {}
-        _jcache[role] = bucket
+        _jcache[role_id] = bucket
     end
     local e = bucket[name]
     local now = os.time()
