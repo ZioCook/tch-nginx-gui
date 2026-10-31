@@ -34,11 +34,11 @@ local function setlanguage()
 end
 
 local function errorsFound()
-    checkUiMessages = false
+    local checkUiMessages = false
     local session = ngx.ctx.session
-    local err = session:retrieve("uimessages")
-    for _, err in ipairs(err or {}) do
-        if err.level == "error" then
+    local messages = session:retrieve("uimessages")
+    for _, msg in ipairs(messages or {}) do
+        if msg.level == "error" then
             checkUiMessages = true
         end
     end

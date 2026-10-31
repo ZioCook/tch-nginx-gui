@@ -7,6 +7,7 @@ local ui_helper = require("web.ui_helper")
 local proxy = require("datamodel")
 local content_helper = require("web.content_helper")
 local insert, format = table.insert, string.format
+local untaint_mt = require("web.taint").untaint_mt
 
 local dhcpState_text = ""
 local dhcpState

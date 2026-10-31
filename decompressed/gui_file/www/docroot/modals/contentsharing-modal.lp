@@ -6,8 +6,8 @@ local istainted = string.istainted
 -- Enable localization
 gettext.textdomain('webui-contentsharing')
 
-local convertReceivedData = convertReceivedData
-local ipairs, ngx, pairs, post_data, tonumber = ipairs, ngx, pairs, post_data, tonumber
+local convertReceivedData
+local ipairs, ngx, pairs, tonumber = ipairs, ngx, pairs, tonumber
 local tinsert = table.insert
 local proxy = require("datamodel")
 local ui_helper = require("web.ui_helper")
@@ -92,7 +92,8 @@ local function check_dlna(dtype)
 	return ""
 end
 
-if check_dlna("available") then
+local dlna_available = check_dlna("available")
+if dlna_available then
 	local type = check_dlna("type")
 	local dlnaMapParams = {
 		dlna_enabled       = "uci."..type..".config.enabled",
@@ -152,7 +153,7 @@ local mapValid = {
 }
 
 if ngx.req.get_method() == "POST" and ngx.req.get_post_args().action == "SAVE" then
-   post_data = ngx.req.get_post_args()
+   local post_data = ngx.req.get_post_args()
      if dlna_available and tonumber(post_data["dlna_enabled"]) == 1 then
         mapValid.dlna_friendly_name = valid_samba_dlna_string
      end
@@ -498,7 +499,7 @@ convertReceivedData(content_info)
 			if samba_available then
 				tinsert(html, "<fieldset><legend>" .. T"Attached Drive Info" .. "</legend>")
 				tinsert(html, format("<div><div id=\"connecteddevices\" class=\" simple-desc span3 monitor-changes\" data-ajaxrefresh=\"5\">%s</div>", content_info["connecteddevices"]))
-				tinsert(html, ui_helper.createTable(usbdev_columms, usbpart_data, usbdev_options, nil, usbdev_helpmsg))
+				tinsert(html, ui_helper.createTable(usbdev_columms, usbpart_data, usbdev_options, nil, nil))
 				tinsert(html, "</fieldset>")
 			end
 			ngx.print(html)

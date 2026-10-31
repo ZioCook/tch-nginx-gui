@@ -9,6 +9,7 @@ local content_helper = require("web.content_helper")
 local post_helper = require("web.post_helper")
 
 local session = ngx.ctx.session
+local role = session and session:getrole()
 
 local function is_datausage_enabled()
   local ok, datausage_info = pcall(proxy.get, "rpc.datausage.interface.")

@@ -621,7 +621,7 @@ function M.addNewObject(basepath, object, map, defaultObject, objectName)
     local index, msg = proxy.add(addpath, objectName)
     if index ~= nil then
         createSubPaths(indexpath .. index .. ".", map)
-        _, msg = M.setObject(object, map, indexpath .. index .. ".", defaultObject)
+        setok, msg = M.setObject(object, map, indexpath .. index .. ".", defaultObject)
     end
     return index, msg
 end

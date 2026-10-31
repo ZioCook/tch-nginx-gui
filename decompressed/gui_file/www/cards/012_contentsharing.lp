@@ -66,7 +66,7 @@ local usb_sys_content = content_helper.getMatchedContent(usb_sys_path)
 local usbtab = {}
 for i, v in ipairs(usb_sys_content) do
         local basepath = match(v["__path"], "sys%.usb%.device%.([^%.]+)")
-        usb_partition = content_helper.getMatchedContent("sys.usb.device."..basepath..".partition.")
+        local usb_partition = content_helper.getMatchedContent("sys.usb.device."..basepath..".partition.")
         local check = 0
         for _,y in ipairs(usb_partition) do
                 if y["FileSystem"] then

@@ -73,7 +73,7 @@ function M.getAutocompleteHostsList(skipIPv6LinkLocal)
     return ipv4hosts, ipv6hosts
 end
 
-function M.getAutocompleteHostsListMac()
+function M.getAutocompleteHostsListMac(skipIPv6LinkLocal)
     local hosts = M.getHostsList()
 	local ipv4hostsMac={}
 	local ipv6hostsMac={}
