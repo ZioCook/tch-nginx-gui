@@ -23,17 +23,18 @@ exclude_files = {
   "**/*-min.lua",
 }
 
--- Globali fornite dal framework, in SOLA LETTURA: scrivervi dentro darà W121.
+-- Globali fornite dal runtime a livello base (Nginx Lua C core e modulo C gettext)
 read_globals = {
   "ngx",
-  "proxy",
-  "ui_helper",
-  "post_helper",
-  "content_helper",
-  "T",
-  "N",
-  "session",
   "gettext",
+}
+
+-- Funzioni di traduzione T e N: iniettate esclusivamente nei template .lp da insertGettext (web.lua)
+files["**/*.lp"] = {
+  read_globals = {
+    "T",
+    "N",
+  }
 }
 
 -- Non dichiarare qui le globali "sospette" (mapParam, remove, s, ...): devono
