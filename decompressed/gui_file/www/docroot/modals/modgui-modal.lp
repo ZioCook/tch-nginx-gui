@@ -229,7 +229,11 @@ local function genSysupgradeBackup()
 
         local hostname = proxy.get("uci.system.system.@system[0].hostname")
         hostname = hostname and hostname[1].value or "Unknown"
-        local filename = format("%s-%s.tar.gz",hostname,os.date("%d-%m-%y_%H:%m"))
+        hostname = tostring(hostname):gsub("[^%w%-]", "")
+        if hostname == "" then
+            hostname = "gateway"
+        end
+        local filename = format("%s-%s.tar.gz",hostname,os.date("%d-%m-%y_%H-%M"))
 
         proxy.set("rpc.system.modgui.utility.sendcmd", "genSysupgradeBackup_"..filename)
         wait_for_completion("rpc.system.modgui.executeCommand.")
@@ -516,6 +520,11 @@ local info_box = {
 local basic = {
         span = {
                 class = "span5"
+        }
+}
+local long_basic = {
+        span = {
+                class = "span6"
         }
 }
 local upgrade_gui = {
