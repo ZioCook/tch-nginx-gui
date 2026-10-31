@@ -144,3 +144,24 @@ msgstr "QoS abilitato"
 
 msgid "QoS disabled"
 msgstr "QoS disabilitato"
+
+msgid "Disabled"
+msgstr "Disabilitato"
+
+msgid "QoS in transition..."
+msgstr "QoS in transizione..."
+
+msgid "QoS service transition in progress (target: %s). This can take up to about 20 seconds, please wait..."
+msgstr "Transizione del servizio QoS in corso (stato richiesto: %s). Può richiedere fino a circa 20 secondi, attendere..."
+
+msgid "The QoS service is currently disabled. Traffic is not classified or prioritized by the queues configured below."
+msgstr "Il servizio QoS è attualmente disabilitato. Il traffico non viene classificato né prioritizzato dalle code configurate qui sotto."
+
+msgid "The QoS service is enabled. Network traffic is classified and prioritized based on the queues configured below."
+msgstr "Il servizio QoS è abilitato. Il traffico di rete viene classificato e prioritizzato in base alle code configurate qui sotto."
+
+msgid "If the service startup is not confirmed within the time limit, prioritization may not be active."
+msgstr "Se l'avvio del servizio non viene confermato entro il tempo limite, la prioritizzazione potrebbe non essere attiva."
+
+msgid "Warning: the QoS service is currently disabled globally. Classification and marking rules will not take effect until the service is enabled."
+msgstr "Attenzione: il servizio QoS è attualmente disattivato globalmente. Le regole di classificazione ed etichettatura non avranno effetto finché il servizio non viene abilitato."

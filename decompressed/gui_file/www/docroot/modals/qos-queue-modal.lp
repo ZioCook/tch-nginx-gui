@@ -12,11 +12,76 @@ local table, ipairs = table, ipairs
 local format, gmatch = string.format, string.gmatch
 local concat = table.concat
 
+if ngx.var.request_method == "GET" and ngx.var.arg_qos_status == "1" then
+    local running, phase_out, target = false, "idle", ""
+    local sf = io.open("/var/run/toggle_qos.status", "r")
+    if sf then
+        local sline = sf:read("*l") or ""
+        sf:close()
+        local phase, st, p1, p2, ts = sline:match("^(%a+):([01]):(%d+):(%d+):(%d+)")
+        if phase then phase_out = phase end
+        if st then target = st end
+        local pid = tonumber(p1)
+        local elapsed = os.time() - (tonumber(ts) or os.time())
+        if phase == "running" and elapsed < 120 and pid and pid > 0 then
+            local pf = io.open("/proc/" .. pid .. "/cmdline", "r")
+            if pf then
+                local cmd = pf:read("*a") or ""
+                pf:close()
+                if cmd:find("toggle_qos") then running = true end
+            end
+        end
+    end
+    ngx.header.content_type = "application/json"
+    ngx.header["Cache-Control"] = "no-store"
+    ngx.print('{"running":' .. (running and "true" or "false") .. ',"phase":"' .. phase_out .. '","state":"' .. target .. '"}')
+    ngx.exit(ngx.HTTP_OK)
+end
+
 if ngx.var.request_method == "POST" then
+    ngx.req.read_body()
     local postargs = ngx.req.get_post_args()
     if postargs and postargs.action == "SAVE" and postargs.qos_enabled then
         local target_state = (postargs.qos_enabled == "1" or postargs.qos_enabled == "true") and "1" or "0"
-        os.execute(format("/usr/share/transformer/scripts/toggle_qos.sh %s >/dev/null 2>&1 &", target_state))
+
+        -- Coalescenza ottimistica lato controller
+        local status_f = io.open("/var/run/toggle_qos.status", "r")
+        local in_progress_to_target = false
+        if status_f then
+            local sline = status_f:read("*l") or ""
+            status_f:close()
+            local phase, st, p1, p2, ts = sline:match("^(%a+):([01]):(%d+):(%d+):(%d+)")
+            local pid = tonumber(p1)
+            local elapsed = os.time() - (tonumber(ts) or os.time())
+            if phase == "running" and st == target_state and elapsed < 120 then
+                local is_alive = false
+                if pid and pid > 0 then
+                    local pf = io.open("/proc/" .. pid .. "/cmdline", "r")
+                    if pf then
+                        local cmd = pf:read("*a") or ""
+                        pf:close()
+                        if cmd:find("toggle_qos") then is_alive = true end
+                    end
+                end
+                if is_alive then
+                    in_progress_to_target = true
+                end
+            end
+        end
+
+        if not in_progress_to_target then
+            os.execute(format("/usr/bin/sudo /usr/share/transformer/scripts/toggle_qos.sh %s >/dev/null 2>&1 &", target_state))
+            for _ = 1, 15 do
+                ngx.sleep(0.1)
+                local wf = io.open("/var/run/toggle_qos.status", "r")
+                if wf then
+                    local wl = wf:read("*l") or ""
+                    wf:close()
+                    if wl:match("^running:" .. target_state .. ":") then break end
+                end
+            end
+        end
+
         if not postargs.fromModal then
             ngx.header.content_type = "application/json"
             ngx.print('{"success":true}')
@@ -406,13 +471,47 @@ ngx.print( ui_helper.createHeader(T"QoS", false, true) ); ngx.print('\
   '); ngx.print( ui_helper.createMessages(uimessage_helper.popMessages()) )
 	local html = {}
 	
+    -- Lettura dello stato di esecuzione e rilevamento disallineamento
+    local qos_status_info = { phase = "idle", state = content["qos_enabled"], qos_rc = 0, is_active = false }
+    local sf = io.open("/var/run/toggle_qos.status", "r")
+    if sf then
+        local sline = sf:read("*l") or ""
+        sf:close()
+        local phase, st, p1, p2, ts = sline:match("^(%a+):([01]):(%d+):(%d+):(%d+)")
+        local pid = tonumber(p1)
+        local elapsed = os.time() - (tonumber(ts) or os.time())
+        if phase == "running" and elapsed < 120 then
+            local is_alive = false
+            if pid and pid > 0 then
+                local pf = io.open("/proc/" .. pid .. "/cmdline", "r")
+                if pf then
+                    local cmd = pf:read("*a") or ""
+                    pf:close()
+                    if cmd:find("toggle_qos") then is_alive = true end
+                end
+            end
+            if is_alive then
+                qos_status_info.phase = "running"
+                qos_status_info.state = st
+                qos_status_info.is_active = true
+            end
+        elseif phase == "done" then
+            qos_status_info.phase = "done"
+            qos_status_info.state = st
+            qos_status_info.qos_rc = tonumber(p1) or 0
+        end
+    end
+
     html[#html+1] = "<fieldset>"
     html[#html+1] =   "<legend>" .. T"Global QoS Status" .. "</legend>"
     html[#html+1] =     ui_helper.createSwitch(T"QoS Service Status", "qos_enabled", content["qos_enabled"])
-    if content["qos_enabled"] == "0" then
-        html[#html+1] = '<div class="alert alert-info" style="margin-top: 10px;"><i class="fas fa-info-circle"></i> ' .. T"The QoS service is currently disabled. All hardware prioritization queues and classification rules are turned off. The interfaces use the standard Linux discipline (fq_codel) for minimum latency and zero CPU overhead." .. '</div>'
+    if qos_status_info.is_active then
+        html[#html+1] = '<div class="alert alert-warning" style="margin-top: 10px;"><i class="fas fa-spinner fa-spin"></i> ' .. format(T"QoS service transition in progress (target: %s). This can take up to about 20 seconds, please wait...", qos_status_info.state == "1" and T"Enabled" or T"Disabled") .. '</div>'
+    elseif content["qos_enabled"] == "0" then
+        html[#html+1] = '<div class="alert alert-info" style="margin-top: 10px;"><i class="fas fa-info-circle"></i> ' .. T"The QoS service is currently disabled. Traffic is not classified or prioritized by the queues configured below." .. '</div>'
     else
-        html[#html+1] = '<div class="alert alert-success" style="margin-top: 10px;"><i class="fas fa-check-circle"></i> ' .. T"The QoS service is active. Network traffic is classified and prioritized based on the queues configured below." .. '</div>'
+        html[#html+1] = '<div class="alert alert-success" style="margin-top: 10px;"><i class="fas fa-check-circle"></i> ' .. T"The QoS service is enabled. Network traffic is classified and prioritized based on the queues configured below." .. '</div>'
+        html[#html+1] = '<div class="alert alert-info" style="margin-top: 5px; font-size: 0.9em;"><i class="fas fa-info-circle"></i> ' .. T"If the service startup is not confirmed within the time limit, prioritization may not be active." .. '</div>'
     end
     html[#html+1] = "</fieldset>"
 
