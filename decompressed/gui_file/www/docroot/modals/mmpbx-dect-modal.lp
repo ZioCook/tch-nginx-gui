@@ -96,10 +96,8 @@ local dectdev_options = {
 local dectdev_data, dectdev_helpmsg = post_helper.handleTableQuery(dectdev_columms, dectdev_options, nil, nil, nil)
 
 local function findHandsetID(handset_name)
-    local devName = ""
-
     for _,v in ipairs(proxy.getPN("uci.mmpbxbrcmdectdev.device.",true)) do -- get the path
-        devName = format("%s", proxy.get(v["path"].."user_friendly_name")[1].value)
+        local devName = format("%s", proxy.get(v["path"].."user_friendly_name")[1].value)
         if handset_name == devName then
             local num = string.find(v["path"],"@")
             local Dev = string.sub(v["path"], num+1, num+10)
@@ -159,13 +157,13 @@ elseif ngx.req.get_method() == "GET" then
     local args = ngx.req.get_uri_args()
     local action = args["action"]
     if action == "pairing_state" then
-        local content = {
+        local pairing_content = {
             open = "rpc.mmpbxbrcmdect.registration.open"
         }
-        content_helper.getExactContent(content)
+        content_helper.getExactContent(pairing_content)
         --ngx.log (ngx.ERR, "Check GET Pairing Handset - Return value: ", "content.open" )
         ngx.header.content_type = "application/json"
-        if content.open == "1" then
+        if pairing_content.open == "1" then
             ngx.print('{ "success":"true" }')
         else
             ngx.print('{ "success":"false" }')

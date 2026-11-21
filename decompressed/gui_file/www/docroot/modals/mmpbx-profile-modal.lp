@@ -254,7 +254,7 @@ local helpmsg = {}
 if ngx.var.request_method == "POST" then
     local post_args = ngx.req.get_post_args()
     local sip_valid = {}
-    local success = false
+    local success
     local i = 1
 
     while post_args["isRowDeleted."..i] or post_args["isRowAdded."..i] do
@@ -279,7 +279,7 @@ if ngx.var.request_method == "POST" then
     success, helpmsg = content_helper.validateObject(post_args, sip_valid)
 
     if success then
-        local path = ""
+        local path
 	local base_path = "rpc.mmpbx.sip_profile."
 	local content_set = {}
 	local update = false
@@ -385,7 +385,7 @@ local function createAttributesString(attributes)
     return concat(attr, " ")
 end
 
-local function createProfileSimpleSwitch(name, value, attributes, helpmsg)
+local function createProfileSimpleSwitch(name, value, attributes, switch_helpmsg)
     gettext.language(ngx.header['Content-Language'])
     local defaults = {
         switch = {
@@ -422,11 +422,10 @@ local function createProfileSimpleSwitch(name, value, attributes, helpmsg)
     local switch = createAttributesString(defaults["switch"])
     local switcher = createAttributesString(defaults["switcher"])
     local input = createAttributesString(defaults["input"])
-    local help = createAttributesString(defaults["help"])
 
     local html = {
         format('<div %s><div %s textON="%s" textOFF="%s" valOn="%s" valOff="%s"></div><input %s></div>', switch, switcher, T"ON", T"OFF", valOn, valOff, input),
-        ui_helper.createHelpText(helpmsg,nil)
+        ui_helper.createHelpText(switch_helpmsg,nil)
     }
     return html
 end
