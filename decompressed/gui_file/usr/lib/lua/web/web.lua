@@ -302,15 +302,15 @@ do
   -- @treturn table Cookie names are the keys and the values are either a string
   --   (when there's only one value) or an array of strings.
   function M.get_cookies()
-    local EXPECT_KEY = 1
-    local EXPECT_VALUE = 2
-    local EXPECT_SP = 3
-
     local cookies = {}
     local text_cookie = untaint(ngx.var.http_cookie)
     if not text_cookie then
       return cookies
     end
+
+    local EXPECT_KEY = 1
+    local EXPECT_VALUE = 2
+    local EXPECT_SP = 3
     local len = #text_cookie
     local state = EXPECT_SP
     local i = 1

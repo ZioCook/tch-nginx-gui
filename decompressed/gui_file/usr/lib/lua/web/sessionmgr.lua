@@ -54,7 +54,7 @@ local function getClientKey(ip)
     for h in right:gmatch("[%x]+") do rparts[#rparts + 1] = h end
     local missing = 8 - (#lparts + #rparts)
     for i = 1, #lparts do parts[#parts + 1] = lparts[i] end
-    for i = 1, missing do parts[#parts + 1] = "0" end
+    for _ = 1, missing do parts[#parts + 1] = "0" end
     for i = 1, #rparts do parts[#parts + 1] = rparts[i] end
   else
     for h in s:gmatch("[%x]+") do parts[#parts + 1] = h end
@@ -785,6 +785,7 @@ function SessionMgr:delUser(instancename)
   for _,v in pairs(self.users) do
     if v.sectionname == instancename then
       name = v.name
+      break
     end
   end
   if name then
