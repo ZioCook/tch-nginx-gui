@@ -4,12 +4,9 @@
 gettext.textdomain('webui-core')
 
 local format = string.format
-local untaint_mt = require("web.taint").untaint_mt
 local ui_helper = require("web.ui_helper")
 local session = ngx.ctx.session
 local content_helper = require("web.content_helper")
-
-local modem_graph_link = ""
 
 local content = {
   cronEntires   = "rpc.system.cron.CronNumberOfEntries",

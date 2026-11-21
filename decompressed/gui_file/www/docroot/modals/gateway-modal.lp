@@ -7,14 +7,12 @@ gettext.textdomain('webui-core')
 
 local lp = require("web.lp")
 local proxy = require("datamodel")
-local inet = require("tch.inet")
 local ui_helper = require("web.ui_helper")
 local message_helper = require("web.uimessage_helper")
 local content_helper = require("web.content_helper")
 local post_helper = require("web.post_helper")
 local format,find,sub, match, untaint = string.format, string.find, string.sub, string.match, string.untaint
 local floor, ipairs = math.floor, ipairs
-local timezone = require("transformer.shared.timezone")
 local vB = post_helper.validateBoolean
 local gOV = post_helper.getOrValidation
 local gAV = post_helper.getAndValidation
@@ -105,8 +103,8 @@ local function export_config()
   ngx.exit(ngx.HTTP_OK)
 end
 
-local function receive_file(filename, match)
-  local function do_receive(outfile, match)
+local function receive_file(filename, header_match)
+  local function do_receive(outfile, target_match)
     local upload = require("web.fileupload")
     local form, err = upload.fromstream()
     if not form then
@@ -116,12 +114,12 @@ local function receive_file(filename, match)
     local file
     local discard = false
     while true do
-      local token, data, err = form:read()
+      local token, data, read_err = form:read()
       if not token then
-        return false, 2, "read failed: " .. err
+        return false, 2, "read failed: " .. read_err
       end
       if token == "header" then
-        if not discard and not file and find(data[2], match, 1, true) then
+        if not discard and not file and find(data[2], target_match, 1, true) then
           file = outfile
         end
         if not discard and not file then
@@ -147,10 +145,10 @@ local function receive_file(filename, match)
   local file = io.open(filename, "w")
   local result, err_code, err_msg
   if file then
-    result, err_code, err_msg = do_receive(file, match)
+    result, err_code, err_msg = do_receive(file, header_match)
   else
     file = io.open("/dev/null", "w")
-    do_receive(file, match)
+    do_receive(file, header_match)
     result = false
     err_code = 4
     err_msg = "internal error"
@@ -240,7 +238,7 @@ local function upgradefw(reset,rootonly)
   -- even bigger.
   collectgarbage()
   collectgarbage()
-  local rcv_ok, rcv_errno, rcv_errmsg = receive_file(dl, 'name="upgradefile"')
+  receive_file(dl, 'name="upgradefile"')
 
 
   ngx.print('{ "success":"true" }')
@@ -290,16 +288,12 @@ local function schedulerebootset(scheduledatetime)
  end)
    ngx.exit(ngx.HTTP_OK)
 end
-local cui = {
-  upgradefw = "uci.web.uiconfig.@uidefault.upgradefw",
-}
-content_helper.getExactContent(cui)
-
 -- Handle fwupgrade/configimport/configexport specific GET/POSTs.
 if ngx.req.get_method() == "POST" then
-  local action = ngx.req.get_uri_args().action
-  local upgrade_reset = ngx.req.get_uri_args().upgrade_reset  and true or nil
-  local upgrade_rootonly = ngx.req.get_uri_args().upgrade_rootonly and true or nil
+  local uri_args = ngx.req.get_uri_args()
+  local action = uri_args.action
+  local upgrade_reset = uri_args.upgrade_reset and true or nil
+  local upgrade_rootonly = uri_args.upgrade_rootonly and true or nil
   -- do not call get_post_args before we know that we don't have a file sent otherwise it will fail
   if action == "import_config" then
     return import_config()
@@ -308,7 +302,8 @@ if ngx.req.get_method() == "POST" then
     return upgradefw(upgrade_reset,upgrade_rootonly)
   end
   -- now process non-file POSTs
-  local action = ngx.req.get_post_args().action
+  local post_args = ngx.req.get_post_args()
+  action = post_args.action
   if action == "export_config" then
     return export_config()
   end
@@ -327,7 +322,7 @@ if ngx.req.get_method() == "POST" then
     ngx.exit(ngx.HTTP_OK)
   end
   if action == "schedulerebootset" then
-    return schedulerebootset(ngx.req.get_post_args().paramvalue)
+    return schedulerebootset(post_args.paramvalue)
   end
 elseif ngx.req.get_method() == "GET" then
   local action = ngx.req.get_uri_args().action
@@ -424,13 +419,13 @@ local ntp_columns = {
 
 local function validateNTP(value, object, key)
 -- Adding localdevicemask in post to find the input is a network or broadcast IPv4 address in advancedIPValidation
-  local content = {
+  local ntp_net_content = {
     localdevmask = "uci.network.interface.@lan.netmask",
     ipaddr = "rpc.network.interface.@lan.ipaddr",
     wan_ipaddr = "rpc.network.interface.@wan.ipaddr"
   }
-  content_helper.getExactContent(content)
-  object.localdevmask = content.localdevmask
+  content_helper.getExactContent(ntp_net_content)
+  object.localdevmask = ntp_net_content.localdevmask
 
   local ok, errmsg, wholeNumber
   wholeNumber = string.gsub(value,"%.","")
@@ -442,9 +437,9 @@ local function validateNTP(value, object, key)
     if post_helper.validateIPv4Netmask(value) then
       return nil, T"Cannot use IPv4 subnet mask."
     end
-    if content.ipaddr and content.ipaddr == value then
+    if ntp_net_content.ipaddr and ntp_net_content.ipaddr == value then
       return nil, T"Cannot use the gateway IP address."
-    elseif content.wan_ipaddr and content.wan_ipaddr == value then
+    elseif ntp_net_content.wan_ipaddr and ntp_net_content.wan_ipaddr == value then
       return nil, T"Cannot use the gateway WAN IP address."
     else
       return gOV(gAV(post_helper.reservedIPValidation, post_helper.advancedIPValidation), post_helper.validateStringIsIPv6)(value, object, key)
@@ -697,7 +692,7 @@ ngx.print(ui_helper.createMessages(message_helper.popMessages()))
           id = "resetting-msg"
         }
       }
-      local export_config = {
+      local export_config_btn = {
         button = {
           class = "export-config custom-handler"
         }
@@ -714,7 +709,7 @@ ngx.print(ui_helper.createMessages(message_helper.popMessages()))
           id = "export-failed-msg"
         }
       }
-      local import_config = {
+      local import_config_btn = {
         button = {
           class = "import-config custom-handler",
           id = "btn-import"
@@ -750,7 +745,7 @@ ngx.print(ui_helper.createMessages(message_helper.popMessages()))
           id = "import-too-big-msg"
         }
       }
-      local upgradefw = {
+      local upgradefw_btn = {
         button = {
           class = "upgradefw",
           id = "btn-upgrade"
@@ -888,7 +883,7 @@ ngx.print(ui_helper.createMessages(message_helper.popMessages()))
       html[#html + 1] = '</div></div>'
       html[#html + 1] = ui_helper.createAlertBlock(T"Resetting to factory defaults, please wait...", resetting)
       html[#html + 1] = ui_helper.createButton(T"Factory Defaults", T"Reset", "icon-bolt", wait_for_reset)
-      html[#html + 1] = ui_helper.createButton(T"Export Configuration", T"Export", "icon-download-alt", export_config)
+      html[#html + 1] = ui_helper.createButton(T"Export Configuration", T"Export", "icon-download-alt", export_config_btn)
       html[#html + 1] = ui_helper.createAlertBlock(T"Exporting configuration, please wait...", exporting_alert)
       html[#html + 1] = ui_helper.createAlertBlock(T"Exporting failed; please try again.", exporting_fail)
       html[#html + 1] = '</form><form class="form-horizontal" id="form-import" method="post" action="modals/gateway-modal.lp?action=import_config" enctype="multipart/form-data">'
@@ -896,7 +891,7 @@ ngx.print(ui_helper.createMessages(message_helper.popMessages()))
       html[#html + 1] = format('<label class="control-label">%s</label>', T"Import Configuration")
       html[#html + 1] = '<div class="controls">'
       html[#html + 1] = '<input type="file" name="configfile" id="file-import" accept=".bin">&nbsp;'
-      html[#html + 1] = ui_helper.createSimpleButton(T"Import", "icon-upload-alt", import_config)
+      html[#html + 1] = ui_helper.createSimpleButton(T"Import", "icon-upload-alt", import_config_btn)
       html[#html + 1] = '</div></div>'
       html[#html + 1] = ui_helper.createAlertBlock(T"No file selected.", importing_nofile)
       html[#html + 1] = ui_helper.createAlertBlock(T"Importing configuration, please wait...", importing_alert)
@@ -913,7 +908,7 @@ ngx.print(ui_helper.createMessages(message_helper.popMessages()))
 	  html[#html + 1] = format('<label class="control-label">%s</label>', T"Update firmware")
 	  html[#html + 1] = '<div class="controls">'
 	  html[#html + 1] = '<input type="file" name="upgradefile" id="file-upgradefw" accept=".rbi, .fw">&nbsp;'
-	  html[#html + 1] = ui_helper.createSimpleButton(T"Update", "icon-shield", upgradefw)
+	  html[#html + 1] = ui_helper.createSimpleButton(T"Update", "icon-shield", upgradefw_btn)
 	  html[#html + 1] = '</div></div>'
 	  html[#html + 1] = ui_helper.createAlertBlock(T"No file selected.", upgrading_nofile)
 	  html[#html + 1] = ui_helper.createAlertBlock(T"Uploading firmware, please wait...", upgrading_transfer)

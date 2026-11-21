@@ -5,7 +5,6 @@ gettext.textdomain('webui-core')
 
 local ngx = ngx
 local session = ngx.ctx.session
-local format = string.format
 local ui_helper = require("web.ui_helper")
 local content_helper = require("web.content_helper")
 local proxy = require("datamodel")
@@ -77,7 +76,6 @@ local TELNET_light_map = {
 }
 
 if session:hasAccess("/modals/system-modal.lp") then
-    local modal_link = format("class=\"modal-link\" data-toggle=\"modal\" data-remote=\"%s\" data-id=\"device-modal\"",modalPath)
   ngx.print('\
 <div class="span3">\
   <div class="smallcard" data-aos="zoom-in" data-aos-anchor-placement="center-bottom" data-aos-easing="ease-in-back">\

@@ -3,7 +3,6 @@
 -- Enable localization
 gettext.textdomain('webui-core')
 
-local proxy = require("datamodel")
 local content_helper = require("web.content_helper")
 local ui_helper = require("web.ui_helper")
 
@@ -25,15 +24,11 @@ else
 	content.outdated_ver_text = T"GUI is updated"
 end
 
-local modalPath = nil
-local switchName = nil
+local modalPath, switchName
 local session = ngx.ctx.session
-
-local model = nil
 
 if session:hasAccess("/modals/modgui-modal.lp") then
    modalPath = "/modals/modgui-modal.lp"
-   switchName = nil
 end
 
 ngx.print('\
