@@ -21,7 +21,7 @@ local mapValid = {
   printersharing_webui = post_helper.validateBoolean,
 }
 
-local content, helpmsg = post_helper.handleQuery(mapParams, mapValid)
+local content = post_helper.handleQuery(mapParams, mapValid)
 
 local content_samba = {
   samba_enabled   = "uci.samba.samba.enabled",
@@ -106,10 +106,10 @@ local function concatPrinter(printer_table, delimiter)
     return result
 end
 
-local function removeDuplicateEntry(usbpart_data)
+local function removeDuplicateEntry(part_data)
     local tableDict, duplicateIndices = {}, {}
     -- Converts all nested tables into string and also to find all duplicate indices
-    for i, t in ipairs(usbpart_data) do
+    for i, t in ipairs(part_data) do
       local key = concatPrinter(t, "|")
       if not tableDict[key] then
         tableDict[key] = true
@@ -119,9 +119,9 @@ local function removeDuplicateEntry(usbpart_data)
     end
     -- Iteration over duplicate indices from backwards and removed the value
     for i = #duplicateIndices, 1, -1 do
-      table.remove(usbpart_data, duplicateIndices[i])
+      table.remove(part_data, duplicateIndices[i])
     end
-    return usbpart_data
+    return part_data
 end
 
 local info_box = {

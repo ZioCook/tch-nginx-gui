@@ -1,7 +1,6 @@
 --pretranslated: do not change this file
  
 local string = string
-local istainted = string.istainted
 
 -- Enable localization
 gettext.textdomain('webui-contentsharing')
@@ -18,8 +17,7 @@ local message_helper = require("web.uimessage_helper")
 local ajax_helper = require("web.ajax_helper")
 local get_usb_label = require("usbmap").get_usb_label
 
-local untaint = string.untaint
-local format, find, sub, match = string.format, string.find, string.sub, string.match
+local format, match = string.format, string.match
 local vNES = post_helper.validateNonEmptyString
 
 -- Check availability of file, return true if found, else false
@@ -41,7 +39,7 @@ if ngx.req.get_method() == "POST" and ngx.req.get_post_args().action =="eject" t
     repeat
       ngx.sleep(5)
       sec = sec + 5
-      local result, errmsg = proxy.get(path)
+      local result = proxy.get(path)
     until not result or sec >= 60
   else
     message_helper.pushMessage(T"Error while ejecting USB disk", "error")
@@ -124,14 +122,6 @@ local function valid_empty_string(value)
        return true
     end
     return false
-end
-
-local function valid_fail(_, _, param)
-  local post_data = ngx.req.get_post_args()
-  if post_data[param] then
-    return nil
-  end
-  return true
 end
 
 local function valid_usb3_enabled(value, object)
@@ -265,12 +255,11 @@ local function getProfileStatus()
   local ready = "false"
   local profiling = "false"
   local idle = "false"
-  local path_list, partitionCount, mobileIndex = {}, {}, ""
   for _, v in ipairs(usbdev_data) do
     if v.param == "path" and match(v.path,"sys.usb.device.%d+.partition.%d+.$") then
       -- don't show Extended partition
       local profile_status = proxy.get(v.path.."ProfileStatus")
-      for i, v in ipairs(profile_status) do
+      for i in ipairs(profile_status) do
         if profile_status ~= nil and profile_status[i]["value"] ~= nil and profile_status[i]["value"] ~= "" then
           if profile_status[i]["value"] == "Profiling" then
             profiling = "true"
@@ -385,22 +374,22 @@ end
 
 createUsbPartitionTable()
 
-function convertReceivedData(content)
-	if content["connecteddevices"] then
+function convertReceivedData(data)
+	if data["connecteddevices"] then
 		if usb_disk_number == 0 then
-			content["connecteddevices"] = format(T'<strong>%d</strong> connected devices', usb_disk_number)
+			data["connecteddevices"] = format(T'<strong>%d</strong> connected devices', usb_disk_number)
 		elseif usb_disk_number == 1 then
-			content["connecteddevices"] = format(T'<strong>%d</strong> connected device', usb_disk_number)
+			data["connecteddevices"] = format(T'<strong>%d</strong> connected device', usb_disk_number)
 		else
-			content["connecteddevices"] = format(T'<strong>%d</strong> connected devices', usb_disk_number)
+			data["connecteddevices"] = format(T'<strong>%d</strong> connected devices', usb_disk_number)
 		end
 	end
 end
 
 ajax_helper.handleAjaxQuery({
 		connecteddevices = "sys.usb.DeviceNumberOfEntries",
-	}, function(content)
-		convertReceivedData(content)
+	}, function(ajax_content)
+		convertReceivedData(ajax_content)
 	end)
 
 convertReceivedData(content_info)

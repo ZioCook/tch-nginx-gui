@@ -1,6 +1,4 @@
 local io, string, table, tonumber, tostring = io, string, table, tonumber, tostring
-local proxy = require("datamodel")
-local untaint = string.untaint or function(x) return x end
 local M = {}
 
 local function read_file(path)
