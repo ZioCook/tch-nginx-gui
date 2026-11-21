@@ -47,7 +47,6 @@ local gVIC = post_helper.getValidateInCheckboxgroup
 local gVIES = post_helper.getValidateInEnumSelect
 local vNES = post_helper.validateNonEmptyString
 
-local session = ngx.ctx.session
 local tech = false
 if session:getrole() == "engineer" then
     tech = true
@@ -590,7 +589,7 @@ else
     mapValSFP.eth4_wanmode = vB
 end
 
-local content_sfp, helpmsg = post_helper.handleQuery(mapParSFP, mapValSFP)
+local content_sfp = post_helper.handleQuery(mapParSFP, mapValSFP)
 
 -- Standard parameters
 local mapParams = {
@@ -1486,7 +1485,7 @@ local switchDHCP = {
         off = "1"
     }
 }
-local html = {}
+html = {}
 html[#html + 1] = ui_helper.createSwitch(T"DHCP Server", "dhcpIgnore", content["dhcpIgnore"],switchDHCP)
 html[#html + 1] = ui_helper.createLabel(T"Network address", network, advanced_network)
 html[#html + 1] = ui_helper.createInputText(T"DHCP Start address", "dhcpStartAddress", ipstart, advanced, helpmsg["dhcpStart"])
