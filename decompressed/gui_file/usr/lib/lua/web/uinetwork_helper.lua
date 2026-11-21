@@ -1,7 +1,6 @@
 local M = {}
 
 local type, require, ipairs = type, require, ipairs
-local format = string.format
 local ch = require("web.content_helper")
 local proxy = require("datamodel")
 local ww = require("web.web")
@@ -32,7 +31,7 @@ function M.getAutocompleteHostsList(skipIPv6LinkLocal)
     local ipv4hosts={}
     local ipv6hosts={}
 
-    for i,v in ipairs(hosts) do
+    for _,v in ipairs(hosts) do
         local name = ww.html_escape(v.FriendlyName)
         local iplist = ww.html_escape(v.IPAddress)
         local macaddr = ww.html_escape(v.MACAddress)
@@ -78,7 +77,7 @@ function M.getAutocompleteHostsListMac(skipIPv6LinkLocal)
 	local ipv4hostsMac={}
 	local ipv6hostsMac={}
 
-    for i,v in ipairs(hosts) do
+    for _,v in ipairs(hosts) do
 	    local name = ww.html_escape(v.FriendlyName)
 	    local iplist = ww.html_escape(v.IPAddress)
         local macaddr = ww.html_escape(v.MACAddress)
