@@ -100,7 +100,7 @@ else
 end
 
 local DSLMode_other_line
-local ddd = tonumber(content_other_line["dsl_downstream_delay"])
+ddd = tonumber(content_other_line["dsl_downstream_delay"])
 if not ddd then
     DSLMode_other_line = ""
 elseif ddd>2 then
@@ -146,8 +146,7 @@ local dsl_switch_data, dsl_switch_helpmsg = post_helper.handleQuery(dsl_switch_p
     else
       statusIcon = "<div class=\"light orange\" id = \"DSL_Status_Id\"></div>"
     end
-    local iconUp = "<i class=\"icon-upload icon-large gray\"></i> "
-    local iconDown = " <i class=\"icon-download icon-large gray\"></i> "
+    iconDown = " <i class=\"icon-download icon-large gray\"></i> "
 
     -- Attributes
     local attributes = { span = { class = "span4" } }

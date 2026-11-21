@@ -74,7 +74,6 @@ local ppp_state_map = {
     NEGOTIATION_FAILED = T "PPP negotiation failed",
 }
 
-local untaint_mt = require("web.taint").untaint_mt
 setmetatable(ppp_state_map, untaint_mt)
 
 local ppp_light_map = {

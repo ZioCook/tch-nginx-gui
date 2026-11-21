@@ -3,12 +3,8 @@
 -- Enable localization
 gettext.textdomain('webui-core')
 
-local format, match = string.format, string.match
-local floor = math.floor
+local format = string.format
 local tonumber = tonumber
-
-local ui_helper = require("web.ui_helper")
-local content_helper = require("web.content_helper")
 
 local ui_helper = require("web.ui_helper")
 local post_helper = require("web.post_helper")
@@ -18,12 +14,12 @@ local mapParams = {
       optical_signal_level = "rpc.optical.Interface.1.OpticalSignalLevel",
 }
 local mapValid = {
-    gpon_state = function(value, object, key)
+    gpon_state = function()
      return true
    end,
 }
 
-local content, helpmsg = post_helper.handleQuery(mapParams, mapValid)
+local content = post_helper.handleQuery(mapParams, mapValid)
 
 local gpon_state_map = {
     connected = T"Up",
