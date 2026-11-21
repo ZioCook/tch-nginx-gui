@@ -6,10 +6,11 @@ gettext.textdomain('webui-core')
 local ui_helper = require("web.ui_helper")
 local content_helper = require("web.content_helper")
 local untaint_mt = require("web.taint").untaint_mt
+local format, untaint = string.format, string.untaint
 
 local getargs = ngx.req.get_uri_args()
-local getiface = string.format("%s",getargs.iface or "")
-local getap = string.format("%s",getargs.ap or "")
+local getiface = format("%s",getargs.iface or "")
+local getap = format("%s",getargs.ap or "")
 local ifacepath = "uci.wireless.wifi-iface.@"
 local appath = "uci.wireless.wifi-ap.@"
 
@@ -79,11 +80,11 @@ local wlanconfstr = ""
 if content.ssid and content.ssid ~= "" then
     local mode = secmodes[content.secmode] or "WPA"
     local password = keypassphrases[content.secmode] or wpakey or ""
-    local ssid = string.untaint(content.ssid)
+    local ssid = untaint(content.ssid)
     local public = content.public
     --qr code escaping of dynamic data
     ssid = ssid:gsub('[\\\'".:,;]', qrcode_escape_entities)
-    password = string.untaint(password):gsub('[\\\'".:,;]', qrcode_escape_entities)
+    password = untaint(password):gsub('[\\\'".:,;]', qrcode_escape_entities)
 
     local hidden = ";H:false;;"
     if public == "0" then
@@ -97,7 +98,7 @@ if content.ssid and content.ssid ~= "" then
     end
 
     --javascript escaping of special characters
-    wlanconfstr = string.untaint(wlanconfstr:gsub('[\\\'"]', javascript_escape_entities))
+    wlanconfstr = untaint(wlanconfstr:gsub('[\\\'"]', javascript_escape_entities))
 end
   ngx.print('\
 \

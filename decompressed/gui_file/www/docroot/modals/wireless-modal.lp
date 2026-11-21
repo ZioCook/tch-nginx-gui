@@ -29,7 +29,7 @@ local post_helper = require("web.post_helper")
 local content_helper = require("web.content_helper")
 local ajax_helper = require("web.ajax_helper")
 local pairs = pairs
-local match, format, gsub, next = string.match, string.format, string.gsub, next
+local match, format, next = string.match, string.format, next
 local tinsert = table.insert
 local bandsteer_helper = require("bandsteer_helper")
 local isBaseIface = bandsteer_helper.isBaseIface
@@ -75,11 +75,11 @@ local postargs = (ngx.req.get_method() == "POST") and ngx.req.get_post_args() or
 local getradio = postargs.curradio or postargs.radio or getargs.radio
 local getiface = postargs.curiface or postargs.iface or getargs.iface
 if getradio then
-  getradio = string.untaint(getradio)
+  getradio = untaint(getradio)
   getradio = match(getradio, "^([^%?&]+)") or getradio
 end
 if getiface then
-  getiface = string.untaint(getiface)
+  getiface = untaint(getiface)
   getiface = match(getiface, "^([^%?&]+)") or getiface
 end
 local getWifiAnalyzer = getargs.isWifiAnalyzer
@@ -423,7 +423,7 @@ if supported_standards:match("ax") or supported_standards == "anacax" then
   wifi_standard_5GHz[#wifi_standard_5GHz + 1] = { "nac", T'802.11n/ac'}
 end
 
-local wifi_standard={}
+local wifi_standard
 if radioData[curradio].supported_frequency_bands == "5GHz" then
   wifi_standard = wifi_standard_5GHz
 else
@@ -749,9 +749,6 @@ end
 
 local function validateRadioandAp(value, object, key)
     local valid, msg = post_helper.validateBoolean(value, object, key)
-	local acpath = "rpc.wireless.ap."
-	local acpoint = proxy.get(acpath)
-	local acpointlist = content_helper.convertResultToObject(acpath,acpoint)
 	if valid then
 		if value == "0" then
 			proxy.set(pathap .. "admin_state","0")
@@ -772,11 +769,6 @@ local wps_button_mode = {
 
 -- Constructing the rpc parameters and validations for post handleQuery
 local function getParamsAndValidation()
-  local wps_button_handler = setmetatable({
-        ["1"] = "wps_button_pressed.sh",
-        ["0"] = "acl_button_pressed.sh",
-    }, untaint_mt)
-
   -- Only include wps_button_handler if the UCI path actually exists on this device
   local wps_path = "uci.button.button.@wps.handler"
   local wps_exists = proxy.get(wps_path) ~= nil
@@ -937,8 +929,7 @@ local content_rssi = {}
 local mapParams, mapValid = getParamsAndValidation()
 local content, helpmsg = post_helper.handleQuery(mapParams, mapValid)
 
-if ngx.req.get_method() == "POST" and ngx.req.get_post_args().action == "bs_check" then
-    local postargs = ngx.req.get_post_args()
+if ngx.req.get_method() == "POST" and postargs.action == "bs_check" then
 	if content["ssid"] ~= postargs.ssidName or content["security"] ~= postargs.security or content["wpa_psk"] ~= postargs.wpa_psk then
 	session:store("bs_check_action", "TRUE")
     proxy.set("uci.wireless.wifi-ap.@ap0.bandsteer_id", "off")
@@ -967,7 +958,6 @@ if ngx.req.get_method() == "POST" then
 
   if content["action"] == "SAVE" then
     local retval = false
-    local postargs = ngx.req.get_post_args()
     if postargs["rssi_threshold"] ~= nil then
       retval = proxy.set(format('%s@%s.rssi_threshold', bandsteerpath, content["bsid"]), format("%d", postargs["rssi_threshold"]))
     end
@@ -1072,7 +1062,6 @@ if content["tx_power_adjust"] then
 end
 
 local band_steer_supported = 0
-local bs_peer_network_enable = "0"
 local band_steer_enabled = "0"
 
 if "" ~= bandsteerpathap then
@@ -1090,7 +1079,7 @@ if "" ~= bandsteerpathap then
         end
     end
 
-    bs_peer_network_enable = content_band_steer.band_steer_ap_enabled
+    local bs_peer_network_enable = content_band_steer.band_steer_ap_enabled
 
     if "1" == bs_peer_network_enable and 1 == band_steer_supported then
         local bsid = bandsteer_helper.getBandSteerId(curiface)
@@ -1206,9 +1195,6 @@ if isguest ~= "1" and getWifiAnalyzer == nil then
   local guest_switch_attrs = {
     input = { id = "guest_network_switch", class = "monitor-changes" }
   }
-  local guest_label_attrs = {
-    group = { class = "control-group" }
-  }
   guest_html[#guest_html+1] = ui_helper.createSwitch(T"Guest Network (Guest)", "guest_network_enabled_ui", guest_network_enabled, guest_switch_attrs)
   local info_class = { group = { class = "control-group" }, span = { class = "span2 simple-desc" } }
   if curradio == "radio_5G" or (radioData[curradio] and radioData[curradio].supported_frequency_bands == "5GHz") then
@@ -1246,11 +1232,6 @@ end
 		end
     -- In guest page, do not let the user change the configuration of the wifi radio. Only in main AP
     if isguest == "1" then
-        local guest_alert = {
-            alert = {
-                class = "alert-info"
-            },
-        }
         -- Display infomation indicating it is a guest SSID
 		
         --html[#html + 1] = ui_helper.createAlertBlock(T"This is a guest network. The guest network has no local network access.", guest_alert)
