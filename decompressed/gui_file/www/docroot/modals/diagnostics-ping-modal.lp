@@ -297,9 +297,7 @@ ngx.print(ui_helper.createHeader(T"Diagnostics Ping & Traceroute", false, false,
     return true
     end
 
-    local ping_trace_data, ping_trace_helpmsg = {},nil
     local attributes = { span = { class = "span8" } }
-    local advanced = { span = { class = "span8" }, group = { class = "advanced hide" } }
     local pattern_hopcount = {
       input = {
               ["data-for"] = "TRACE",
@@ -308,14 +306,10 @@ ngx.print(ui_helper.createHeader(T"Diagnostics Ping & Traceroute", false, false,
       }
     }
     local attrPing = {input = { ["data-for"] = "PING"}}
-    local attrPingSelect = {select = { ["data-for"] = "PING"}}
     local attrTrace = {input = { ["data-for"] = "TRACE"}}
-    local attrTraceSelect = {select = { ["data-for"] = "TRACE"}}
 
     local explanationPing = ""
     local statusIconPing = ""
-    local ippingSuccessCount = ""
-    local ippingFailureCount = ""
     local explanationTrace = ""
     local statusIconTrace = ""
 
@@ -323,13 +317,8 @@ ngx.print(ui_helper.createHeader(T"Diagnostics Ping & Traceroute", false, false,
     local statusTracertTest = proxy.get("uci.traceroute.@diagping.DiagnosticsState")
 
     if ngx.var.request_method == "POST" and gsuccess then
-        ippingSuccessCount = cping.ipping_SuccessCount
-        ippingFailureCount = cping.ipping_FailureCount
         if statusPingTest and session:retrieve("diag_ping_action") =="TRUE" then
             if statusPingTest == "Complete" then
-               if #ping_trace_data == 0 then
-                    ping_trace_data = content_helper.loadTableData(ping_trace_options.basepath, ping_trace_columns)
-                end
                 if cping.ipping_Repetitions == cping.ipping_SuccessCount then
                     statusIconPing = "<i class=\"icon-ok icon-large green\"></i> "
                     explanationPing = T"Success"
@@ -420,7 +409,7 @@ local ping_trace_data, ping_trace_helpmsg = post_helper.handleTableQuery(ping_tr
 </fieldset>\
 </form>\
 </div>\
-');  if ngx.var.request_method == "POST" and (ngx.req.get_post_args().action =="TRACE" or ngx.req.get_post_args().action =="TRACESTOP") then  ngx.print('\
+');  if ngx.var.request_method == "POST" and (post_content.action =="TRACE" or post_content.action =="TRACESTOP") then  ngx.print('\
   <script>\
     var tablePos = $("#routehops").position();\
     $(".modal-body").scrollTop(tablePos.top);\

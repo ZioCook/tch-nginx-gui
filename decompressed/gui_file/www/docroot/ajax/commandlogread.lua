@@ -9,14 +9,14 @@ data["state"] = commandstatus and commandstatus[1] and commandstatus[1].value or
 
 local action = { 
 	Checking = function()
-		local data = {}
+		local check_data = {}
 		local new_ver = proxy.get("uci.modgui.gui.new_ver")
 		
 		if new_ver and not ( new_ver[1].value == "" ) then
-			data["new_version_text"] = new_ver[1].value
+			check_data["new_version_text"] = new_ver[1].value
 		end
 		
-		return data
+		return check_data
 	end,
 }
 

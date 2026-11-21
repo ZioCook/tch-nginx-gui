@@ -5,13 +5,10 @@
 gettext.textdomain('webui-core')
 
 local proxy = require("datamodel")
-local content_helper = require("web.content_helper")
 local ui_helper = require("web.ui_helper")
 local message_helper = require("web.uimessage_helper")
-local post_helper = require("web.post_helper")
 local logdownload_helper = require("logdownload_helper")
-local type, setmetatable, random = type, setmetatable, math.random
-local table, ipairs, istainted, format = table, ipairs, string.istainted, string.format
+local table, ipairs, format = table, ipairs, string.format
 local session = ngx.ctx.session
 
 local logdata = proxy.get("sys.log.devicelog")

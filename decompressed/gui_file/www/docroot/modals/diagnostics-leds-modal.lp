@@ -55,8 +55,7 @@ local model_str = (prod_friendly .. " " .. prod_number .. " " .. hw_version .. "
 local is_tg789 = model_str:match("TG789") or model_str:match("VANT%-6") or model_str:match("TG788") or model_str:match("TG799") or model_str:match("TG800")
 local is_dga4132 = (not is_tg789) and (model_str:match("DGA413") or model_str:match("AGTHP") or model_str:match("AGTEF") or model_str:match("VBNT"))
 
-local name_mapping = {}
-local order_mapping = {}
+local name_mapping, order_mapping
 
 if is_tg789 then
 	-- Technicolor TG789vac v2 (Smart Modem): Info -> Broadband -> Internet -> Wireless 2.4 -> Wireless 5 -> WPS -> Ethernet -> TV -> Voice
@@ -184,7 +183,7 @@ local leds_filter = function(data)
 	return true
 end
 
-local leds_data, leds_index = content_helper.loadTableData(leds_options.basepath, leds_columns, leds_filter)
+local leds_data = content_helper.loadTableData(leds_options.basepath, leds_columns, leds_filter)
 
 table.sort(leds_data, function(a, b)
 	local key_a = untaint(a[2])

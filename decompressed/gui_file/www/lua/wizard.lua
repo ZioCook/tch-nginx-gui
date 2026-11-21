@@ -1,6 +1,6 @@
 local ngx = ngx
-local pairs, ipairs, tonumber, type, setmetatable = pairs, ipairs, tonumber, type, setmetatable
-local format, match, find, gsub, require = string.format, string.match, string.find, string.gsub, require
+local pairs = pairs
+local format, match, find, require = string.format, string.match, string.find, require
 local sort = table.sort
 local content_helper = require("web.content_helper")
 local message_helper = require("web.uimessage_helper")
@@ -16,7 +16,6 @@ local function log_gettext_error(msg)
 end
 local gettext = intl.load_gettext(log_gettext_error)
 local T = gettext.gettext
-local N = gettext.ngettext
 
 local function setlanguage()
   gettext.language(ngx.header['Content-Language'])

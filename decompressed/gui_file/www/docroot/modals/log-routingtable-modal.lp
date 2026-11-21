@@ -4,9 +4,7 @@
 gettext.textdomain('webui-core')
 
 local proxy = require("datamodel")
-local content_helper = require("web.content_helper")
 local ui_helper = require("web.ui_helper")
-local post_helper = require("web.post_helper")
 local sub, len = string.sub, string.len
 local logdata = proxy.get("sys.log.routingtable")
 logdata = logdata[1].value

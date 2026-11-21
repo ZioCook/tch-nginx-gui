@@ -124,7 +124,7 @@ local init_filter = function(data)
 	return true
 end
 
-local init_data, sipnet_helpmsg = post_helper.handleTableQuery(init_columns, init_options, init_filter)
+local init_data = post_helper.handleTableQuery(init_columns, init_options, init_filter)
 
   ngx.print('\
 ');  ngx.print(ui_helper.createHeader(T"Management", false, false) ); ngx.print('\

@@ -10,7 +10,7 @@ local ui_helper = require("web.ui_helper")
 local post_helper = require("web.post_helper")
 local content_helper = require("web.content_helper")
 local message_helper = require("web.uimessage_helper")
-local format, untaint, gmatch, match = string.format, string.untaint, string.gmatch, string.match
+local format, untaint, gmatch = string.format, string.untaint, string.gmatch
 local open = io.open
 local vB = post_helper.validateBoolean
 local vNES = post_helper.validateNonEmptyString
@@ -39,11 +39,6 @@ local tcpdumpValid = {
 }
 
 local tcpdump_intfs = {
-}
-
-local tcpdump_acc = {
-  { "1", "Enabled" },
-  { "0", "Disabled" },
 }
 
 local tcpdump_types = {
@@ -256,7 +251,7 @@ ngx.print(ui_helper.createMessages(message_helper.popMessages()))
   </div>\
 </div>\
 ');  
-  local tcpdump_download = {
+  tcpdump_download = {
     button = {
       class = "tcpdump-download custom-handler"
     }

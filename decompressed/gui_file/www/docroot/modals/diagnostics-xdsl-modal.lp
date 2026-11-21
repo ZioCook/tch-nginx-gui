@@ -8,7 +8,6 @@ local ui_helper = require("web.ui_helper")
 local post_helper = require("web.post_helper")
 local content_helper = require("web.content_helper")
 local format = string.format
-local table = table
 
 local getargs = ngx.req.get_uri_args()
 if getargs.action == "GET_BITS" then
