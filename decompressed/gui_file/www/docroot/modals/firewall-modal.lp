@@ -247,8 +247,8 @@ local function rulesDuplicateCheck(basepath,tableid,columns)
       end
       local paths=nil
       for i=startIndex, endIndex do
-        local value = string.untaint(postdata[columns[i].name])
-        local cmatch = content_helper.getMatchedContent(basepath, {[columns[i].param] = value })
+        local col_val = str_untaint(postdata[columns[i].name])
+        local cmatch = content_helper.getMatchedContent(basepath, {[columns[i].param] = col_val })
         if fullpath then
           for u,v in ipairs(cmatch) do
             if v.path == fullpath then

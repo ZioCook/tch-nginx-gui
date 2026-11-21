@@ -75,8 +75,9 @@ local dyn_route_options = {
 local dyn_route_data, dyn_route_helpmsg = post_helper.handleTableQuery(dyn_route_columns, dyn_route_options)
 
 local function split(x, sep)
-    local sep, fields = sep or ":", {}
-    local pattern = string.format("([^%s]+)", sep)
+    sep = sep or ":"
+    local fields = {}
+    local pattern = format("([^%s]+)", sep)
     for field in x:gmatch(pattern) do
       fields[#fields+1] = field
     end

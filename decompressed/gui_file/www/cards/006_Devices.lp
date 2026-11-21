@@ -3,15 +3,13 @@
 -- Enable localization
 gettext.textdomain('webui-core')
 
-local format = string.format
+local format, match = string.format, string.match
 local tonumber = tonumber
 
 local lfs = require("lfs")
-local table = table
 local ui_helper = require("web.ui_helper")
 local content_helper = require("web.content_helper")
 local proxy = require("datamodel")
-local format, find, sub, match = string.format, string.find, string.sub, string.match
 
 -- Devices data
 local devices_data = {
@@ -40,16 +38,19 @@ end
     <div class="content card_bg" data-bg-text="&#xf1e6;">\
 	<div class="divtable">\
       ');  local Hotspot_len = {}
-        local ap_path = "rpc.wireless.ap."
-        local ap_path_value = content_helper.convertResultToObject(ap_path,proxy.get(ap_path))
-        for _,v in ipairs(ap_path_value) do
-          if match(v.ssid, "wl%d_%d") then
-            local ap = match(v.paramindex, "@([^%.]+)")
-            local station_path = "rpc.wireless.ap.@" .. ap .. ".station."
-            local station_path_value = content_helper.convertResultToObject(station_path,proxy.get(station_path))
-            for _,v in ipairs(station_path_value) do
-              if v.state == "Authenticated Associated" then
-                Hotspot_len[#Hotspot_len+1] = v.state
+        local has_hotspot = (lfs.attributes("/etc/config/hotspot", "mode") == "file")
+        if has_hotspot then
+          local ap_path = "rpc.wireless.ap."
+          local ap_path_value = content_helper.convertResultToObject(ap_path,proxy.get(ap_path))
+          for _,v in ipairs(ap_path_value) do
+            if match(v.ssid, "wl%d_%d") then
+              local ap = match(v.paramindex, "@([^%.]+)")
+              local station_path = "rpc.wireless.ap.@" .. ap .. ".station."
+              local station_path_value = content_helper.convertResultToObject(station_path,proxy.get(station_path))
+              for _,station in ipairs(station_path_value) do
+                if station.state == "Authenticated Associated" then
+                  Hotspot_len[#Hotspot_len+1] = station.state
+                end
               end
             end
           end
@@ -78,7 +79,7 @@ end
 				--'</div>',
             '</p>'
         )
-        if lfs.attributes("/etc/config/hotspot", "mode") == "file" then  ngx.print('                                     \
+        if has_hotspot then  ngx.print('                                     \
            <p class="subinfos">                                                             \
            ');  
            ngx.print(format( N('<strong id = "Ethernet_Devices" %1$s>%2$d Hotspot device</strong> connected',             

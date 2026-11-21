@@ -5,7 +5,6 @@ gettext.textdomain('webui-core')
 
 local format = string.format
 local ui_helper = require("web.ui_helper")
-local content_helper = require("web.content_helper")
 local proxy = require("datamodel")
 local session = ngx.ctx.session
 local modalPath = "/modals/iproutes-modal.lp"
@@ -66,7 +65,6 @@ end
             </span>\
             <span class="simple-desc">\
             ');
-            local modal_link=format('class="modal-link" data-toggle="modal" data-remote="%s" data-id="device-modal"',modalPath)
             ngx.print(
             '<i class="fas fa-forward" aria-hidden="true" href="#">&nbsp</i>' .. format( N('<strong id="iproutescard_noofipv4staticroutes" %1$s>%2$d IPv4 Static Route</strong>',
                       '<strong id="iproutescard_noofipv4staticroutes" %1$s>%2$d IPv4 Static Routes</strong>', ipv4_count),
@@ -89,7 +87,7 @@ end
 			}
             local dosprotect = proxy.get("uci.dosprotect.globals.enabled")
             if dosprotect and dosprotect[1].value ~="" then
-                local dosprotect = dosprotect[1].value or "0"
+                dosprotect = dosprotect[1].value or "0"
                 local dosprotect_status
 
                 if dosprotect and dosprotect == "1" then
