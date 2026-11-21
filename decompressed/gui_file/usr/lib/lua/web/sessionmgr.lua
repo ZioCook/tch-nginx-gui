@@ -110,7 +110,8 @@ local function adjustIPCount(self, remoteIP, delta)
   local ipcount = self._session_tracker.ipcount
   if remoteIP then
     local key = getClientKey(remoteIP)
-    ipcount[key] = (ipcount[key] or 0) + delta
+    local v = (ipcount[key] or 0) + delta
+    ipcount[key] = (v > 0) and v or nil
   end
 end
 
@@ -345,6 +346,7 @@ local MAX_SESSIONS_PER_USER = 5
 
 local function enforceAnonPerIp(mgr, ip)
   local key = getClientKey(ip)
+  local ipCount = mgr._session_tracker.ipcount[key] or 0
   local n, oldest, oldestTs = 0, nil, nil
   for sid, s in pairs(mgr.sessions) do
     local isAuth = (s:getusername() ~= "" and not s:isdefaultuser())
@@ -355,7 +357,7 @@ local function enforceAnonPerIp(mgr, ip)
       end
     end
   end
-  if n >= MAX_ANON_PER_IP and oldest then
+  if (n >= MAX_ANON_PER_IP or ipCount >= mgr.maxsessions_per_ip) and oldest then
     removeSession(mgr, oldest)
   end
 end
@@ -493,9 +495,11 @@ local function enforceUserSessionLimit(mgr, username, currentSessionId)
 end
 
 local function login(mgr, session, username)
-  local id = session.sessionid
-  enforceUserSessionLimit(mgr, username, id)
   local user = mgr.users[username]
+  local id = session.sessionid
+  if user and user ~= mgr.default_user then
+    enforceUserSessionLimit(mgr, username, id)
+  end
   session:changeUser(user)
   sessionChanged(mgr, session, id)
 end

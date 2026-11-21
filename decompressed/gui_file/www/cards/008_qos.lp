@@ -11,7 +11,7 @@ local proxy = require("datamodel")
 local ui_helper = require("web.ui_helper")
 local content_helper = require("web.content_helper")
 local qos_enabled_res = proxy.get("uci.modgui.var.qos_enabled")
-local qos_state = (qos_enabled_res and qos_enabled_res[1].value == "1") and "1" or "0"
+local qos_state = (qos_enabled_res and qos_enabled_res[1] and qos_enabled_res[1].value == "1") and "1" or "0"
 -- Menu display information (policy classgroup name MUST match value in qos config)
 local dataQoS = {
     numQueues   = "uci.qos.classNumberOfEntries",

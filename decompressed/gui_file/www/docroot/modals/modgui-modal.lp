@@ -228,8 +228,8 @@ end
 local function genSysupgradeBackup()
 
         local hostname = proxy.get("uci.system.system.@system[0].hostname")
-        hostname = hostname and hostname[1].value or "Unknown"
-        hostname = tostring(hostname):gsub("[^%w%-]", "")
+        hostname = hostname and hostname[1] and hostname[1].value or "Unknown"
+        hostname = tostring(hostname):gsub("[^%w%-]", ""):gsub("^%-+", ""):gsub("%-+$", "")
         if hostname == "" then
             hostname = "gateway"
         end

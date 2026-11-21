@@ -23,7 +23,7 @@ if ngx.req.get_method() == "POST" then
   interface = ngx.req.get_uri_args().interface
 end
 
-if interface and not match(interface, "^[a-zA-Z0-9%._%-]+$") then
+if interface ~= nil and (type(interface) ~= "string" or #interface > 15 or not match(interface, "^[a-zA-Z0-9][a-zA-Z0-9%._%-]*$") or interface:find("%.%.")) then
   ngx.say("Invalid interface in args")
   ngx.exit(ngx.HTTP_OK)
 end

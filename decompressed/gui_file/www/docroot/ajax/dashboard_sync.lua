@@ -71,35 +71,52 @@ end
 
 -- Parse requested modules from POST or GET (only allowed for authenticated non-default sessions)
 local session = ngx.ctx and ngx.ctx.session
-local is_default = not session or (session.isdefaultuser and session:isdefaultuser())
-local username = (session and session.getusername and tostring(untaint(session:getusername()))) or ""
+local is_default = (not session) or (not session.isdefaultuser) or session:isdefaultuser()
+local raw_user = session and session.getusername and session:getusername()
+local username = (raw_user ~= nil and tostring(untaint(raw_user))) or ""
 local is_authenticated = (username ~= "" and not is_default)
 
+if not is_authenticated then
+    if ngx and ngx.header then
+        ngx.header["Content-Type"] = "application/json; charset=utf-8"
+        ngx.header["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    end
+    ngx.say("{}")
+    if ngx and ngx.eof then
+        pcall(ngx.eof)
+    end
+    if ngx and ngx.exit and ngx.HTTP_OK then
+        ngx.exit(ngx.HTTP_OK)
+    end
+    return
+end
+
+local req_modules_str = ""
+if ngx.req and ngx.req.get_method and ngx.req.get_method() == "POST" then
+    pcall(ngx.req.read_body)
+    local post_args = ngx.req.get_post_args and ngx.req.get_post_args()
+    req_modules_str = (post_args and post_args.modules) or ""
+end
+if req_modules_str == "" and ngx.req and ngx.req.get_uri_args then
+    local uri_args = ngx.req.get_uri_args()
+    req_modules_str = (uri_args and uri_args.modules) or ""
+end
+
+if type(req_modules_str) ~= "string" and not (string.istainted and string.istainted(req_modules_str)) then
+    req_modules_str = ""
+end
+req_modules_str = untaint(req_modules_str)
+
 local requested = {}
-if is_authenticated then
-    local req_modules_str = ""
-    if ngx.req and ngx.req.get_method and ngx.req.get_method() == "POST" then
-        pcall(ngx.req.read_body)
-        local post_args = ngx.req.get_post_args and ngx.req.get_post_args()
-        req_modules_str = (post_args and post_args.modules) or ""
-    end
-    if req_modules_str == "" and ngx.req and ngx.req.get_uri_args then
-        local uri_args = ngx.req.get_uri_args()
-        req_modules_str = (uri_args and uri_args.modules) or ""
-    end
-
-    req_modules_str = untaint(req_modules_str)
-
-    if req_modules_str ~= "" and req_modules_str ~= "all" then
-        for mod in req_modules_str:gmatch("([^,]+)") do
-            local m = untaint(mod:gsub("%s+", ""))
-            if m ~= "" then
-                requested[m] = true
-            end
+if req_modules_str ~= "" and req_modules_str ~= "all" then
+    for mod in req_modules_str:gmatch("([^,]+)") do
+        local m = untaint(mod:gsub("%s+", ""))
+        if m ~= "" then
+            requested[m] = true
         end
-    else
-        requested["all"] = true
     end
+else
+    requested["all"] = true
 end
 
 local function need(mod)
@@ -766,7 +783,7 @@ if not _jcache then
     _G._dashboard_jcache = _jcache
 end
 
-local role_id = (session and session.getRoleId and session:getRoleId()) or "default"
+local role_id = (session and session.getrole and tostring(untaint(session:getrole()))) or "default"
 
 local function module_json(name, ttl, builder)
     local bucket = _jcache[role_id]

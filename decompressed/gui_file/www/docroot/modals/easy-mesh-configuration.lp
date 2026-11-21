@@ -75,7 +75,8 @@
   local ok_em, em_helper = pcall(require, "easymesh_helper")
   if not (ok_em and em_helper and em_helper.is_supported and em_helper.is_supported()) then
     ngx.print(ui_helper.createHeader(T"EasyMesh", false, true))
-    ngx.print(ui_helper.createAlertBlock(T"EasyMesh is not supported on this device.", { class = "alert-warning" }))
+    ngx.print(ui_helper.createAlertBlock(T"EasyMesh is not supported on this device.", { alert = { class = "alert alert-warning" } }))
+    ngx.print(ui_helper.createFooter())
     return
   end
 

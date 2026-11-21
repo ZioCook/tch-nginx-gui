@@ -77,7 +77,7 @@ if ngx.var.request_method == "POST" then
                 if wf then
                     local wl = wf:read("*l") or ""
                     wf:close()
-                    if wl:match("^running:" .. target_state .. ":") then break end
+                    if wl:match("^running:" .. target_state .. ":") or wl:match("^done:" .. target_state .. ":") then break end
                 end
             end
         end

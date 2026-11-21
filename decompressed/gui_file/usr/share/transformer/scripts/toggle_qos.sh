@@ -64,7 +64,8 @@ write_status() {
 MY_STARTTIME=$(get_starttime $$)
 
 # Intento = "<stato> <pid richiedente> <starttime>"
-echo "$STATE $$ $MY_STARTTIME" > "$WANT_FILE"
+echo "$STATE $$ $MY_STARTTIME" > "${WANT_FILE}.$$"
+mv -f "${WANT_FILE}.$$" "$WANT_FILE"
 
 HAVE_LOCK=0
 cleanup() {
@@ -168,6 +169,8 @@ run_service_step() {
     local action="$2"
     local to_sec=15
 
+    [ -x "/etc/init.d/$svc" ] || return 0
+
     run_timeout 9 $to_sec /etc/init.d/$svc $action >/dev/null 2>&1
     local rc=$?
 
@@ -198,6 +201,9 @@ apply_toggle() {
         [ -n "$(uci -q get qos.eth4)" ] && uci -q set qos.eth4.enable='1'
         [ -n "$(uci -q get qos.ptm0)" ] && uci -q set qos.ptm0.enable='1'
         uci -q commit qos
+
+        /etc/init.d/qos enable 2>/dev/null
+        /etc/init.d/iqos enable 2>/dev/null
 
         run_service_step qos restart
         qos_rc=$?
