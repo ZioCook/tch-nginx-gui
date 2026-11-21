@@ -1,7 +1,7 @@
-local require, pairs, ipairs, type, tonumber, getfenv = require, pairs, ipairs, type, tonumber, getfenv
+local require, pairs, ipairs, type, tonumber = require, pairs, ipairs, type, tonumber
 local format, find, gsub, gmatch = string.format, string.find, string.gsub, string.gmatch
 local huge = math.huge
-local concat, sort, tostring = table.concat, table.sort, tostring
+local concat, tostring = table.concat, tostring
 local istainted = string.istainted
 local ngx = ngx
 local untaint_mt = require("web.taint").untaint_mt
@@ -23,7 +23,6 @@ local function log_gettext_error(msg)
 end
 local gettext = intl.load_gettext(log_gettext_error)
 local T = gettext.gettext
-local N = gettext.ngettext
 
 local function setlanguage()
     gettext.language(ngx.header['Content-Language'])
@@ -250,7 +249,6 @@ function  M.createSimpleInputText(name, value, attributes, helpmsg)
     end
 
     local input = createAttributesString(defaults["input"])
-    local help = createAttributesString(defaults["help"])
 
     local html = {
         format("<input %s>", input),
@@ -335,7 +333,6 @@ function  M.createSimpleInputPassword(name, value, attributes, helpmsg)
 
     mergeAttributes(defaults, attributes)
     local input = createAttributesString(defaults["input"])
-    local help = createAttributesString(defaults["help"])
 
     local html = {
         format("<input %s>", input),
@@ -571,13 +568,13 @@ function M.createSimpleCheckboxGroup(name, values, checked, attributes)
     -- we choose an empty string value (since it sould not be used
     content[#content + 1] = format('<label class="hide checkbox"><input type="checkbox" name="%s" value="" checked></label>', name)
 
-    for i,v in ipairs(values) do
-        local checked = ""
+    for _,v in ipairs(values) do
+        local is_checked = ""
         content[#content + 1] = format('<label %s>', label)
         if check[v[1]] then
-            checked = "checked"
+            is_checked = "checked"
         end
-        content[#content + 1] = format('<input %s value="%s" %s> %s</label>', input, v[1], checked, v[2])
+        content[#content + 1] = format('<input %s value="%s" %s> %s</label>', input, v[1], is_checked, v[2])
     end
     return content
 end
@@ -672,7 +669,6 @@ function M.createLabel(desc, value, attributes, helpmsg)
     local label = createAttributesString(defaults["label"])
     local controls = createAttributesString(defaults["controls"])
     local span = createAttributesString(defaults["span"])
-    local help = createAttributesString(defaults["help"])
 
     local html = {
         format("<div %s><label %s>%s</label><div %s><span %s>%s</span>",group, label, desc, controls, span, value),
@@ -733,7 +729,6 @@ function M.createSimpleSwitch(name, value, attributes, helpmsg)
     local switch = createAttributesString(defaults["switch"])
     local switcher = createAttributesString(defaults["switcher"])
     local input = createAttributesString(defaults["input"])
-    local help = createAttributesString(defaults["help"])
 
     local html = {
         format('<div %s><div %s textON="%s" textOFF="%s" valOn="%s" valOff="%s"></div><input %s></div>', switch, switcher, T"ON", T"OFF", valOn, valOff, input),
@@ -818,7 +813,6 @@ function M.createSimpleInputSelect(name, values, current, attributes, helpmsg)
     }
     mergeAttributes(defaults, attributes)
     local select = createAttributesString(defaults["select"])
-    local help = createAttributesString(defaults["help"])
 
     local html = {
         format("<select %s>", select)
@@ -1000,9 +994,9 @@ function M.createSimpleButton(buttontext, icon, attributes)
     }
     mergeAttributes(defaults, attributes)
     local button = createAttributesString(defaults["button"])
-    local icon = createAttributesString(defaults["icon"])
+    local icon_attr = createAttributesString(defaults["icon"])
 
-    return format("<div %s><i %s></i>  %s</div>", button, icon, buttontext)
+    return format("<div %s><i %s></i>  %s</div>", button, icon_attr, buttontext)
 end
 
 --- Create a button control
@@ -1549,7 +1543,7 @@ function M.createTable(columns, data, options, attributes, helpmsg)
 
     -- options and their default value
     -- do we allow to edit a table entry?
-    local canEdit = options and not (options.canEdit == false)
+    local canEdit = options and (options.canEdit ~= false)
     -- are we editing an entry and which line (-1 means new entry, 0 means not editing)
     local editing = options and tonumber(options.editing) or 0
     -- do we disallow delete if under a certain number of entries
@@ -1560,9 +1554,9 @@ function M.createTable(columns, data, options, attributes, helpmsg)
 
     local numEntries = #data
     -- can we add entries? need to be allowed and need to be under maximum number of entries
-    local canAdd = options and not (options.canAdd == false) and (numEntries < maxEntries)
+    local canAdd = options and (options.canAdd ~= false) and (numEntries < maxEntries)
     -- can we delete entries? need to be allowed and need to be above minimum number of entries
-    local canDelete = options and not (options.canDelete == false) and (numEntries > minEntries)
+    local canDelete = options and (options.canDelete ~= false) and (numEntries > minEntries)
     local newList = options and options.newList
 
     local session = ngx.ctx.session
@@ -1705,7 +1699,6 @@ function M.createSimpleSliderSelect(name, values, current, attributes, helpmsg)
     mergeAttributes(defaults, attributes)
     local slider = createAttributesString(defaults["slider"])
     local slidertext = createAttributesString(defaults["slidertext"])
-    local help = createAttributesString(defaults["help"])
 
     local html = {
         format("<div %s>", slider),
@@ -2321,7 +2314,6 @@ function M.createLabelWithButton(desc, value, buttontext, icon, attributes, help
     local label = createAttributesString(defaults["label"])
     local controls = createAttributesString(defaults["controls"])
     local span = createAttributesString(defaults["span"])
-    local help = createAttributesString(defaults["help"])
 
     local html = {
         format("<div %s><label %s>%s</label><div %s><span %s>%s</span>",group, label, desc, controls, span, value),
