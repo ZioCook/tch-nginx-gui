@@ -5,9 +5,10 @@ local client_name_file = "/tmp/modgui-wireguard-client.name"
 
 local profile_file = io.open(client_profile, "r")
 if not profile_file then
+  ngx.header.content_type = "text/plain"
   ngx.status = ngx.HTTP_NOT_FOUND
   ngx.say(T"Generate a client key pair first.")
-  return ngx.exit(ngx.HTTP_NOT_FOUND)
+  return ngx.exit(ngx.HTTP_OK)
 end
 
 local profile = profile_file:read("*a") or ""

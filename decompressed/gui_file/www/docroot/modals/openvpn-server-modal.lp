@@ -21,9 +21,10 @@ if args.download == "1" then
   local cert = getvalue("rpc.openvpn.server.client.cert")
   local key = getvalue("rpc.openvpn.server.client.key")
   if ca == "" or cert == "" or key == "" then
+    ngx.header.content_type = "text/plain"
     ngx.status = ngx.HTTP_NOT_FOUND
     ngx.say(T"Client keys are not available. Start the server once to generate them.")
-    return ngx.exit(ngx.HTTP_NOT_FOUND)
+    return ngx.exit(ngx.HTTP_OK)
   end
   local host = (ngx.var.http_host or "vpn.example.com"):gsub(":%d+$", "")
   local proto = getvalue("uci.openvpn.openvpn.@server.proto")
