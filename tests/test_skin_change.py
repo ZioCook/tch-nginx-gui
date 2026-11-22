@@ -10,10 +10,10 @@ import unittest
 class SkinChangeTest(unittest.TestCase):
     def test_repeated_changes_without_global_event(self):
         root = Path(__file__).resolve().parents[1]
-        source = (root / 'decompressed/gui_file/www/docroot/modals/modgui-modal.lp').read_text()
-        start = source.index('  $("#gui_skin").on("change"')
-        end = source.index('  $("#btn-gen-backup")', start)
-        callback = source[start:end].replace('\\\n', '\n').replace("\\'", "'")
+        source = (root / 'decompressed/gui_file/www/docroot/js/modals/modgui-modal.js').read_text()
+        start = source.index('$("#gui_skin").on("change"')
+        end = source.index('$("#btn-gen-backup")', start)
+        callback = source[start:end]
         script = r'''
 const assert = require('node:assert/strict');
 const vm = require('node:vm');
