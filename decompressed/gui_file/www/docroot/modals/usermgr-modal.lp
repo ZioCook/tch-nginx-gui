@@ -14,6 +14,7 @@ local type, setmetatable, random = type, setmetatable, math.random
 local table, ipairs, istainted, format = table, ipairs, string.istainted, string.format
 local untaint = string.untaint
 local srp = require("srp")
+local json = require("dkjson")
 local session = ngx.ctx.session
 local printf = require("web.web").printf
 
@@ -427,227 +428,20 @@ end
 </form>\
 </div>\
 \
-');  ngx.print( ui_helper.createFooter() ); ngx.print('\
-\
-<script type="text/javascript" >\
-\
-	window.ensureScript("/js/srp-min.js", function(){ return typeof SRP === "function"; });\
-\
-    var oldusername = $(\'input[name="name"]\').val();\
-    ');  -- In case user name modifed, the old user name has to be fetched from session during error case.
-    if session:retrieve("editedUserName") then  ngx.print('\
-       oldusername = "');  ngx.print(session:retrieve("editedUserName")); ngx.print('"\
-    ');  end  ngx.print('\
-    function clear_error_password()\
-    {\
-        var upass = $(\'.modal input[name="password"],.modal input[name="password2"],.modal input[name="oldpassword"]\');\
-        upass.removeClass("tooltip-on error");\
-        upass.closest(".control-group").removeClass("error");\
-        upass.next().remove();\
-    }\
-\
-    function display_error_password(msg)\
-    {\
-        var upass = $(\'.modal input[name="password"],.modal input[name="password2"]\');\
-        upass.addClass("error");\
-        upass.closest(".control-group").addClass("error");\
-        upass.first().after(\'<span class="help-inline">\' + msg + \'</span>\');\
-    }\
-\
-    function display_error_message(msg)\
-    {\
-        var upass = $(\'.modal input[name="password"]\');\
-        upass.addClass("error");\
-        upass.closest(".control-group").addClass("error");\
-        upass.first().after(\'<span class="help-inline">\' + msg + \'</span>\');\
-    }\
-\
-	function display_info_message(msg)\
-    {\
-        var upass = $(\'.modal input[name="password"]\');\
-        upass.addClass("info");\
-        upass.closest(".control-group").addClass("info");\
-        upass.first().after(\'<span class="help-inline">\' + msg + \'</span>\');\
-    }\
-\
-    function clear_error_user()\
-    {\
-        var uinput = $(\'.modal input[name="name"]\');\
-        uinput.removeClass("tooltip-on").removeClass("error");\
-        uinput.closest(".control-group").removeClass("error");\
-    }\
-\
-    function display_error_user()\
-    {\
-        var uinput = $(\'.modal input[name="name"]\');\
-        uinput.addClass("tooltip-on error");\
-        uinput.attr("placement", "top");\
-        uinput.attr("data-original-title", "');  ngx.print( T"User name cannot be empty" ); ngx.print('");\
-        uinput.closest(".control-group").addClass("error");\
-        $(\'.tooltip-on\').tooltip();\
-    }\
-\
-    // "Disable" the existing handler by removing the class it matches on (tried to use the off() method of jquery to no avail)\
-    $(".modal .btn-table-modify").removeClass("btn-table-modify").addClass("btn-table-modify-custom");\
-    $(".modal .btn-table-add").removeClass("btn-table-add").addClass("btn-table-add-custom");\
-    $(".modal .btn-table-modify-custom,.modal .btn-table-add-custom").on("click", function () {\
-        clear_error_user();\
-        clear_error_password();\
-\
-        var self = this;\
-        var user = $(\'input[name="name"]\').val();\
-        var password = $(\'input[name="password"]\').val();\
-        var password2 = $(\'input[name="password2"]\').val();\
-        var salt = $(\'input[name="srp_salt"]\').val();\
-        var verifier = $(\'input[name="srp_verifier"]\').val();\
-        if(user == "") {\
-            display_error_user();\
-            return;\
-        }\
-\
-        if((password.length < 12) || (passwordCheck(password)) < 5){\
-            if(password.length == 0) {\
-                display_error_message("');  ngx.print( T"Provide a password to prevent unauthorized access to the gateway" ); ngx.print('");\
-				return;\
-			}\
-            else {\
-                display_error_message("');  ngx.print( T"Password should contain at least 12 alphanumeric characters including both upper and lower case letters,"
-				.. "<br/>" .. T"at least one number and at least one special character" ); ngx.print('");\
-				display_info_message("'); ngx.print( T"This could cause security risk, take care of this." .. "<b>" .. T"Applying anyway..." ); ngx.print('");\
-            }\
-        }\
-\
-        if(password !== password2) {\
-            display_error_password("');  ngx.print( T"Passwords do not match" ); ngx.print('");\
-            return;\
-        }\
-\
-        function sendData(cryptpw)\
-        {\
-            var target = $(".modal form").attr("action");\
-            var table = $(self).closest("table");\
-            var id = table.attr("id");\
-            var line = $(self).closest("tr");\
-            var index = line.index();\
-            var action;\
-            var params = table.find(".line-edit :input").serializeArray();\
-\
-            if($(self).hasClass("btn-table-add-custom")) {\
-                action = "TABLE-ADD";\
-            } else {\
-                action = "TABLE-MODIFY";\
-                index  = index - 2;\
-            }\
-            var add_params = table.find(".additional-edit :input").serializeArray();\
-            params = params.concat(add_params);\
-            params.push({\
-                name : "tableid",\
-                value : id\
-            });\
-            params.push({\
-                name : "stateid",\
-                value : table.attr("data-stateid")\
-            });\
-            params.push({\
-                name : "action",\
-                value : action\
-            });\
-            params.push({\
-                name : "cryptpw",\
-                value : cryptpw\
-            });\
-            params.push({\
-                name : "index",\
-                value : index + 1\
-            });\
-            params.push(tch.elementCSRFtoken());\
-            tch.loadModal(target, params, function() {\
-                tch.scrollRowIntoView(id, index);\
-            });\
-        }\
-\
-        window.ensureScript("/js/srp-min.js", function(){ return typeof SRP === "function"; }, function() {\
-        var srp = new SRP();\
-        function generateSaltAndVerifier() {\
-            srp.generateSaltAndVerifierTheCallback(user, password, function(salt, verifier, cryptpw) {\
-                $(\'input[name="srp_salt"]\').val(salt);\
-                $(\'input[name="srp_verifier"]\').val(verifier);\
-                $(\'input[name="password"]\').val(""); // clean that up no need to send it over the air\
-                $(\'input[name="password2"]\').val("");\
-                $(\'input[name="oldpassword"]\').val("");\
-                sendData(cryptpw);\
-            });\
-        }\
-\
-		if((password.length < 12) || (passwordCheck(password)) < 5){\
-			setTimeout( srp.success = generateSaltAndVerifier, 2000);\
-		} else {\
-			srp.success = generateSaltAndVerifier;\
-		}\
-\
-        srp.error_message = function() {\
-            var upass = $(\'.modal input[name="oldpassword"]\');\
-            upass.addClass("error");\
-            upass.closest(".control-group").addClass("error");\
-            upass.first().after(\'<span class="help-inline">');  ngx.print(T"Old password is incorrect"); ngx.print('</span>\');\
-        };\
-        var oldpassword = $(\'input[name="oldpassword"]\').val();\
-        if(oldpassword != undefined) {\
-            //Start for legacy migration: GUI username/password [NG-48489]\
-            var legacySalts = "');  ngx.print( legacySalts ); ngx.print('";\
-            var userNames = "');  ngx.print( userNames ); ngx.print('";\
-            var index = -1;\
-            var userNameArray = userNames.split(",");\
-            var legacySaltArray = legacySalts.split(",");\
-\
-            for (var i = 0; i < userNameArray.length - 1; i ++)\
-            {\
-              if (oldusername == userNameArray[i])\
-              {\
-                index = i;\
-              }\
-            }\
-\
-            if (index >= 0)\
-            {\
-              var hashObj = new jsSHA((legacySaltArray[index]+tch.stringToHex(oldpassword)), "HEX");\
-              oldpassword = hashObj.getHash("SHA-1", "HEX");\
-            }\
-            //End for legacy migration: GUI username/password [NG-48489]\
-\
-            srp.identify("/modals/usermgr-modal.lp", oldusername, oldpassword);\
-        }\
-        else {\
-            generateSaltAndVerifier();\
-        }\
-        });\
-    });\
-\
-    $(\'#usrmodal_password\').parent().after(\'<div class = "controls"><div id="Strength"></div></div>\');\
-    $(\'#repeat_pass\').parent().css("padding-top" , "5px");\
-\
-    function passwordCheck(password)\
-    {\
-        var level = 0;\
-\
-        //if password bigger than 6 give 1 point\
-        if (password.length >= 6) level++;\
-\
-        //if password has both lower and uppercase characters give 1 point\
-        if ( ( password.match(/[a-z]/) ) && ( password.match(/[A-Z]/) ) ) level++;\
-\
-        //if password has at least one number give 1 point\
-        if (password.match(/\\d+/)) level++;\
-\
-        //if password has at least one special caracther give 1 point\
-        if ( password.match(/[!,@,#,$,%,^,&,*,?,_,~,-,(,)]/) )  level++;\
-\
-        //if password bigger than 8 give another 1 point\
-        if (password.length >= 8) level++;\
-\
-        $(\'#Strength\').removeClass().addClass("strength" + level);\
-        return level;\
-    };\
-\
-</script>\
+');  ngx.print( ui_helper.createFooter() );
+local edited_user = session:retrieve("editedUserName")
+local cfg_json = json.encode({
+    editedUserName = edited_user and untaint(tostring(edited_user)) or "",
+    legacySalts = untaint(tostring(legacySalts or "")),
+    userNames = untaint(tostring(userNames or "")),
+    emptyUser = untaint(tostring(T"User name cannot be empty")),
+    providePassword = untaint(tostring(T"Provide a password to prevent unauthorized access to the gateway")),
+    weakPassword = untaint(tostring(T"Password should contain at least 12 alphanumeric characters including both upper and lower case letters," .. "<br/>" .. T"at least one number and at least one special character")),
+    securityRiskWarning = untaint(tostring(T"This could cause security risk, take care of this." .. "<b>" .. T"Applying anyway...")),
+    passwordsMismatch = untaint(tostring(T"Passwords do not match")),
+    oldPasswordIncorrect = untaint(tostring(T"Old password is incorrect")),
+}):gsub("</", "<\\/")
+ngx.print('\
+<script type="application/json" id="usermgr-modal-cfg">'); ngx.print(cfg_json); ngx.print('</script>\
+<script>window.ensureScript("/js/modals/usermgr-modal.js",function(){return typeof window.initUsermgrModal==="function";},function(){window.initUsermgrModal();});</script>\
 '); 
