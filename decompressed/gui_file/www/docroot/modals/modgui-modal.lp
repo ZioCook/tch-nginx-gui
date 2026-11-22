@@ -310,7 +310,50 @@ if ngx.req.get_method() == "POST" then
                 return sendcmd("checkver")
         end
         if action == "getVendor" then
-                ngx.print(call_popen(untaint("touch /tmp/mac_cache 2>/dev/null; ! grep -qs " .. post_args.mac:gsub('_.*','') .. " /tmp/mac_cache && (curl -fksm 2 https://api.maclookup.app/v2/macs/" .. post_args.mac:gsub('_.*','') .. "/company/name >> /tmp/mac_cache && echo '|" .. post_args.mac:gsub('_.*','') .. "' >> /tmp/mac_cache); grep -s " .. post_args.mac:gsub('_.*','') .. " /tmp/mac_cache | cut -d'|' -f1"), "r"))
+                local raw_mac = (type(post_args.mac) == "table" and not string.istainted(post_args.mac)) and post_args.mac[1] or post_args.mac
+                local mac_str = untaint(raw_mac or ""):gsub("_.*$", "")
+                local valid_mac = mac_str:match("^%x%x[:%-]%x%x[:%-]%x%x[:%-]%x%x[:%-]%x%x[:%-]%x%x$")
+                        or mac_str:match("^%x%x[:%-]%x%x[:%-]%x%x$")
+                        or mac_str:match("^%x%x%x%x%x%x$")
+                if not valid_mac then
+                        ngx.print("Unknown")
+                        ngx.exit(ngx.OK)
+                        return
+                end
+                local oui = mac_str:gsub("[:%-]", ""):upper():sub(1, 6)
+                if #oui ~= 6 or not oui:match("^%x%x%x%x%x%x$") then
+                        ngx.print("Unknown")
+                        ngx.exit(ngx.OK)
+                        return
+                end
+                local cache_path = "/tmp/mac_cache"
+                local vendor
+                local cache_lines = 0
+                local cf = io.open(cache_path, "r")
+                if cf then
+                        for line in cf:lines() do
+                                cache_lines = cache_lines + 1
+                                local v, k = line:match("^([^|]*)|([^|]+)$")
+                                if k and k:gsub("[:%-]", ""):upper():sub(1, 6) == oui then
+                                        vendor = v
+                                        break
+                                end
+                        end
+                        cf:close()
+                end
+                if not vendor then
+                        local raw_vendor = call_popen("curl -fks --connect-timeout 2 --max-time 3 'https://api.maclookup.app/v2/macs/" .. oui .. "/company/name'", "r")
+                        vendor = (raw_vendor or ""):gsub("[\r\n|<>\"'&]", " "):match("^%s*(.-)%s*$"):sub(1, 128)
+                        if vendor ~= "" then
+                                local mode = (cache_lines >= 512) and "w" or "a"
+                                local wf = io.open(cache_path, mode)
+                                if wf then
+                                        wf:write(vendor .. "|" .. oui .. "\n")
+                                        wf:close()
+                                end
+                        end
+                end
+                ngx.print(vendor or "")
                 ngx.exit(ngx.OK)
                 return
         end
