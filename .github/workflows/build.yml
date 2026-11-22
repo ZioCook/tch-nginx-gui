@@ -40,7 +40,7 @@ jobs:
 
       - name: Lint Lua syntax
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y -qq lua5.1 lua-bitop luacheck shellcheck
+          sudo apt-get update -qq && sudo apt-get install -y -qq lua5.1 lua-bitop lua-check shellcheck
           bash scripts/1-lint_lua_syntax.sh decompressed
 
       - name: Lint Lua with luacheck
