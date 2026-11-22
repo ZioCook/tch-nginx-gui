@@ -34,13 +34,12 @@ ngx.print('\
 	end
 	ngx.print('\
 	<script src="/js/jquery.min.js?version='); ngx.print(cui.gui_version); ngx.print('" ></script>\
-	<script src="/js/main-min-nojquery.js?version='); ngx.print(cui.gui_version); ngx.print('" ></script>\
-	<script src="/js/knockout-min.js?version='); ngx.print(cui.gui_version); ngx.print('"></script>')
+	<script src="/js/main-min-nojquery.js?version='); ngx.print(cui.gui_version); ngx.print('" ></script>')
 	if cui.gui_animation == "1" then
 		ngx.print('<script src="/js/aos.js?version='); ngx.print(cui.gui_version); ngx.print('"></script>')
 	end
 	ngx.print('\
-	<script async src="/js/srp-min.js?version='); ngx.print(cui.gui_version); ngx.print('" ></script>');
+	');
 	--ngx.print('<script src="/js/jquery-migrate.js?version='); ngx.print(cui.gui_version); ngx.print('" ></script>')  -- Usefull to debug deprecated function from jquery update
 	if content_helper.themeHasScript(cui.gui_skin) then
 		ngx.print('<script src="/theme/');  ngx.print( cui.gui_skin ); ngx.print('/script.js?version='); ngx.print(cui.gui_version); ngx.print('"></script>');
