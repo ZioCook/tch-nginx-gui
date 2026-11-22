@@ -1716,21 +1716,21 @@ end
 ');  ngx.print(ui_helper.createFooter())
 local cfg_json = json.encode({
   hasAnalyzer = (getWifiAnalyzer ~= nil),
-  wifiAnalyzer = getWifiAnalyzer and untaint(tostring(getWifiAnalyzer)) or "",
-  radio = radio and untaint(tostring(radio)) or "",
+  wifiAnalyzer = getWifiAnalyzer and tostring(untaint(getWifiAnalyzer)) or "",
+  radio = radio and tostring(untaint(radio)) or "",
   is2G = (radio == "radio_2G"),
-  curradio = curradio and untaint(tostring(curradio)) or "",
-  curiface = curiface and untaint(tostring(curiface)) or "",
-  curap = curap and untaint(tostring(curap)) or "",
-  aclMode = (content and content["acl_mode"]) and untaint(tostring(content["acl_mode"])) or "",
+  curradio = curradio and tostring(untaint(curradio)) or "",
+  curiface = curiface and tostring(untaint(curiface)) or "",
+  curap = curap and tostring(untaint(curap)) or "",
+  aclMode = (content and content["acl_mode"]) and tostring(untaint(content["acl_mode"])) or "",
   aclModeChanged = (current_acl_mode ~= (content and content["acl_mode"])),
   isTableLoaded = (isTableLoaded == true),
-  tSsid = untaint(tostring(T"Network Name (SSID)")),
-  tChannel = untaint(tostring(T"Channel")),
-  t40Mhz = untaint(tostring(T"40MHz")),
-  t80Mhz = untaint(tostring(T"80MHz")),
-  tRssi = untaint(tostring(T"Signal Strength (RSSI)")),
-  tRescanning = untaint(tostring(T"Re-scanning")),
+  tSsid = tostring(untaint(T"Network Name (SSID)")),
+  tChannel = tostring(untaint(T"Channel")),
+  t40Mhz = tostring(untaint(T"40MHz")),
+  t80Mhz = tostring(untaint(T"80MHz")),
+  tRssi = tostring(untaint(T"Signal Strength (RSSI)")),
+  tRescanning = tostring(untaint(T"Re-scanning")),
 }):gsub("</", "<\\/")
 ngx.print('\
 <script type="application/json" id="wireless-modal-cfg">'); ngx.print(cfg_json); ngx.print('</script>\

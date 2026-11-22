@@ -193,9 +193,17 @@
 				});
 			});
 
+		$(".modal, #modal-container").off("hidden.bs.modal" + NS).on("hidden.bs.modal" + NS, function () {
+			$(document).off(NS);
+		});
 		if ($("#Strength").length === 0) {
 			$("#usrmodal_password").parent().after('<div class = "controls"><div id="Strength"></div></div>');
 			$("#repeat_pass").parent().css("padding-top", "5px");
 		}
+		$(document)
+			.off("keyup" + NS + " input" + NS)
+			.on("keyup" + NS + " input" + NS, "#usrmodal_password", function () {
+				passwordCheck(this.value);
+			});
 	};
 }());

@@ -24,6 +24,15 @@ class GuiAssetDependencies(unittest.TestCase):
         modal = WWW / "docroot/modals/wireless-client-modal.lp"
         self.assertIn('action="modals/wireless-client-modal.lp"', modal.read_text())
 
+    def test_modal_json_configs_never_wrap_tostring_before_untaint(self):
+        # web.taint __tostring returns literal "tainted string"; untaint() must run first
+        offenders = [
+            str(p.relative_to(WWW))
+            for p in sorted(WWW.rglob("*.lp"))
+            if "untaint(tostring(" in p.read_text(encoding="utf-8", errors="ignore")
+        ]
+        self.assertEqual(offenders, [])
+
 
 if __name__ == "__main__":
     unittest.main()

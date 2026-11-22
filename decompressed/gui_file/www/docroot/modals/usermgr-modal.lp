@@ -431,15 +431,15 @@ end
 ');  ngx.print( ui_helper.createFooter() );
 local edited_user = session:retrieve("editedUserName")
 local cfg_json = json.encode({
-    editedUserName = edited_user and untaint(tostring(edited_user)) or "",
-    legacySalts = untaint(tostring(legacySalts or "")),
-    userNames = untaint(tostring(userNames or "")),
-    emptyUser = untaint(tostring(T"User name cannot be empty")),
-    providePassword = untaint(tostring(T"Provide a password to prevent unauthorized access to the gateway")),
-    weakPassword = untaint(tostring(T"Password should contain at least 12 alphanumeric characters including both upper and lower case letters," .. "<br/>" .. T"at least one number and at least one special character")),
-    securityRiskWarning = untaint(tostring(T"This could cause security risk, take care of this." .. "<b>" .. T"Applying anyway...")),
-    passwordsMismatch = untaint(tostring(T"Passwords do not match")),
-    oldPasswordIncorrect = untaint(tostring(T"Old password is incorrect")),
+    editedUserName = edited_user and tostring(untaint(edited_user)) or "",
+    legacySalts = tostring(untaint(legacySalts or "")),
+    userNames = tostring(untaint(userNames or "")),
+    emptyUser = tostring(untaint(T"User name cannot be empty")),
+    providePassword = tostring(untaint(T"Provide a password to prevent unauthorized access to the gateway")),
+    weakPassword = tostring(untaint(T"Password should contain at least 12 alphanumeric characters including both upper and lower case letters," .. "<br/>" .. T"at least one number and at least one special character")),
+    securityRiskWarning = tostring(untaint(T"This could cause security risk, take care of this." .. "<b>" .. T"Applying anyway...")),
+    passwordsMismatch = tostring(untaint(T"Passwords do not match")),
+    oldPasswordIncorrect = tostring(untaint(T"Old password is incorrect")),
 }):gsub("</", "<\\/")
 ngx.print('\
 <script type="application/json" id="usermgr-modal-cfg">'); ngx.print(cfg_json); ngx.print('</script>\
