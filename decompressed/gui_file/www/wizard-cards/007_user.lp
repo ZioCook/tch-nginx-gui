@@ -93,7 +93,7 @@ ngx.print('\
 <script type="text/javascript">\
 (function() {\
 \
-	$.getScript("/js/srp-min.js");\
+	window.ensureScript("/js/srp-min.js", function(){ return typeof SRP === "function"; });\
 \
     function clear_error(id)\
     {\
@@ -153,13 +153,15 @@ ngx.print('\
                     tch.nextWizardCard(1);\
                 } else\
                 {\
-                    var srp = new SRP();\
-                    srp.generateSaltAndVerifierTheCallback(user, password, function(salt, verifier) {\
-                        $(\'input[name="srp_salt"]\').val(salt);\
-                        $(\'input[name="srp_verifier"]\').val(verifier);\
-                        $(\'input[name="web_password"]\').val(""); // clean that up no need to send it over the air\
-                        $(\'input[name="web_password2"]\').val("");\
-                        tch.nextWizardCard(1);\
+                    window.ensureScript("/js/srp-min.js", function(){ return typeof SRP === "function"; }, function() {\
+                        var srp = new SRP();\
+                        srp.generateSaltAndVerifierTheCallback(user, password, function(salt, verifier) {\
+                            $(\'input[name="srp_salt"]\').val(salt);\
+                            $(\'input[name="srp_verifier"]\').val(verifier);\
+                            $(\'input[name="web_password"]\').val(""); // clean that up no need to send it over the air\
+                            $(\'input[name="web_password2"]\').val("");\
+                            tch.nextWizardCard(1);\
+                        });\
                     });\
                 }\
             } else {\

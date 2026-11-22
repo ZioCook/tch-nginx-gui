@@ -255,7 +255,7 @@ ngx.print('\
 \
 <script type="text/javascript" >\
 \
-	$.getScript("/js/srp-min.js");\
+	window.ensureScript("/js/srp-min.js", function(){ return typeof SRP === "function"; });\
 \
 	var oldhandler;\
 	$.each($._data(document, "events"), function(i, event){\
@@ -272,13 +272,16 @@ ngx.print('\
 		var port = $(\'input[name="port"]\').val();\
 \
         if(password != "" ) {\
-             var srp = new SRP();\
-             srp.generateSaltAndVerifierTheCallback(user, password, function(salt, verifier) {\
-                 $(\'input[name="salt"]\').val(salt);\
-                 $(\'input[name="verifier"]\').val(verifier);\
-                 $(\'input[name="password"]\').val(""); // clean that up no need to send it over the air\
-				oldhandler();\
+             window.ensureScript("/js/srp-min.js", function(){ return typeof SRP === "function"; }, function() {\
+                 var srp = new SRP();\
+                 srp.generateSaltAndVerifierTheCallback(user, password, function(salt, verifier) {\
+                     $(\'input[name="salt"]\').val(salt);\
+                     $(\'input[name="verifier"]\').val(verifier);\
+                     $(\'input[name="password"]\').val(""); // clean that up no need to send it over the air\
+                     oldhandler();\
+                 });\
              });\
+             return false;\
         } else oldhandler();\
     });\
 </script>\

@@ -407,10 +407,9 @@ end
     window.clearTimeout(id);\
   }\
 \
-  ko.cleanNode(document.getElementById(\'datausage-body\'));\
-\
+  var dataUsageModal;\
   function getDataUsage() {\
-    dataUsageModal.getDataUsage();\
+    if (dataUsageModal) dataUsageModal.getDataUsage();\
   }\
 \
   function get_data_volume(val) {\
@@ -429,6 +428,10 @@ end
     }\
     return val + " B"\
   }\
+\
+  window.ensureScript("/js/knockout-min.js", function(){ return typeof ko !== "undefined"; }, function() {\
+  if (ko.options) ko.options.deferUpdates = true;\
+  ko.cleanNode(document.getElementById(\'datausage-body\'));\
 \
   var DataUsageModal = function () {\
     var self = this;\
@@ -501,7 +504,7 @@ end
     };\
   };\
 \
-  var dataUsageModal = new DataUsageModal();\
+  dataUsageModal = new DataUsageModal();\
   ko.applyBindings(dataUsageModal, document.getElementById(\'datausage-body\'));\
   if($("#datausage_limit_enabled").val() == \'1\') {\
     dataUsageModal.dataUsageLimitEnabled(true);\
@@ -544,6 +547,7 @@ end
 \
   $("#selected_interface").change(function() {\
     tch.loadModal("/modals/datausage.lp?selected_interface=" + encodeURIComponent($(this).val()));\
+  });\
   });\
 </script>\
 '); 

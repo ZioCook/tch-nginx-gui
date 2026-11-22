@@ -511,6 +511,8 @@ end
 		};\
 	}\
 \
+	window.ensureScript("/js/knockout-min.js", function(){ return typeof ko !== "undefined"; }, function() {\
+	if (ko.options) ko.options.deferUpdates = true;\
 	var LteDoctor = function () {\
 		this.requests = {\
 			stats : {},\
@@ -1073,5 +1075,6 @@ end
 \
 	var lteDoctor = new LteDoctor();\
 	lteDoctor.init();\
+	});\
 </script>\
 '); 

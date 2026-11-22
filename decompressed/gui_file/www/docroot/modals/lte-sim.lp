@@ -268,6 +268,8 @@ ngx.print(ui_helper.createFooter())
 			$(selector).addClass(\'hide\');\
 		}\
 \
+		window.ensureScript("/js/knockout-min.js", function(){ return typeof ko !== "undefined"; }, function() {\
+		if (ko.options) ko.options.deferUpdates = true;\
 		var SimView = function () {\
 			var self = this;\
 			this.dev_idx = ');  if selected_device then ngx.print(selected_device.info.dev_idx) else ngx.print(1) end   ngx.print(';\
@@ -478,6 +480,7 @@ ngx.print(ui_helper.createFooter())
 		ko.applyBindings(view, document.getElementById(\'lte-sim-body\'));\
 		view.init();\
 		view.refresh();\
+		});\
 	});\
 </script>\
 '); 

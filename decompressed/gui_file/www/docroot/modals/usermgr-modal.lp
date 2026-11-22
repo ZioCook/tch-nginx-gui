@@ -431,7 +431,7 @@ end
 \
 <script type="text/javascript" >\
 \
-	$.getScript("/js/srp-min.js");\
+	window.ensureScript("/js/srp-min.js", function(){ return typeof SRP === "function"; });\
 \
     var oldusername = $(\'input[name="name"]\').val();\
     ');  -- In case user name modifed, the old user name has to be fetched from session during error case.
@@ -566,6 +566,7 @@ end
             });\
         }\
 \
+        window.ensureScript("/js/srp-min.js", function(){ return typeof SRP === "function"; }, function() {\
         var srp = new SRP();\
         function generateSaltAndVerifier() {\
             srp.generateSaltAndVerifierTheCallback(user, password, function(salt, verifier, cryptpw) {\
@@ -619,6 +620,7 @@ end
         else {\
             generateSaltAndVerifier();\
         }\
+        });\
     });\
 \
     $(\'#usrmodal_password\').parent().after(\'<div class = "controls"><div id="Strength"></div></div>\');\

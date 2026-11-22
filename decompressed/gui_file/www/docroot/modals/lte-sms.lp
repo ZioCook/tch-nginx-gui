@@ -120,6 +120,8 @@ local params = utils.get_params()
 		return obj;\
 	}\
 \
+	window.ensureScript("/js/knockout-min.js", function(){ return typeof ko !== "undefined"; }, function() {\
+	if (ko.options) ko.options.deferUpdates = true;\
 	var SmsView = function () {\
 		var self = this;\
 		this.messages = ko.observableArray([]);\
@@ -188,5 +190,6 @@ local params = utils.get_params()
 \
 	var smsView = new SmsView();\
 	ko.applyBindings(smsView, document.getElementById(\'lte-sms-body\'));\
+	});\
 </script>\
 '); 

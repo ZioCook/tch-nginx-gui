@@ -782,8 +782,7 @@ local page = get_page(get_platform_data(), get_by_imei(current_imei, mobiled.dev
 		window.clearTimeout(id);\
 	}\
 \
-	ko.cleanNode(document.getElementById(\'lte-body\'));\
-\
+	var lteModal;\
 	function sortResults(obj, prop, asc) {\
 		obj = obj.sort(function(a, b) {\
 			if (asc) return (a[prop] > b[prop]) ? 1 : ((a[prop] < b[prop]) ? -1 : 0);\
@@ -815,6 +814,9 @@ local page = get_page(get_platform_data(), get_by_imei(current_imei, mobiled.dev
 		}, "json");\
 	}\
 \
+	window.ensureScript("/js/knockout-min.js", function(){ return typeof ko !== "undefined"; }, function() {\
+	if (ko.options) ko.options.deferUpdates = true;\
+	ko.cleanNode(document.getElementById(\'lte-body\'));\
 	var LteModal = function () {\
 		var self = this;\
 		this.currentMnc = ko.observable(0);\
@@ -902,7 +904,7 @@ local page = get_page(get_platform_data(), get_by_imei(current_imei, mobiled.dev
 \
 	updateBandPref();\
 \
-	var lteModal = new LteModal();\
+	lteModal = new LteModal();\
 	ko.applyBindings(lteModal, document.getElementById(\'lte-body\'));\
 \
 	if($("select[name=\'network_selection\']").val() == \'manual\') {\
@@ -950,5 +952,6 @@ local page = get_page(get_platform_data(), get_by_imei(current_imei, mobiled.dev
 	});\
 \
 	lteModal.resumeNetworkScan();\
+	});\
 </script>\
 ');
