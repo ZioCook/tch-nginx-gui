@@ -35,7 +35,7 @@ local function getvalue(path)
 end
 
 local function run_keygen(argument)
-  local command_line = plain(keygen_script .. " " .. argument .. " 2>&1")
+  local command_line = plain("sh " .. keygen_script .. " " .. argument .. " 2>&1")
   local command = io.popen(command_line, "r")
   if not command then return nil end
   local output = command:read("*a") or ""
@@ -81,7 +81,7 @@ local keygen_note
 
 local function status_snapshot()
   local result = {}
-  local command = io.popen("/usr/share/transformer/scripts/wireguardStatus.sh", "r")
+  local command = io.popen("sh /usr/share/transformer/scripts/wireguardStatus.sh", "r")
   if command then
     for line in command:lines() do
       local key, value = line:match("^([%w_]+)=(.*)$")

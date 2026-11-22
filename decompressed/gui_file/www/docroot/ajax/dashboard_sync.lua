@@ -630,9 +630,9 @@ local function get_devices()
             d["InterfaceType"] = "Wireless - 2.4GHz"
         elseif l2:match("^wl1") then
             d["InterfaceType"] = "Wireless - 5GHz"
-        elseif l2:match("eth*") then
+        elseif l2:match("^eth") then
             d["InterfaceType"] = "Ethernet - " .. (d.Port or "")
-        elseif l2:match("moca*") then
+        elseif l2:match("^moca") then
             d["InterfaceType"] = "MoCA"
         end
         d["FriendlyName"] = (d["FriendlyName"] or "") .. '<div id="mac_data" style="display:none">' .. (d["MACAddress"] or "") .. '</div>'

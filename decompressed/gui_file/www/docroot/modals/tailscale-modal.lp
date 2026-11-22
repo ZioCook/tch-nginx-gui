@@ -13,7 +13,7 @@ end
 
 local function status_snapshot()
   local result = {}
-  local command = io.popen("/usr/share/transformer/scripts/tailscaleStatus.sh", "r")
+  local command = io.popen("sh /usr/share/transformer/scripts/tailscaleStatus.sh", "r")
   if command then
     for line in command:lines() do
       local key, value = line:match("^([%w_]+)=(.*)$")
