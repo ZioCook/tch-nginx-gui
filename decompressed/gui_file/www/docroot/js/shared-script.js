@@ -3,7 +3,7 @@ var KoRequest={};var connectionissue=0;
 function get_bitrate(b){b*=8;return 1E9<b?(b=(b/1E9).toFixed(1),b+" Gbit/s"):1E6<b?(b/=1E6,b=b.toFixed(1),b+" Mbit/s"):1E3<b?(b/=1E3,b=b.toFixed(1),b+" Kbit/s"):b+" bit/s"}
 var modgui=modgui||{};!function(module){function standardCloseAction(){tch.showProgress(waitMsg);window.location.reload(true);}
 function postAction(action,logModal,customCloseAction,customTarget){var onClose=(typeof customCloseAction==="function")&&customCloseAction||function(){tch.showProgress(waitMsg);window.location.reload(true);}
-var target=customTarget?customTarget:$(".modal form").attr("action");$.post(target,{action:action,CSRFtoken:$("meta[name=CSRFtoken]").attr("content")},null,"json");if(logModal){clearKoInterval();$(window).on('shown.bs.modal',function(){$(".modal-backdrop").unbind();$("#close-config,.modal-action-close").unbind("click");$("#close-config,.modal-action-close").on("click",function(){onClose();});});tch.openModal("/modals/command-log-read-modal.lp");}
+var target=customTarget?customTarget:$(".modal form").attr("action");$.post(target,{action:action,CSRFtoken:$("meta[name=CSRFtoken]").attr("content")},null,"json");if(logModal){clearKoInterval();$(window).on('shown.bs.modal',function(){$(".modal-backdrop").unbind();$("#close-config,.modal-action-close").unbind("click");$("#close-config,.modal-action-close").on("click",function(){onClose();});});tch.openModal("/modals/command-log-read-modal.lp?cmd_action="+encodeURIComponent(action||""));}
 return false;}
 var _syncCards={};var _syncTimer=null;var _syncInFlight=false;
 function _getSyncModule(link){
@@ -62,6 +62,11 @@ function _masterSync(){
             connectionissue=0;
         }
     }).fail(function(data){
+        if(data.status===503){
+            if(window.isUpgrading){return;}
+            if(!window._maintRedirect){window._maintRedirect=true;window.location.replace("/");}
+            return;
+        }
         connectionissue=1;
         switch(data.status){
             case 200:
@@ -74,7 +79,7 @@ function _masterSync(){
                 window.location.href="/error.lp?status="+data.status+"&err="+data.getResponseHeader("error-msg");
                 break;
             default:
-                if(!$("#popUp").is(":visible"))tch.showProgress(connectionLost+" "+data.statusText);
+                if(!window.isUpgrading&&!$("#popUp").is(":visible"))tch.showProgress(connectionLost+" "+data.statusText);
         }
     }).always(function(){
         _syncInFlight=false;
@@ -146,6 +151,11 @@ function createAjaxUpdateCard(CardIdRefresh,ajaxLink,IntervalVar,RefreshTime,Cus
                 connectionissue=0;
             }
         }).fail(function(data){
+            if(data.status===503){
+                if(window.isUpgrading){return;}
+                if(!window._maintRedirect){window._maintRedirect=true;window.location.replace("/");}
+                return;
+            }
             connectionissue=1;
             switch(data.status){
                 case 200:
@@ -158,7 +168,7 @@ function createAjaxUpdateCard(CardIdRefresh,ajaxLink,IntervalVar,RefreshTime,Cus
                     window.location.href="/error.lp?status="+data.status+"&err="+data.getResponseHeader("error-msg");
                     break;
                 default:
-                    if(!$("#popUp").is(":visible"))tch.showProgress(connectionLost+" "+data.statusText);
+                    if(!window.isUpgrading&&!$("#popUp").is(":visible"))tch.showProgress(connectionLost+" "+data.statusText);
             }
         });
     };

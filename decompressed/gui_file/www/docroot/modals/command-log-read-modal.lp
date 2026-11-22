@@ -51,6 +51,13 @@ html[#html + 1] = '[Inizializzazione] Avvio operazione in corso...'
 html[#html + 1] = '</div>'
 html[#html + 1] = '</fieldset>'
 
+local uri_cmd_action = ngx.req.get_uri_args().cmd_action
+if type(uri_cmd_action) == "table" and not string.istainted(uri_cmd_action) then
+  uri_cmd_action = uri_cmd_action[1]
+end
+local raw_cmd_action = (type(uri_cmd_action) == "string" or string.istainted(uri_cmd_action)) and string.untaint(uri_cmd_action) or ""
+local safe_cmd_action = raw_cmd_action:match("^[%w_%-]+$") and raw_cmd_action or ""
+
 html[#html + 1] = [[
   </form>
 </div>
@@ -63,7 +70,7 @@ html[#html + 1] = [[
 
 	var lastProgress = 5;
 	var targetVer = "";
-	var cmdAction = "<%= ngx.req.get_uri_args().cmd_action or '' %>";
+	var cmdAction = "]] .. safe_cmd_action .. [[";
 	var isGuiUpgrade = (cmdAction === "system_upgrade_gui") || (cmdAction === "upgradeguifile") || (cmdAction === "autoupgrade_view");
 	window.isUpgrading = isGuiUpgrade;
 
