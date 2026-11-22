@@ -29,9 +29,9 @@ else
     versions="$(gh api "repos/$GITHUB_REPOSITORY/releases" --paginate --jq '.[].tag_name')"
     cur_ver="$(printf '%s\n' "$versions" | awk '/^[0-9]+\.[0-9]+\.[0-9]+$/' | sort -t. -k1,1n -k2,2n -k3,3n | tail -n 1)"
     if [[ -z "$cur_ver" ]]; then
-        if [[ "${GITHUB_EVENT_NAME:-}" == pull_request ]]; then
+        if [[ "${GITHUB_EVENT_NAME:-}" == pull_request || "${GITHUB_EVENT_NAME:-}" == workflow_dispatch ]]; then
             printf '%s\n' '0.0.0' > "$HOME/gui_build/data/version"
-            echo "Using non-publishing PR version 0.0.0"
+            echo "Using non-publishing PR/dispatch version 0.0.0"
             exit 0
         fi
         echo "No numeric release found. Set the initial version with [x.y.z] in the commit message." >&2

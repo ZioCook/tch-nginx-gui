@@ -7,8 +7,7 @@ echo "Detected $branch_name build"
 case "$branch_name" in
   stable) type=STABLE ;;
   preview) type=PREVIEW ;;
-  master) type=DEV ;;
-  *) type="$branch_name" ;;
+  master|*) type=DEV ;;
 esac
 printf '%s\n' "$type" > "$HOME/gui_build/data/type"
 git rev-parse --short HEAD > "$HOME/gui_build/data/short_commit_hash"
