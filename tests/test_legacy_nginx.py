@@ -2,6 +2,7 @@
 
 import os
 from pathlib import Path
+import re
 import subprocess
 import tempfile
 import textwrap
@@ -96,6 +97,38 @@ class LegacyNginxCompatibility(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertEqual(actual, LEGACY_CONFIG)
         self.assertIn("Legacy nginx compatibility failed", result.stderr)
+
+    def test_csp_report_only_header_and_no_html_shadowing(self):
+        nginx_conf = (ROOT / "decompressed/gui_file/etc/nginx/nginx.conf").read_text(encoding="utf-8")
+        self.assertRegex(
+            nginx_conf,
+            r'add_header\s+Content-Security-Policy-Report-Only\s+"[^"]+"\s+always;',
+        )
+        m = re.search(r'add_header\s+Content-Security-Policy-Report-Only\s+"([^"]+)"\s+always;', nginx_conf)
+        self.assertIsNotNone(m)
+        policy = m.group(1)
+        for directive in ("default-src 'self'", "object-src 'none'", "base-uri 'self'", "form-action 'self'", "frame-ancestors 'self'"):
+            self.assertIn(directive, policy)
+        self.assertNotIn("'unsafe-eval'", policy)
+        self.assertNotIn("report-uri", policy)
+        self.assertIsNone(re.search(r'add_header\s+Content-Security-Policy\s+"', nginx_conf))
+
+        # HTML-serving location blocks must not define add_header directives without repeating CSP-Report-Only
+        for loc in ("location = / {", "location /aria {", "location ^~ / {"):
+            start = nginx_conf.index(loc)
+            depth = 0
+            end = start
+            for i in range(start, len(nginx_conf)):
+                if nginx_conf[i] == "{":
+                    depth += 1
+                elif nginx_conf[i] == "}":
+                    depth -= 1
+                    if depth == 0:
+                        end = i + 1
+                        break
+            block = nginx_conf[start:end]
+            if "add_header " in block:
+                self.assertIn("Content-Security-Policy-Report-Only", block, f"Shadowing add_header in {loc}")
 
 
 if __name__ == "__main__":
