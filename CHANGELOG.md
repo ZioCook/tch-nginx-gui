@@ -1,5 +1,24 @@
 
-9.10.0 (Current Release Series)
+9.11.60 (Current Release Series)
+---------------------------------------------------------------------------
+- (Ottimizzazioni & Prestazioni GUI)
+  - Interfaccia web più reattiva grazie alla riduzione delle chiamate interne superflue (in particolare nella scheda Dispositivi) e al minore utilizzo di memoria nello strato Lua.
+  - Pulizia e semplificazione di helper principali e modali (WAN, Wi-Fi/EasyMesh, VoIP/Telefonia, Firewall/QoS, Condivisione, Diagnostica, Log e Wizard).
+- (Bug Fix)
+  - Ripristinata la visualizzazione degli errori di validazione su IP e porta Syslog nella modale di Sistema.
+  - Corretti i permessi di modifica/aggiunta/rimozione nelle tabelle di configurazione e resa più solida la validazione dell'hostname nella modale Gateway.
+  - Corretta la deduplicazione del disco `/` in `fastfetch` (rimosso il mount `rootfs` ridondante) e garantita la presenza di `/etc/os-release` sui modelli MIPS legacy.
+- (Sicurezza & Stabilità Servizi)
+  - Privilegi `sudo` ulteriormente ristretti per l'utente web (`env_reset` e `secure_path`), header HTTP di sicurezza in Nginx e sanitizzazione più rigorosa dei nomi file nel backup di sistema.
+  - Gestione più affidabile di lock, debouncing e timeout per l'attivazione/disattivazione del QoS.
+- (Telefonia & Estensioni)
+  - Consolidata la gestione della scheda e delle modali Asterisk Manager dalla linea di sviluppo.
+- (Dispositivi Testati)
+  - DGA4331 (VCNT-3)
+  - DGA4132 (VBNT-S)
+  - TG789vac v2 (VANT-6)
+
+9.10.0
 ---------------------------------------------------------------------------
 - (Suite di Ripristino di Emergenza - Standalone Rescue Suite v3)
   - Standalone Rescue Server (rescue_server.lua): server HTTP ultra-leggero e resiliente basato su LuaSocket puro (porta 8088), funzionante in modalità Out-of-Band (OOB) senza alcuna dipendenza da Nginx, LuaJIT o Transformer.
