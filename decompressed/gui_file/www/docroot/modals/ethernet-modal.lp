@@ -110,9 +110,28 @@ local curintf = "lan"
 -- Get all the LAN interfaces
 local net_intfs_path = "rpc.network.interface."
 local all_intfs = {}
-for _, v in pairs(content_helper.convertResultToObject(net_intfs_path .. "@.", proxy.get(net_intfs_path))) do
-	if proxy.get("uci.network.interface.@"..v.paramindex..".ipaddr") then
-		all_intfs[#all_intfs+1] = v
+local uci_ip_cache = {}
+local function rpc_val(res)
+	return (res and res[1] and res[1].value) or ""
+end
+local is_post = (ngx.var.request_method == "POST")
+for _, entry in ipairs(proxy.getPN(net_intfs_path, true) or {}) do
+	local idx = match(entry.path, "rpc%.network%.interface%.@([^%.]+)%.")
+	if idx then
+		local uci_ip_res = proxy.get("uci.network.interface.@" .. idx .. ".ipaddr")
+		if uci_ip_res then
+			uci_ip_cache[idx] = uci_ip_res[1] and uci_ip_res[1].value or ""
+			local base = net_intfs_path .. "@" .. idx .. "."
+			local itype = rpc_val(proxy.get(base .. "type"))
+			local need_ll = (itype == "lan" or idx == getintf)
+			all_intfs[#all_intfs + 1] = {
+				paramindex = idx,
+				type = itype,
+				name = (itype == "lan" or is_post) and rpc_val(proxy.get(base .. "name")) or "",
+				["ppp.ll_dev"] = need_ll and rpc_val(proxy.get(base .. "ppp.ll_dev")) or "",
+				["ppp.ll_intf"] = need_ll and rpc_val(proxy.get(base .. "ppp.ll_intf")) or "",
+			}
+		end
 	end
 end
 local wireless_radio = {}
@@ -128,11 +147,13 @@ for k,v in ipairs(all_intfs) do
     if v.type == "lan" and (not find(v["ppp.ll_intf"], "wl") or wireless_radio[untaint(v["ppp.ll_intf"])])then
         local radio = "noradio"
         local name = ""
-        local w1_exist = proxy.get("rpc.wireless.ssid.@"..v["ppp.ll_dev"]..".ssid")
-        if match(v["ppp.ll_dev"], "wl") then
-            if w1_exist and proxy.get("rpc.wireless.ssid.@"..v["ppp.ll_dev"]..".ssid")[1].value then
-                name = proxy.get("rpc.wireless.ssid.@"..v["ppp.ll_dev"]..".ssid")[1].value
-                if match(proxy.get("rpc.wireless.ssid.@"..v["ppp.ll_dev"]..".radio")[1].value, "radio_5G") then
+        local ll_dev = v["ppp.ll_dev"]
+        if match(ll_dev, "wl") then
+            local w1_exist = proxy.get("rpc.wireless.ssid.@"..ll_dev..".ssid")
+            if w1_exist and w1_exist[1] and w1_exist[1].value then
+                name = w1_exist[1].value
+                local w1_radio = proxy.get("rpc.wireless.ssid.@"..ll_dev..".radio")
+                if w1_radio and w1_radio[1] and w1_radio[1].value and match(w1_radio[1].value, "radio_5G") then
                     radio = "5GHz"
                 else
                     radio = "2,4GHz"
@@ -487,18 +508,28 @@ local sleases_options = {
 }
 
 
-local syshosts_data = proxy.get("sys.hosts.host.")
+local syshosts_data
+local syshosts_loaded = false
+local function get_syshosts_data()
+    if not syshosts_loaded then
+        syshosts_loaded = true
+        syshosts_data = proxy.get("sys.hosts.host.")
+    end
+    return syshosts_data
+end
+
 local sleases_filter = function(data)
     if data['owner'] == "portforward" then
         local path
-        if syshosts_data then
-            for _, v in pairs(syshosts_data) do
+        local hosts = get_syshosts_data()
+        if hosts then
+            for _, v in pairs(hosts) do
                 if v.value == data['mac'] then
                     path = v.path
                     break
                 end
             end
-            for _, v in pairs(syshosts_data) do
+            for _, v in pairs(hosts) do
                 if v.path == path and v.param == "HostName" then
                     data['name'] = v.value
                     break
@@ -545,7 +576,7 @@ if ngx.var.request_method == "POST" then
     end
     if post_data.action == "TABLE-MODIFY" or  post_data.action == "TABLE-ADD" then
       local slease_ip = post_data.sleases_ip
-      local arranged_data = content_helper.convertResultToObject("sys.hosts.host.", syshosts_data)
+      local arranged_data = content_helper.convertResultToObject("sys.hosts.host.", get_syshosts_data())
       if arranged_data then
         for _, v in pairs(arranged_data) do
             if v.DhcpLeaseTime ~= "" and v.IPAddress == slease_ip then
@@ -559,13 +590,19 @@ if ngx.var.request_method == "POST" then
 end
 
 local cur_dhcp_intf = "lan"
+local first_dhcp_intf
 local dhcp_intfs_path = "uci.dhcp.dhcp."
-local all_dhcp_intfs = content_helper.convertResultToObject(dhcp_intfs_path .. "@.", proxy.get(dhcp_intfs_path))
-
-for k,v in ipairs(all_dhcp_intfs) do
-    if v.interface == curintf then
-        cur_dhcp_intf = v.paramindex
-        break
+for _, entry in ipairs(proxy.getPN(dhcp_intfs_path, true) or {}) do
+    local idx = match(entry.path, "uci%.dhcp%.dhcp%.@([^%.]+)%.")
+    if not first_dhcp_intf then
+        first_dhcp_intf = idx
+    end
+    local intf_res = proxy.get(entry.path .. "interface")
+    if intf_res and intf_res[1] and intf_res[1].value == curintf then
+        if idx then
+            cur_dhcp_intf = idx
+            break
+        end
     end
 end
 
@@ -581,15 +618,21 @@ else
     dnsmasq_instance = "dnsmasq"
 end
 
-local sfp_presence = proxy.get("uci.env.rip.sfp")
+local ok_hw, hw_cache = pcall(require, "web.hw_cache")
+local sfp_val
+local has_eth4
+if ok_hw then
+    sfp_val = hw_cache.get_sfp()
+    has_eth4 = hw_cache.has_eth4()
+else
+    local sfp_res = proxy.get("uci.env.rip.sfp")
+    sfp_val = sfp_res and sfp_res[1] and sfp_res[1].value
+    local e4_res = proxy.get("sys.eth.port.@eth4.status")
+    has_eth4 = (e4_res and e4_res[1] and e4_res[1].value ~= nil) or false
+end
 
 --Support ethernet mode for devices with no eth4 port
-local ethname = proxy.get("sys.eth.port.@eth4.status")
-if ethname and ethname[1].value then
-    ethname =  "eth4"
-else
-    ethname =  "eth3"
-end
+local ethname = has_eth4 and "eth4" or "eth3"
 
 local mapParSFP = {}
 local mapValSFP = {}
@@ -601,7 +644,7 @@ if sfp_check and sfp_check[1] and sfp_check[1].value and sfp_check[1].value ~= "
     has_sfp_intf = true
 end
 
-if sfp_presence and  (sfp_presence[1].value == "1") then
+if sfp_val == "1" then
     mapParSFP.ethsfp = "uci.ethernet.globals.eth4lanwanmode"
     mapValSFP.ethsfp = vB
 else
@@ -625,7 +668,7 @@ local mapParams = {
     eth0 = "uci.ethernet.port.@eth0.enable",
 }
 
-if sfp_presence and (sfp_presence[1].value == "1") and has_sfp_intf then
+if sfp_val == "1" and has_sfp_intf then
     mapParams["sfplocalip"] = "uci.network.interface.@"..sfpintf..".ipaddr"
 end
 
@@ -791,7 +834,7 @@ local function calculateSTBRange(object)
 end
 
 local function STBCheck(object, stbrange)
-    if all_dhcp_intfs[1].paramindex == "STB" then
+    if first_dhcp_intf == "STB" then
         local ipstart,ipend = calculateSTBRange(object)
         if stbrange >= ipstart and stbrange <= ipend then
             return "nil",T"Lan pool range is overlap with the STB pool range"
@@ -1143,7 +1186,7 @@ local mapValid = {
     ethports = validateEthports,
 }
 
-if sfp_presence and (sfp_presence[1].value == "1") and has_sfp_intf then
+if sfp_val == "1" and has_sfp_intf then
     mapValid["sfplocalip"] = validateSFPIP
 end
 
@@ -1186,8 +1229,11 @@ if live_mask == "" then
     end
 end
 
-local uci_ip_data = proxy.get("uci.network.interface.@" .. curintf .. ".ipaddr")
-local uci_ip = uci_ip_data and uci_ip_data[1] and uci_ip_data[1].value or ""
+local uci_ip = (ngx.var.request_method ~= "POST") and uci_ip_cache[curintf] or nil
+if uci_ip == nil then
+    local uci_ip_data = proxy.get("uci.network.interface.@" .. curintf .. ".ipaddr")
+    uci_ip = uci_ip_data and uci_ip_data[1] and uci_ip_data[1].value or ""
+end
 local uci_mask_data = proxy.get("uci.network.interface.@" .. curintf .. ".netmask")
 local uci_mask = uci_mask_data and uci_mask_data[1] and uci_mask_data[1].value or ""
 
@@ -1482,7 +1528,7 @@ if curintf == "lan" then
     if curintf == "lan" and tech then
         html[#html + 1] = ui_helper.createCheckboxGroup(T"Ethernet Ports enabled", "ethports", ethports, ethports_checked, {checkbox = { class="inline" }}, nil)
     end
-    if sfp_presence and ( sfp_presence[1].value == "1" ) then
+    if sfp_val == "1" then
         html[#html + 1] = ui_helper.createAlertBlock(T"Switch the WAN port to a normal LAN port", info_box)
         html[#html + 1] = ui_helper.createSwitch(T"WAN-Port LAN Mode", "ethsfp", content_sfp["ethsfp"])
     end
@@ -1492,7 +1538,7 @@ if curintf == "lan" then
     else
         html[#html + 1] = ui_helper.createLabel(T"LAN IPv6", IPv6addr, advanced)
     end
-    if sfp_presence and ( sfp_presence[1].value == "1" ) and has_sfp_intf then
+    if sfp_val == "1" and has_sfp_intf then
         html[#html + 1] = ui_helper.createAlertBlock(T("This is the internal IP of the SFP interface used for fiber connection. " ..
                 "This and the local Gateway IP must be different."), info_box)
         html[#html + 1] = ui_helper.createInputText(T"SFP IP address", "sfplocalip", content["sfplocalip"],{},helpmsg["sfplocalip"])
