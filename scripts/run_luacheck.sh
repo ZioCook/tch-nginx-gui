@@ -2,7 +2,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-MAX_WARNINGS=532
+MAX_WARNINGS=531
 
 mapfile -t files < <(find decompressed -type f \( -name "*.lp" -o -name "*.lua" \) | sort)
 echo "Total files to check: ${#files[@]}"

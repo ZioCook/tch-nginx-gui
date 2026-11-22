@@ -38,60 +38,43 @@ if type(result) == "table" then
   lanintfs[#lanintfs + 1] = {"wl1", T"wl1"} 
 end
 
-local wan_filter = {
-  type = "wan",
-  available = "1",
-}
-local wanIntfNames = content_helper.getMatchedContent ("rpc.network.interface.", wan_filter)
-local pattern = "rpc.network.interface.@(.*)."
 local tmp_tbl = {}
-for _, v in pairs(wanIntfNames) do
-    local name = v.path:match(pattern)
-    if name ~= "wan6" and name ~= "wwan" then
-      tmp_tbl[#tmp_tbl + 1] = name
+for _, v in ipairs(proxy.getPN("rpc.network.interface.", true) or {}) do
+  local name = v.path:match("rpc%.network%.interface%.@([^%.]+)%.")
+  if name and name ~= "wan6" and name ~= "wwan" then
+    local t = proxy.get(v.path .. "type")
+    if t and t[1] and t[1].value == "wan" then
+      local a = proxy.get(v.path .. "available")
+      if a and a[1] and a[1].value == "1" then
+        tmp_tbl[#tmp_tbl + 1] = name
+      end
     end
-end
-tblsort(tmp_tbl)
--- get intf* vlan id
-local map_options = {
-}
-for k, v in pairs(tmp_tbl) do
-  if find(v, "intf") then
-    map_options[v.."vlan"] = format("uci.network.device.@vlan%s.vid", v:match("intf(%d)"))
-  else
-    map_options[v.."ifname"] = format("uci.network.interface.@%s.ifname", v)
   end
 end
+tblsort(tmp_tbl)
 local getContent = {}
-for k,v in pairs(map_options) do
-  getContent[k] = v
+for _, v in ipairs(tmp_tbl) do
+  if not find(v, "intf") then
+    getContent[v .. "ifname"] = format("uci.network.interface.@%s.ifname", v)
+  end
 end
-local success, errmsg = content_helper.getExactContent(getContent)
+local success = true
+if next(getContent) then
+  success = content_helper.getExactContent(getContent)
+end
 if success then
-  for k, v in pairs(tmp_tbl) do
-   local index = #wanintfs + 1
-   if find(v, "intf") then
---      wanintfs[index] = {v, format("%s-VLAN%s", wanintfs_name[v], getContent[v.."vlan"])}
+  for _, v in ipairs(tmp_tbl) do
+    local index = #wanintfs + 1
+    if find(v, "intf") then
       wanintfs[index] = {v, format("%s", wanintfs_name[v] or v)}
-   else
-      local ifname = getContent[v.."ifname"]
-      if ifname and ifname ~= "" then
-        if find(ifname, "eth") then
-          wanintfs[index] = {v, format("%s-%s", wanintfs_name[v] or v, upper(ifname))}
-        else
-          local wanintf_path = format("%s@%s.vid", "uci.network.device.", ifname)
-          local result = proxy.get(wanintf_path)
-          if type(result) == "table" then
-  --          wanintfs[index] = {v,format("%s-VLAN%s", wanintfs_name[v], result[1]["value"])}
-            wanintfs[index] = {v,format("%s", wanintfs_name[v] or v)}
-          else
-            wanintfs[index] = {v,format("%s", wanintfs_name[v] or v)}
-          end
-        end
+    else
+      local ifname = getContent[v .. "ifname"]
+      if ifname and ifname ~= "" and find(ifname, "eth") then
+        wanintfs[index] = {v, format("%s-%s", wanintfs_name[v] or v, upper(ifname))}
       else
-        wanintfs[index] = {v,format("%s", wanintfs_name[v] or v)}
+        wanintfs[index] = {v, format("%s", wanintfs_name[v] or v)}
       end
-   end
+    end
   end
 end
 
