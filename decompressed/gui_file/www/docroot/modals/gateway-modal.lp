@@ -11,6 +11,7 @@ local ui_helper = require("web.ui_helper")
 local message_helper = require("web.uimessage_helper")
 local content_helper = require("web.content_helper")
 local post_helper = require("web.post_helper")
+local json = require("dkjson")
 local format,find,sub, match, untaint = string.format, string.find, string.sub, string.match, string.untaint
 local floor, ipairs = math.floor, ipairs
 local vB = post_helper.validateBoolean
@@ -928,331 +929,29 @@ ngx.print(ui_helper.createMessages(message_helper.popMessages()))
  </fieldset>\
 </div>\
 ');
+local cfg_json = json.encode({
+  shutdownDoneTitle = untaint(tostring(shutdown_done_title or "")),
+  shutdownDoneDesc = untaint(tostring(shutdown_done_desc or "")),
+  shutdownHeading = untaint(tostring(shutdown_heading or "")),
+  shutdownProcess = untaint(tostring(shutdown_process or "")),
+  shutdownConfirm = untaint(tostring(shutdown_confirm or "")),
+  restartHeading = untaint(tostring(T"Restart Device")),
+  rebootProcess = untaint(tostring(T"Rebooting")),
+  confirmText = untaint(tostring(T"Do you want to continue?")),
+  factoryHeading = untaint(tostring(T"Factory Defaults")),
+  resetProcess = untaint(tostring(T"Resetting")),
+  confirmSpaceText = untaint(tostring(T"Do you want to continue? ")),
+  scheduleRebootGet = untaint(tostring(content["schedule_reboot_get"] or "")),
+  wrongBackupVersion = untaint(tostring(T"The Backup file you try to load has not been taken from the actual SW-Release, please use correct Backup File")),
+  fwErrNoMem = untaint(tostring(T"Firmware update failed.  Insufficient free memory available. Please reboot and try again.")),
+  fwErrInvalid = untaint(tostring(T"Firmware update failed; please use the correct firmware.")),
+  fwErrWrongKey = untaint(tostring(T"Firmware update failed; build signed with wrong key")),
+  fwErrDefault = untaint(tostring(T"Firmware update failed.")),
+  fwErrCodePrefix = untaint(tostring(T"Errorcode: ")),
+  upgradingText = untaint(tostring(T"Upgrading...")),
+}):gsub("</", "<\\/")
 ngx.print('\
-<script>\
-(function() {\
-  var refreshTimeOut = 5000;\
-  var refreshDelay = 3000;\
-  var target = $(".modal form").attr("action");\
-\
-  function wait_for_webserver_running() {\
-    $.ajax({ url: "/", timeout: refreshTimeOut })\
-    .done(function(data) {\
-      window.location.href = "/";\
-    })\
-    .fail(function() {\
-      window.setTimeout(wait_for_webserver_running, refreshDelay);\
-    });\
-  }\
-\
-  function wait_for_webserver_down() {\
-    $.ajax({ url: target, timeout: refreshTimeOut })\
-    .done(function() {\
-      window.setTimeout(wait_for_webserver_down, refreshDelay);\
-    })\
-    .fail(function() {\
-      window.setTimeout(wait_for_webserver_running, refreshDelay);\
-    });\
-  }\
-\
-  function resetreboot(msg, msg_dst, action) {\
-    msg.removeClass("hide");\
-    msg[0].scrollIntoView();\
-    msg_dst.replaceWith(msg);\
-	modgui.clearKoInterval();\
-    $.post(\
-      target,\
-      { action: action, CSRFtoken: $("meta[name=CSRFtoken]").attr("content") },\
-      wait_for_webserver_down,\
-      "json"\
-    );\
-    return false;\
-  }\
-  function wait_for_shutdown() {\
-    $.ajax({ url: "/", timeout: 2000 })\
-    .done(function() {\
-      window.setTimeout(wait_for_shutdown, 1500);\
-    })\
-    .fail(function() {\
-      tch.removeProgress();\
-      $("#poweroff-msg").removeClass("hide").html("<strong>'); ngx.print(shutdown_done_title); ngx.print('</strong> '); ngx.print(shutdown_done_desc); ngx.print('");\
-    });\
-  }\
-  $("#btn-system-poweroff").on("click", function() {\
-      var heading = "');  ngx.print(shutdown_heading); ngx.print('";\
-      var processMsg = "');  ngx.print(shutdown_process); ngx.print('";\
-      confirmationDialogue(\'');  ngx.print(shutdown_confirm); ngx.print('\',heading);\
-      $("#popUp").css({ "position": "fixed", "top": "50%", "left": "50%", "transform": "translate(-50%, -50%)", "margin": "0" });\
-      var PopUpHeaderText = "."+$(".popUp>.header>.header-title>p").text().trim().split(" ")[0];\
-      $(document).off("click", PopUpHeaderText).on("click", PopUpHeaderText, function() {\
-           tch.removeProgress();\
-           tch.showProgress(processMsg);\
-           $("#poweroff-msg").removeClass("hide");\
-           $("#poweroff-msg")[0].scrollIntoView();\
-           $("#btn-system-poweroff").replaceWith($("#poweroff-msg"));\
-           modgui.clearKoInterval();\
-           $.post(\
-             target,\
-             { action: "system_poweroff", CSRFtoken: $("meta[name=CSRFtoken]").attr("content") },\
-             wait_for_shutdown,\
-             "json"\
-           );\
-           return false;\
-	  });\
-  });\
-  $("#btn-system-reboot").on("click", function() {\
-      var heading = "');  ngx.print(T'Restart Device'); ngx.print('";\
-      var processMsg = "');  ngx.print(T'Rebooting'); ngx.print('";\
-      confirmationDialogue(\'');  ngx.print(T"Do you want to continue?"); ngx.print('\',heading);\
-	  var PopUpHeaderText = "."+$(".popUp>.header>.header-title>p").text().split(" ")[0];\
-      $(document).on("click", PopUpHeaderText, function() {\
-           tch.removeProgress();\
-           tch.showProgress(processMsg);\
-           return resetreboot($("#rebooting-msg"), $(this), "system_reboot" );\
-	  });\
-  });\
-\
-  $("#btn-schedule-reboot").on("click", function() {\
-   var _date = $("#date_schedule").val();\
-   var _time = $("#time_schedule").val();\
-   schedule_time = $("#date_schedule").val()+"T"+$("#time_schedule").val()+":00Z" ;\
-   var temp =  $("#system_time").text();\
-   var timeformat = temp.split(" ");\
-   temp = timeformat[0]+"T"+timeformat[1]+"Z";\
-   if((( _date && _time) != "") &&( temp < schedule_time))\
-     {\
-      $("#schedule-failed-msg").addClass("hide");\
-      $("#date_schedule").addClass("hide");\
-      $("#time_schedule").addClass("hide");\
-      $("#btn-schedule-reboot").addClass("hide");\
-      $(".schedule_message_get").removeClass("hide");\
-\
-       $.post(\
-          target,\
-          { action: "schedulerebootset", CSRFtoken: $("meta[name=CSRFtoken]").attr("content"),paramvalue :schedule_time },wait_for_webserver_down,"json");\
-     }\
-    else\
-     {\
-       $("#schedule-failed-msg").removeClass("hide");\
-     }\
- });\
-\
-  $("#btn-system-reset").on("click", function() {\
-      var heading = "');  ngx.print(T'Factory Defaults'); ngx.print('";\
-      var processMsg = "');  ngx.print(T'Resetting'); ngx.print('";\
-      confirmationDialogue(\'');  ngx.print(T"Do you want to continue? "); ngx.print('\',heading);\
-	  var PopUpHeaderText = "."+$(".popUp>.header>.header-title>p").text().split(" ")[0];\
-      $(document).on("click", PopUpHeaderText, function() {\
-          tch.removeProgress();\
-          tch.showProgress(processMsg);\
-          return resetreboot($("#resetting-msg"), $(this), "system_reset");\
-	  });\
-  });\
-\
-  if ("');  ngx.print(content["schedule_reboot_get"]); ngx.print('" == "1") {\
-    $("#date_schedule").addClass("hide");\
-    $("#time_schedule").addClass("hide");\
-    $("#btn-schedule-reboot").addClass("hide");\
-    $(".schedule_message_get").removeClass("hide");\
-  }\
-\
-  $(document).on("click", "#cancel", function() {\
-      tch.removeProgress();\
-  });\
-\
-  $(".export-config").on("click", function() {\
-    $.fileDownload(target, {\
-      httpMethod: "POST",\
-      data: new Array({ name : "action", value : "export_config" },\
-                      { name : "CSRFtoken", value : $("meta[name=CSRFtoken]").attr("content") }),\
-      prepareCallback: function() {\
-        $("#export-failed-msg").addClass("hide");\
-        var exporting_msg = $("#exporting-msg");\
-        exporting_msg.removeClass("hide");\
-        exporting_msg[0].scrollIntoView();\
-      },\
-      successCallback: function() {\
-        $("#exporting-msg").addClass("hide");\
-      },\
-      failCallback: function() {\
-        var export_failed_msg = $("#export-failed-msg");\
-        export_failed_msg.removeClass("hide");\
-        export_failed_msg[0].scrollIntoView();\
-        $("#exporting-msg").addClass("hide");\
-      }\
-    });\
-    return false;\
-  });\
-\
-  $(".import-config").on("click", function() {\
-    var nofile_msg = $("#import-nofile-msg");\
-    var wrongext_msg = $("#import-wrong-ext-msg");\
-    var toobig_msg = $("#import-too-big-msg");\
-    if ($("#file-import").val() == "") {\
-      nofile_msg.removeClass("hide");\
-      nofile_msg[0].scrollIntoView();\
-      return false;\
-    }\
-    nofile_msg.addClass("hide");\
-\
-    var validExtensions = [\'bin\'];\
-    var fileName = $("#file-import").val();\
-    var fileNameExt = fileName.substr(fileName.lastIndexOf(\'.\') + 1);\
-    if ($.inArray(fileNameExt, validExtensions) == -1){\
-        wrongext_msg.removeClass("hide");\
-	wrongext_msg[0].scrollIntoView();\
-	return false;\
-    }\
-    var fileSize = $("#file-import")[0].files[0].size;\
-    if (fileSize > 1048576) {\
-        toobig_msg.removeClass("hide");\
-		toobig_msg[0].scrollIntoView();\
-		return false;\
-    }\
-\
-    var _this = $(this).parents(".control-group");\
-    $("#import-failed-msg").addClass("hide");\
-    var importing_msg = $("#importing-msg");\
-    importing_msg.removeClass("hide");\
-    importing_msg[0].scrollIntoView();\
-    $.fileUpload($("#form-import"), {\
-      params: { CSRFtoken: $("meta[name=CSRFtoken]").attr("content") },\
-      completeCallback: function(form, response) {\
-        $("#importing-msg").addClass("hide");\
-        if (response.success) {\
-          var msg = $("#rebooting-msg");\
-          var msg_dst = $(_this);\
-          msg_dst.after(msg);\
-          msg.removeClass("hide");\
-          msg[0].scrollIntoView();\
-          wait_for_webserver_down();\
-        }\
-        else {\
-          $("#import-failed-msg").removeClass("hide");\
-		  if(response.error == "buildversion"){\
-		  $("#import-failed-msg").text("'); ngx.print(T'The Backup file you try to load has not been taken from the actual SW-Release, please use correct Backup File'); ngx.print('");\
-		  }\
-        }\
-      }\
-    });\
-    return false;\
-  });\
-\
-  function wait_for_upgradefw() {\
-\
- // Do not use the default values.\
- // On low memory boards sysupgrade use all resources.\
- // Do not request too often an upgradefwstatus.\
- // It takes more than 5 sec to check if sysupgrade is running.\
- // Sysupgrade is running for at least 10 sec.\
-\
-    var upgrfw_refreshTimeOut = 15000;\
-    var upgrfw_refreshDelay = 10000;\
-    var msg = $("#upgrade-busy-msg");\
-    var msg_dst = $(this);\
-    msg_dst.after(msg);\
-    msg.removeClass("hide");\
-    msg[0].scrollIntoView();\
-    function waitForShutdownOrError() {\
-      $.ajax({ url: target, data: "action=upgradefwstatus", timeout: upgrfw_refreshTimeOut, dataType: "json" })\
-      .done(function(data) {\
-        if (data.success == "true") {\
-          window.setTimeout(waitForShutdownOrError, upgrfw_refreshDelay);\
-        }\
-        else {\
-          msg.addClass("hide");\
-          var failure_msg = $("#upgrade-failed-msg");\
-          switch (data.errorcode) {\
-          case "1":\
-            failure_msg.text("');  ngx.print( T'Firmware update failed.  Insufficient free memory available. Please reboot and try again.' ); ngx.print('");\
-            break;\
-          case "10":\
-          case "255":\
-            failure_msg.text("');  ngx.print( T'Firmware update failed; please use the correct firmware.' ); ngx.print('");\
-            break;\
-          case "15":\
-            failure_msg.text("');  ngx.print( T'Firmware update failed; build signed with wrong key' ); ngx.print('");\
-            break;\
-          default:\
-            failure_msg.text("');  ngx.print( T'Firmware update failed.' ); ngx.print('");\
-            break;\
-          }\
-          failure_msg.text(failure_msg.text() + " (');  ngx.print( T'Errorcode: ' ); ngx.print('" + data.errorcode + ")");\
-          failure_msg.removeClass("hide");\
-          failure_msg[0].scrollIntoView();\
-          tch.removeProgress()\
-        }\
-      })\
-      .fail(wait_for_webserver_running)\
-    }\
-    window.setTimeout(waitForShutdownOrError, upgrfw_refreshDelay);\
-    return false;\
-  }\
-\
-  $(".upgradefw").on("click", function() {\
-    var nofile_msg = $("#upgrade-nofile-msg");\
-    var wrongext_msg = $("#upgrade-wrong-ext-msg");\
-    var toobig_msg = $("#upgrade-too-big-msg");\
-    if ($("#file-upgradefw").val() == "") {\
-      nofile_msg.removeClass("hide");\
-      nofile_msg[0].scrollIntoView();\
-      return false;\
-    }\
-    nofile_msg.addClass("hide");\
-\
-    var validExtensions = [\'rbi\',\'fw\'];\
-    var fileName = $("#file-upgradefw").val();\
-    var fileNameExt = fileName.substr(fileName.lastIndexOf(\'.\') + 1);\
-    if ($.inArray(fileNameExt, validExtensions) == -1){\
-        wrongext_msg.removeClass("hide");\
-	wrongext_msg[0].scrollIntoView();\
-	return false;\
-    }\
-    wrongext_msg.addClass("hide");\
-    var fileSize = $("#file-upgradefw")[0].files[0].size;\
-\
-    $.ajax({ url: target, data: "action=getbanksize", timeout: refreshTimeOut, dataType: "json" })\
-      .done(function(data) {\
-          if (data.success == "true") {\
-	    var targetBankSize = Number(data.banksize);\
-\
-	    if (fileSize > targetBankSize) {\
-    		toobig_msg.removeClass("hide");\
-			toobig_msg[0].scrollIntoView();\
-			return false;\
-	    }\
-	  }\
-      });\
-    toobig_msg.addClass("hide");\
-\
-    var _this = $(this).parents(".control-group");\
-    $("#upgrade-failed-msg").addClass("hide");\
-    var upgrading_msg = $("#upgrade-transfer-msg");\
-    upgrading_msg.removeClass("hide");\
-    upgrading_msg[0].scrollIntoView();\
-    tch.showProgress("');  ngx.print(T'Upgrading...'); ngx.print('");\
-	var action = "modals/gateway-modal.lp?action=upgradefw";\
-	if ($("input[name=\'remove_conf_on_upgrade\']").is(":checked"))\
-		action+="&upgrade_reset=1";\
-	if ($("input[name=\'rootonly_on_upgrade\']").is(":checked"))\
-		action+="&upgrade_rootonly=1";\
-\
-	$("#form-upgradefw").attr("action", action);\
-    $.fileUpload($("#form-upgradefw"), { \
-      params: { CSRFtoken: $("meta[name=CSRFtoken]").attr("content") },\
-      completeCallback: function(form, response) {\
-        $("#upgrade-transfer-msg").addClass("hide");\
-        if (response.success) {\
-          wait_for_upgradefw.call(_this);\
-        }\
-        else {\
-          $("#upgrade-failed-msg").removeClass("hide");\
-        }\
-      }\
-    });\
-    return false;\
-  });\
-}());\
-</script>\
+<script type="application/json" id="gateway-modal-cfg">'); ngx.print(cfg_json); ngx.print('</script>\
+<script>window.ensureScript("/js/modals/gateway-modal.js",function(){return typeof window.initGatewayModal==="function";},function(){window.initGatewayModal();});</script>\
 ');  ngx.print(ui_helper.createFooter())   ngx.print('\
 ');
