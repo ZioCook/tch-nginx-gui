@@ -28,6 +28,7 @@ local cui = {
   gui_skin = "uci.modgui.gui.gui_skin",
 }
 content_helper.getExactContent(cui)
+cui.gui_version = (cui.gui_version and cui.gui_version ~= "") and cui.gui_version or "0"
 local year= cui.timestamp
 local current_year = (string.sub(year,1,4))
 local users = content_helper.getMatchedContent("uci.web.user.")
@@ -85,7 +86,7 @@ end
     <link href="/css/gw.css?version='); ngx.print(cui.gui_version); ngx.print('" rel="stylesheet">\
     <link href="/css/responsive.css?version='); ngx.print(cui.gui_version); ngx.print('" rel="stylesheet">\
 	<link rel="shortcut icon"    type="image/x-icon"   href="/img/favicon.ico"/>');
-	ngx.print('<link rel="stylesheet" href="/theme/');  ngx.print( cui.gui_skin ); ngx.print('/style.css?v='); ngx.print(cui.gui_version .. '_' .. ngx.time()); ngx.print('">\
+	ngx.print('<link rel="stylesheet" href="/theme/');  ngx.print( cui.gui_skin ); ngx.print('/style.css?v='); ngx.print(cui.gui_version); ngx.print('">\
 	<link rel="stylesheet" href="/css/aos.css?version='); ngx.print(cui.gui_version); ngx.print('" >\
     <title>');  ngx.print( T"Login" ); ngx.print('</title>\
 </head>'); 
