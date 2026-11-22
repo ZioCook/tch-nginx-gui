@@ -15,14 +15,14 @@ local ui_helper = require ("web.ui_helper")
 local content_helper = require ("web.content_helper")
 local session = ngx.ctx.session
 
-local switchName = nil
+local switchName
 local modalPath = nil
-local mmpbx_info = nil
+local mmpbx_info
 
 local sipprofile_path = "uci.mmpbxrvsipnet.profile."
 local sipprofile_ubus_path = "rpc.mmpbx.profile.@"
 local sipprofile_content = content_helper.getMatchedContent(sipprofile_path)
-local mmpbx_state, error = datamodel.get("uci.mmpbx.mmpbx.@global.enabled")
+local mmpbx_state = datamodel.get("uci.mmpbx.mmpbx.@global.enabled")
 
 if mmpbx_state then
     mmpbx_state = format("%s",mmpbx_state[1].value)
@@ -38,7 +38,6 @@ else
 end
 
 local sipprofile_info = {}
-local v = {}
 for _, v in pairs (sipprofile_content) do
     local name = string.match (v.path, "@([^%.]+)")
     if v.userfriendlyname ~= nil and v.userfriendlyname ~= "" then
@@ -75,9 +74,8 @@ ngx.print('\
 	  local html = {}
 	  tinsert(html, ui_helper.createSimpleLight(mmpbx_state, mmpbx_info, { light = { id =  "Telephony_LEDStatus" }, span = { id =  "Telephony_Status" } },"fa fa-phone"))
 	  tinsert (html,[[<p class= "subinfos">]] )
-	  local name, value = "", ""
 	  local reged, notreged, reging = 0,0,0
-	  for name, value in pairs (sipprofile_info) do
+	  for name in pairs (sipprofile_info) do
 	  	local res = datamodel.get (sipprofile_ubus_path..name..".sipRegisterState")
 	  	local enYN = datamodel.get (sipprofile_ubus_path..name..".enable")
 	  	if (type(res) == "table") then

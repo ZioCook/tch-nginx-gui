@@ -1,16 +1,13 @@
 --pretranslated: do not change this file
  
-local istainted = string.istainted
-
 -- Enable localization
 gettext.textdomain('webui-contentsharing')
 
 local tinsert = table.insert
-local proxy = require("datamodel")
 local ui_helper = require("web.ui_helper")
 local attributes = { light = {}, span = {} }
 local content_helper = require("web.content_helper")
-local format, find, sub, match = string.format, string.find, string.sub, string.match
+local sub, match = string.sub, string.match
 local session = ngx.ctx.session
 local modalPath = nil
 if session:hasAccess("/modals/contentsharing-modal.lp") then
@@ -66,7 +63,7 @@ local usb_sys_content = content_helper.getMatchedContent(usb_sys_path)
 local usbtab = {}
 for i, v in ipairs(usb_sys_content) do
         local basepath = match(v["__path"], "sys%.usb%.device%.([^%.]+)")
-        usb_partition = content_helper.getMatchedContent("sys.usb.device."..basepath..".partition.")
+        local usb_partition = content_helper.getMatchedContent("sys.usb.device."..basepath..".partition.")
         local check = 0
         for _,y in ipairs(usb_partition) do
                 if y["FileSystem"] then

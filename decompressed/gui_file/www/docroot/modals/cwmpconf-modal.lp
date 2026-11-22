@@ -2,11 +2,8 @@
  
 gettext.textdomain('webui-core')
 
-local format = string.format
-
 local proxy = require("datamodel")
 local ui_helper = require("web.ui_helper")
-local content_helper = require("web.content_helper")
 local message_helper = require("web.uimessage_helper")
 local post_helper = require("web.post_helper")
 local gVP = post_helper.getValidationPassword

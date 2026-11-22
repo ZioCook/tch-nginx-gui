@@ -5,8 +5,6 @@ gettext.textdomain('webui-core')
 
 local proxy = require("datamodel")
 local ui_helper = require("web.ui_helper")
-local post_helper = require("web.post_helper")
-local content_helper = require("web.content_helper")
 
 local datarows = {}
 local k = 1

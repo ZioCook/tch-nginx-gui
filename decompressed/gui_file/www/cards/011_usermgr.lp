@@ -4,12 +4,9 @@
 gettext.textdomain('webui-core')
 
 local format = string.format
-local untaint_mt = require("web.taint").untaint_mt
 local ui_helper = require("web.ui_helper")
 local session = ngx.ctx.session
 local content_helper = require("web.content_helper")
-
-local modem_graph_link = ""
 
 local content = {
   cronEntires   = "rpc.system.cron.CronNumberOfEntries",
@@ -18,7 +15,7 @@ local content = {
 content_helper.getExactContent(content)
 
 if session:hasAccess("/modals/usermgr-modal.lp") then
-modem_stats_link = 'class="modal-link" data-toggle="modal" data-remote="/modals/modem-stats-modal.lp" data-id="modem-stats-modal"'
+local modem_stats_link = 'class="modal-link" data-toggle="modal" data-remote="/modals/modem-stats-modal.lp" data-id="modem-stats-modal"'
   ngx.print('\
 \
 <div class="span3">\

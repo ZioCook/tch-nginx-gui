@@ -31,7 +31,7 @@ end
 -- @param #string path
 -- @return #string, #string, #string addpath, indexpath, instanceprefix
 function M.getPaths(path)
-    local isit, addpath, indexpath, instanceprefix
+    local addpath, indexpath, instanceprefix
     if path:find("%.@%.$") then
         addpath = path:sub(1, -3)
         indexpath = path:sub(1, -2)
@@ -134,7 +134,6 @@ function M.getMatchedContent (path, filter, num)
     local exactPath = M.getPaths(path)
     local res = proxy.get (exactPath)
     if (type(res) == "table") then
-        local v = {}
         for _, v in pairs (res) do
             --A new section
 	    --if v.path == uci.mmpbx.outgoing_map.14. and basic_path == uci.mmpbx.outgoing_map.1.
@@ -345,6 +344,7 @@ local function convertResultToObject(basepath, results, sorted)
             else
                 index = sorted
             end
+            local untaint_fn = string.untaint
             table.sort(output, function(a, b)
                 local valA = a and a[index]
                 local valB = b and b[index]
@@ -369,9 +369,8 @@ local function convertResultToObject(basepath, results, sorted)
                         return numA < numB
                     end
                 end
-                local untaint = string.untaint
-                local strA = untaint and untaint(valA) or valA
-                local strB = untaint and untaint(valB) or valB
+                local strA = untaint_fn and untaint_fn(valA) or valA
+                local strB = untaint_fn and untaint_fn(valB) or valB
                 if tostring(strA) == tostring(strB) then
                     return false
                 end
@@ -447,7 +446,7 @@ end
 --  @param sorted
 --  @return #table,#table output, allowedIndexes
 function M.loadTableData(ucipath, columns, filter, sorted)
-    local addpath, indexpath = M.getPaths(ucipath)
+    local addpath = M.getPaths(ucipath)
     local results = proxy.get(addpath)
 
     local data = convertResultToObject(ucipath, results, sorted)
@@ -498,15 +497,15 @@ function M.setObject(object, map, basepath, defaultObject)
     local something = false
     basepath = basepath or ""
 
+    local untaint_fn = string.untaint
     local function toStringVal(val)
         if type(val) == "boolean" then
             return val and "1" or "0"
         elseif val == nil then
             return ""
         else
-            local untaint = string.untaint
-            if untaint then
-                val = untaint(val)
+            if untaint_fn then
+                val = untaint_fn(val)
             end
             if type(val) == "boolean" then
                 return val and "1" or "0"
@@ -575,7 +574,6 @@ end
 
 local function addSubPaths(basepath, structure)
     local numpattern = "^%d+$"
-    local path
     for k,v in pairs(structure) do
         for i,w in pairs(v) do
             if i:match(numpattern) then
@@ -614,14 +612,13 @@ end
 -- @param #string objectName - name for the new added object
 -- @return #strings, #table index,msg
 function M.addNewObject(basepath, object, map, defaultObject, objectName)
-    local indexpath, addpath, instanceprefix, setok
-
-    addpath, indexpath, instanceprefix = M.getPaths(basepath)
+    local addpath, indexpath = M.getPaths(basepath)
 
     local index, msg = proxy.add(addpath, objectName)
     if index ~= nil then
         createSubPaths(indexpath .. index .. ".", map)
-        _, msg = M.setObject(object, map, indexpath .. index .. ".", defaultObject)
+        local _, setmsg = M.setObject(object, map, indexpath .. index .. ".", defaultObject)
+        msg = setmsg
     end
     return index, msg
 end

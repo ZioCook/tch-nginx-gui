@@ -10,7 +10,7 @@ local ui_helper = require("web.ui_helper")
 local message_helper = require("web.uimessage_helper")
 local content_helper = require("web.content_helper")
 local post_helper = require("web.post_helper")
-local format, match = string.format, string.match
+local format = string.format
 local untaint = string.untaint
 
 local vSIPR = post_helper.validateStringIsPortRange
@@ -48,7 +48,6 @@ local syslog_present, syslog_filter_sw = "0", "0"
 -- SSH Access
 local ssh_lan, ssh_wan, ssh_wan_port = "0", "0", "0"    -- assume disabled
 local ssh_lan_index, ssh_wan_index = "-1", "-1"
-local enable = 0
 local ssh_wan_new, ssh_lan_new, ssh_wan_port_new
 
 -- local function to handle setting firewall rule
@@ -69,7 +68,7 @@ end
 local dbpath = "uci.dropbear.dropbear."
 local dbvalues = proxy.get(dbpath)
 local data = content_helper.convertResultToObject(dbpath, dbvalues)
-local ssh_lan_fallback_index = nil  -- first non-WAN section without explicit Interface
+local ssh_lan_fallback_index  -- first non-WAN section without explicit Interface
 
 for _,v in pairs(data) do
   -- Normalize enable field: missing enable defaults to "1" (dropbear enabled by default)
@@ -110,7 +109,6 @@ if ngx.var.request_method == "POST" then
     ssh_wan_new = untaint(vars["ssh_wan"])
       ssh_wan_port_new = untaint(vars["ssh_wan_port"])
     ssh_lan_new = untaint(vars["ssh_lan"])
-    local db_path = "uci.dropbear.dropbear.@dropbear["
 
     -- set lan
     if ssh_lan_new ~= ssh_lan then
@@ -196,18 +194,6 @@ local gVIPIL = post_helper.getValidationIfPropInList
 local vSII = post_helper.validateStringIsIP
 local vB = post_helper.validateBoolean
 local gOV = post_helper.getOptionalValidation
-local vNES = post_helper.validateNonEmptyString
-
-local function valid_comma_string(value)
-  local rc, msg = vNES(value)
-  if not rc then
-    return rc, msg
-  end
-  if string.match(value, "[^%w,]") then
-    return nil, T"Only alphanumeric characters, commas (,), full spots(.), underscores(_) and hiphens(-) are allowed, no spaces"
-  end
-    return true
-end
 
 local syslog_valid = {
     syslog_present = vB,
@@ -217,7 +203,8 @@ local syslog_valid = {
     syslog_port = gVIPIL(vSIPR, "syslog_present", {"1"}),
     post_helper.validateStringIsPortRange
 }
-local syslog_Params, helpmsg = post_helper.handleQuery(syslog_Params, syslog_valid)
+local helpmsg
+syslog_Params, helpmsg = post_helper.handleQuery(syslog_Params, syslog_valid)
 
 local telnet_available = file_check("/bin/busybox_telnet") or file_check("/usr/sbin/telnetd")
 local telnet_content
@@ -227,7 +214,7 @@ if telnet_available then
 
 	local telnet_valid = { telnet_enable = vB }
 
-	telnet_content, helpmsg = post_helper.handleQuery(telnet_Params, telnet_valid)
+	telnet_content = post_helper.handleQuery(telnet_Params, telnet_valid)
 end
 
 local config_Params = {
@@ -246,26 +233,7 @@ local config_valid = {
   import_restricted = vB,
 }
 
-local config_content, helpmsg = post_helper.handleQuery(config_Params, config_valid)
-
-local function wait_for_completion(base_path)
-  local state_path = base_path .. "state"
-  local sleep_time = 0.250
-  local max_time = 7
-  local total_time = 0
-  local content
-  repeat
-    ngx.sleep(sleep_time)
-    total_time = total_time + sleep_time
-
-    content = { state = state_path }
-    content_helper.getExactContent(content)
-
-    if content.state ~= "Requested" then
-      break
-    end
-  until (total_time >= max_time)
-end
+local config_content = post_helper.handleQuery(config_Params, config_valid)
 
 local function resetreboot(path,value)
   proxy.set(path, value)
@@ -315,16 +283,6 @@ ngx.print(ui_helper.createMessages(message_helper.popMessages()))
           class = "custom-handler"
         }
       }
-	  local info_box = {
-        alert = {
-			class = "alert alert-info",
-		}
-      }
-	  local warn_box = {
-        alert = {
-			class = "alert",
-		}
-      }
       local html = {}
       html[#html + 1] = ui_helper.createButton(T"LAN Update", T"BOOTP", "icon-exchange", bootp)
       html[#html + 1] = ui_helper.createAlertBlock(T"Entering BOOTP, please wait...", bootp_alert)
@@ -340,7 +298,7 @@ ngx.print('\
 			class = "alert alert-info",
 		}
       }
-      local html = {}
+      html = {}
 	  html[#html + 1] = ui_helper.createAlertBlock(T"Enable what type of configuration you want to import and export.", info_box)
 	  html[#html + 1] = ui_helper.createSwitch(T"Export PlainText", "export_plaintext", config_content["export_plaintext"])
 	  html[#html + 1] = ui_helper.createSwitch(T"Export UnSigned", "export_unsigned", config_content["export_unsigned"])
@@ -354,7 +312,7 @@ ngx.print('\
 <fieldset>\
   <legend>');  ngx.print( T"SSH Access" ); ngx.print('</legend>\
     ');
-      local html = {}
+      html = {}
       html[#html + 1] = ui_helper.createAlertBlock(T"SSH access via LAN allows root access on the local network (default port 22). WAN access opens the specified port on the firewall for remote management.", info_box)
       html[#html + 1] = ui_helper.createSwitch(T"LAN", "ssh_lan", ssh_lan)
       html[#html + 1] = ui_helper.createSwitch(T"WAN", "ssh_wan", ssh_wan)
@@ -368,8 +326,8 @@ if telnet_content then
 	<fieldset>\
 	<legend>');  ngx.print( T"Telnet Access" ); ngx.print('</legend>\
 		');
-		local html = {}
-		html[#html + 1] = ui_helper.createSwitch(T"LAN", "telnet_enable", telnet_content["telnet_enable"], basic)
+		html = {}
+		html[#html + 1] = ui_helper.createSwitch(T"LAN", "telnet_enable", telnet_content["telnet_enable"])
 		ngx.print(html)
 		ngx.print('\
 	</fieldset>');
@@ -378,7 +336,7 @@ ngx.print('\
 <fieldset>\
   <legend>');  ngx.print( T"System Log" ); ngx.print('</legend>\
     ');
-      local html = {}
+      html = {}
       local switch_class_enable = {
         input = {
           class = "monitor-changes",

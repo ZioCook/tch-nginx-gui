@@ -4,6 +4,8 @@
   gettext.textdomain('webui-core')
 
   local ngx = ngx
+  local session = ngx.ctx.session
+  local role = session and session:getrole()
   local proxy = require("datamodel")
   local ui_helper = require("web.ui_helper")
   local post_helper = require("web.post_helper")
@@ -15,7 +17,7 @@
   local validateBoolean = post_helper.validateBoolean
   local getValidateInEnumSelect = post_helper.getValidateInEnumSelect
   local message_helper = require("web.uimessage_helper")
-  local match, format = string.match, string.format
+  local match, format, untaint = string.match, string.format, string.untaint
   local has_variant, variant_helper = pcall(require, "variant_helper")
   local variantHelper = nil
   if has_variant and variant_helper then
@@ -59,12 +61,12 @@
     local parts = {}
     if #data > 0 then
       for _, v in ipairs(data) do
-        parts[#parts + 1] = string.format("%q", tostring(v))
+        parts[#parts + 1] = format("%q", tostring(v))
       end
       return "[" .. table.concat(parts, ",") .. "]"
     else
       for k, v in pairs(data) do
-        parts[#parts + 1] = string.format("%q:%q", tostring(k), tostring(v))
+        parts[#parts + 1] = format("%q:%q", tostring(k), tostring(v))
       end
       return "{" .. table.concat(parts, ",") .. "}"
     end
@@ -73,7 +75,8 @@
   local ok_em, em_helper = pcall(require, "easymesh_helper")
   if not (ok_em and em_helper and em_helper.is_supported and em_helper.is_supported()) then
     ngx.print(ui_helper.createHeader(T"EasyMesh", false, true))
-    ngx.print(ui_helper.createAlert({ class = "alert-warning" }, T"EasyMesh is not supported on this device."))
+    ngx.print(ui_helper.createAlertBlock(T"EasyMesh is not supported on this device.", { alert = { class = "alert alert-warning" } }))
+    ngx.print(ui_helper.createFooter())
     return
   end
 
@@ -85,9 +88,9 @@
   local APSec_modes = (type(raw_modes) == "table" and raw_modes[1] and raw_modes[1].value) or ""
   APSec_modes:gsub("[^%s]+", function(c)
     if c == "none" then
-      securityModes[#securityModes+1] = { c, T(string.untaint(c:gsub("^%l", string.upper)))}
+      securityModes[#securityModes+1] = { c, T(untaint(c:gsub("^%l", string.upper)))}
     else
-      securityModes[#securityModes+1] = { c, T(string.untaint(string.upper(c)))}
+      securityModes[#securityModes+1] = { c, T(untaint(string.upper(c)))}
     end
   end)
   if #securityModes == 0 then
@@ -130,7 +133,7 @@
 
   local credParamIndex, ap
 
-  local ap_details, guestAP = {}, {}
+  local guestAP = {}
   local content = {
     controllerMac = "uci.multiap.controller.macaddress",
     agentMac = "uci.multiap.agent.macaddress"
@@ -139,7 +142,7 @@
     content.ap0_state = "rpc.wireless.ap.@ap0.admin_state"
     content.ap1_state = "rpc.wireless.ap.@ap1.admin_state"
     if proxy.get("uci.wireless.wifi-bandsteer.@bs1.") then
-      ap_details = proxy.get("uci.wireless.wifi-ap.")
+      local ap_details = proxy.get("uci.wireless.wifi-ap.")
       ap_details = content_helper.convertResultToObject("uci.wireless.wifi-ap.", ap_details)
       for _, apVal in ipairs(ap_details) do
         if apVal.bandsteer_id == "bs1" then

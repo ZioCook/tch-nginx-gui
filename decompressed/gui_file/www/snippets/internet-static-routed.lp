@@ -34,7 +34,7 @@ local match, format = string.match, string.format
 
 local function split(str, ang)
 	local tab = {}
-	for vari in string.gfind(format("%s",str), ang) do
+	for vari in string.gmatch(format("%s",str), ang) do
 		table.insert(tab, vari)
 	end
 	return tab
@@ -83,10 +83,10 @@ local function validateNat(value, object, key)
   local valid, msg = post_helper.validateBoolean(value, object, key)
   if valid and zonenum ~= "" and value ~= proxy.get("uci.firewall.zone."..zonenum..".masq")[1].value then
     proxy.set("uci.firewall.zone."..zonenum..".conntrack", "1")
-    local key = "forwarding"..post_helper.getRandomKey()
+    local fwd_key = "forwarding"..post_helper.getRandomKey()
     if value == "1" then
       if forwdnum == "" then
-        forwdnum = proxy.add("uci.firewall.forwarding.", key)
+        forwdnum = proxy.add("uci.firewall.forwarding.", fwd_key)
         proxy.set(firewall_value)
         proxy.set("uci.firewall.forwarding.@"..forwdnum..".enabled", "0")
       else
@@ -94,7 +94,7 @@ local function validateNat(value, object, key)
       end
     else
       if forwdnum == "" then
-        forwdnum = proxy.add("uci.firewall.forwarding.", key)
+        forwdnum = proxy.add("uci.firewall.forwarding.", fwd_key)
         proxy.set(firewall_value)
         proxy.set("uci.firewall.forwarding.@"..forwdnum..".enabled", "1")
       else
@@ -272,7 +272,7 @@ ngx.print(ui_helper.createMessages(message_helper.popMessages()))
         html[#html+1] = ui_helper.createInputText(T"IP Address", "wanIpAddrParam", content["wanIpAddrParam"], wanIPClass, helpmsg["wanIpAddrParam"])
         html[#html+1] = ui_helper.createInputText(T"Subnet Mask", "wanNetmaskParam", content["wanNetmaskParam"], wanNetmaskClass, helpmsg["wanNetmaskParam"])
         html[#html+1] = ui_helper.createInputText(T"Gateway", "wanGatewayParam", content["wanGatewayParam"], wanGatewayClass, helpmsg["wanGatewayParam"])
-        if dns_loopback ~= "" then
+        if content_dns.loopbackdns and content_dns.loopbackdns ~= "" then
 	    ajax_attr.span.id = "loopbackdns"
             html[#html+1] = ui_helper.createLabel(T"DNS Servers", content_dns.loopbackdns,ajax_attr)
         end

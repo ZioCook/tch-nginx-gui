@@ -67,7 +67,7 @@ local ajax_attr_light = {
     }
 }
 
-function get_dhcp_state(wan_auto, wan_ppp, wan_error, ipaddr)
+local function get_dhcp_state(wan_auto, wan_ppp, wan_error, ipaddr)
     -- Figure out interface state
 	if wan_auto ~= "0" then
 	  -- WAN enabled
@@ -96,7 +96,7 @@ end
 
 local function split(str, ang)
 	local tab = {}
-	for vari in string.gfind(format("%s",str), ang) do
+	for vari in string.gmatch(format("%s",str), ang) do
 		table.insert(tab, vari)
 	end
 	return tab
@@ -257,10 +257,10 @@ local function validateNat(value, object, key)
   local valid, msg = post_helper.validateBoolean(value, object, key)
   if valid and zonenum ~= "" and value ~= proxy.get("uci.firewall.zone."..zonenum..".masq")[1].value then
     proxy.set("uci.firewall.zone."..zonenum..".conntrack", "1")
-    local key = "forwarding"..post_helper.getRandomKey()
+    local fwd_key = "forwarding"..post_helper.getRandomKey()
     if value == "1" then
       if forwdnum == "" then
-        forwdnum = proxy.add("uci.firewall.forwarding.", key)
+        forwdnum = proxy.add("uci.firewall.forwarding.", fwd_key)
         proxy.set(firewall_value)
         proxy.set("uci.firewall.forwarding.@"..forwdnum..".enabled", "0")
       else
@@ -268,7 +268,7 @@ local function validateNat(value, object, key)
       end
     else
       if forwdnum == "" then
-        forwdnum = proxy.add("uci.firewall.forwarding.", key)
+        forwdnum = proxy.add("uci.firewall.forwarding.", fwd_key)
         proxy.set(firewall_value)
         proxy.set("uci.firewall.forwarding.@"..forwdnum..".enabled", "1")
       else
@@ -517,7 +517,6 @@ if tech then
     html[#html + 1] = "</div></div>"
 
     -- PPP password
-    local class_password = class_username
     html[#html + 1] = ui_helper.createInputText(T"Password", "uci_wan_password", content["uci_wan_password"], class_username, helpmsg["uci_wan_password"])
     html[#html + 1] = ui_helper.createInputText(T"Host Uniq Tag","uci_wan_host_uniq", content["uci_wan_host_uniq"], nil, helpmsg["uci_wan_host_uniq"])
     html[#html + 1] = ui_helper.createInputText(T"MAC Spoof (Wan MAC)","uci_wan_mac", content["uci_wan_mac"], nil, helpmsg["uci_wan_mac"])
@@ -579,7 +578,7 @@ if(ppp_status == "connected") then
     ngx.print('<fieldset>\
     <legend>');  ngx.print( T"PPP statistics" ); ngx.print('</legend>\
     ');
-            local html = {}
+            html = {}
             ajax_attr.span.id = "discard"
             ajax_attr.span.class = "span4 simple-desc"
             html[#html + 1] = ui_helper.createLabel(

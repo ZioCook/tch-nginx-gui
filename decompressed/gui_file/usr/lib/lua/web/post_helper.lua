@@ -34,11 +34,11 @@ local function setlanguage()
 end
 
 local function errorsFound()
-    checkUiMessages = false
+    local checkUiMessages = false
     local session = ngx.ctx.session
-    local err = session:retrieve("uimessages")
-    for _, err in ipairs(err or {}) do
-        if err.level == "error" then
+    local messages = session:retrieve("uimessages")
+    for _, msg in ipairs(messages or {}) do
+        if msg.level == "error" then
             checkUiMessages = true
         end
     end
@@ -352,7 +352,6 @@ local changesNotAllowed = "Changes not allowed."
 local changesconflictMsg = "Changes were made to this table which require you to start again."
 local invalidIndexMsg = "You tried to access an invalid line."
 local errorWhileSaving = "An error occured while saving your changes."
-local errorWhileApplying = "An error occured while applying your changes."
 
 --- apply changes if successful, other set error message in the options object
 -- @param #bool success result from the proxy call
@@ -407,11 +406,11 @@ local function checkUniqueParams(basepath, fullpath, columns, content)
 
   for _,v in ipairs(columns) do
     if v.unique then
-      local value = string.untaint(content[v.name])
+      local value = untaint(content[v.name])
       local cmatch = content_helper.getMatchedContent(basepath, { [v.param] = value })
       if fullpath then
-        for i,v in ipairs(cmatch) do
-          if v.path == fullpath then
+        for i, entry in ipairs(cmatch) do
+          if entry.path == fullpath then
             remove(cmatch, i)
             break
           end
@@ -503,29 +502,23 @@ function M.handleTableQuery(columns, options, filter, defaultObject, mapValidati
     local helpmsg = {}
     local content = {}
     local paramMap = columnsToParamMap(columns)
-    local basepath = options.basepath or ""
-    local addpath, indexpath, instanceprefix = content_helper.getPaths(basepath)
-    local session = ngx.ctx.session
-
-    if options == nil then
+    if type(options) ~= "table" then
         options = {}
     end
+    local basepath = options.basepath or ""
+    local addpath, indexpath = content_helper.getPaths(basepath)
+    local session = ngx.ctx.session
+
     -- options and their default value
     -- do we allow to edit a table entry?
-    local canEdit = options and not (options.canEdit == false) or true
+    local canEdit = options.canEdit ~= false
     -- do we allow to add and delete entries
-    local canAdd = options and not (options.canAdd == false) or true
-    local canDelete = options and not (options.canDelete == false) or true
+    local canAdd = options.canAdd ~= false
+    local canDelete = options.canDelete ~= false
     -- do we add a named object
-    local addNamedObject = options and (options.addNamedObject == true)
+    local addNamedObject = options.addNamedObject == true
     -- do we allow to restart related module after uci is changed
-    local canApply = options and not (options.canApply == false)
-    -- are we editing an entry and which line (-1 means new entry)
-    local editing = options and tonumber(options.editing) or 0
-    -- do we disallow delete if under a certain number of entries
-    local minEntries = options and tonumber(options.minEntries) or 0
-    -- do we disallow adding if above a certain number of entries
-    local maxEntries = options and options.maxEntries or huge
+    local canApply = options.canApply ~= false
     local newList = options and options.newList
     local sorted = options and options.sorted
     local tablesessionkey = options.tableid .. ".stateid"
@@ -755,7 +748,7 @@ end
 --                 4 = ipv4
 --                 6 = ipv6
 function M.GetIPType(ip)
-    ip = string.untaint(ip)
+    ip = untaint(ip)
     if ip and inet.isValidIPv4(ip) then
        return 4
     elseif ip and inet.isValidIPv6(ip) then
@@ -944,16 +937,16 @@ end
 -- @param #number min
 -- @param #number max
 -- @return #boolean, #string
-function M.getValidateNumberInRange(min, max)
+function M.getValidateNumberInRange(min_val, max_val)
     local helptext = T"Input must be a number."
-    if min and max then
-        helptext = format(T"Input must be a number between %d and %d included.", min, max)
-    elseif not min and not max then
+    if min_val and max_val then
+        helptext = format(T"Input must be a number between %d and %d included.", min_val, max_val)
+    elseif not min_val and not max_val then
         helptext = T"Input must be a number."
-    elseif not min then
-        helptext = format(T"Input must be a number smaller than %d included.", max)
-    elseif not max then
-        helptext = format(T"Input must be a number greater than %d included.", min)
+    elseif not min_val then
+        helptext = format(T"Input must be a number smaller than %d included.", max_val)
+    elseif not max_val then
+        helptext = format(T"Input must be a number greater than %d included.", min_val)
     end
 
     return function(value)
@@ -961,10 +954,10 @@ function M.getValidateNumberInRange(min, max)
         if not num then
             return nil, helptext
         end
-        if min and num < min then
+        if min_val and num < min_val then
             return nil, helptext
         end
-        if max and num > max then
+        if max_val and num > max_val then
             return nil, helptext
         end
         return true
@@ -1450,7 +1443,7 @@ end
 -- Return number representing the IP address / netmask (first byte is first part ...)
 local function ipv42num(ipstr)
     if ipstr then
-      ipstr = string.untaint(ipstr)
+      ipstr = untaint(ipstr)
 	  --Handle EXTREME OLD INSTALLATION with no posix lib at all...
       local ip = inet_pton and inet_pton(posix.AF_INET, ipstr) or nil
       if not ip then
@@ -1491,7 +1484,7 @@ function M.validateIPv4Netmask(value)
   setlanguage()
   -- validateIPv4Netmask function uses inet_pton which requires string to be passed as an argument.
   -- value when it comes from GUI, will be of type userdata so untainting it.
-  value = string.untaint(value)
+  value = untaint(value)
   local valid, result = inet.validateIPv4Netmask(value)
   if not valid then
     return valid, T"Invalid netmask."
@@ -1599,7 +1592,7 @@ end
 -- @param #string value the IPv6 Address
 -- @return true or nil+error message
 function M.validateStringIsIPv6(value)
-    value = string.untaint(value)
+    value = untaint(value)
     if value and inet.isValidIPv6(value) then
         return true
     else
@@ -2041,7 +2034,7 @@ function M.getPossibleHostsInSubnet(subnetmask)
   setlanguage()
   -- getPossibleHostsInIPv4Subnet function will use inet_pton which requires string to be passed as an argument.
   -- subnetmask when it comes from GUI, will be of type userdata so untainting it.
-  subnetmask = string.untaint(subnetmask)
+  subnetmask = untaint(subnetmask)
   local result = inet.getPossibleHostsInIPv4Subnet(subnetmask)
   if not result then
     return nil, T"Invalid subnet."
@@ -2163,14 +2156,14 @@ function M.validateTime(value)
         return nil, T"Invalid input"
     end
     local time_pattern = "^(%d+):(%d+)$"
-    local hour, min = value:match(time_pattern)
-    if min then
+    local hour, minute = value:match(time_pattern)
+    if minute then
         hour = tonumber(hour)
-        min = tonumber(min)
+        minute = tonumber(minute)
         if hour < 0 or 23 < hour then
            return nil, T"Invalid hour, must be between 0 and 23"
         end
-        if min < 0 or 59 < min then
+        if minute < 0 or 59 < minute then
            return nil, T"Invalid minutes, must be between 0 and 59"
         end
         return true

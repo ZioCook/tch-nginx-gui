@@ -129,7 +129,8 @@ case "$detected_mode" in
         if [ "$qos_pref" = "1" ]; then
             :
         else
-            if [ -f /var/run/qos.pid ] || pidof qos >/dev/null 2>&1 || pgrep qos >/dev/null 2>&1; then
+            if [ -f /var/run/qos.pid ] || pidof qos >/dev/null 2>&1 || pgrep qos >/dev/null 2>&1 \
+               || ls /etc/rc.d/S*qos >/dev/null 2>&1 || ls /etc/rc.d/S*iqos >/dev/null 2>&1; then
                 /usr/share/transformer/scripts/toggle_qos.sh 0 >/dev/null 2>&1 &
             else
                 uci -q set modgui.var.qos_enabled='0'

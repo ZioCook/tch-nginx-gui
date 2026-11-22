@@ -22,11 +22,20 @@ local valueMap = {
   payload = "0",
 }
 
+-- Set the value in uci
+-- @param pname parameter name
+-- @param pvalue parameter value
+local function setOnUci(pname, pvalue, commitapply)
+  nudBinding.option = pname
+  set_on_uci(nudBinding, pvalue, commitapply)
+  configChanged = true
+end
+
 -- set the default values to the options in uci
-function setDefault()
+local function setDefault()
   set_on_uci(nudBinding, "nud")
   for param, value in pairs(valueMap) do
-    setOnUci(param, value, commitapply)
+    setOnUci(param, value)
   end
 end
 
@@ -68,15 +77,6 @@ end
 function M.uci_nud_get(pname)
   nudBinding.option = pname
   return get_from_uci(nudBinding)
-end
-
--- Set the value in uci
--- @param pname parameter name
--- @param pvalue parameter value
-function setOnUci(pname, pvalue, commitapply)
-  nudBinding.option = pname
-  set_on_uci(nudBinding, pvalue, commitapply)
-  configChanged = true
 end
 
 -- Set function for the params

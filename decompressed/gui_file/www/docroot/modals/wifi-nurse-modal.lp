@@ -6,7 +6,6 @@ gettext.textdomain('webui-core')
 local proxy = require("datamodel")
 local ui_helper = require("web.ui_helper")
 local message_helper = require("web.uimessage_helper")
-local post_helper = require("web.post_helper")
 local content_helper = require("web.content_helper")
 local table, string = table, string
 local tonumber = tonumber
@@ -30,7 +29,7 @@ local getStationData = function(stationMAC)
 				rx_phy_rate = stationPath .. "rx_phy_rate",
 		}
 
-		local m_status, m_error = content_helper.getExactContent(stationConf)
+		local m_status = content_helper.getExactContent(stationConf)
 
 		stationConf["radio"] = "2.4Ghz"
 		return m_status
@@ -52,13 +51,13 @@ local getStationData5G = function(stationMAC)
 			rx_phy_rate = stationPath .. "rx_phy_rate",
 		}
 
-		local m_status, m_error = content_helper.getExactContent(stationConf)
+		local m_status = content_helper.getExactContent(stationConf)
 		stationConf["radio"] = "5Ghz"
 		return m_status
 end
 
 local hosts = proxy.get("sys.hosts.host.")
-local hosts = content_helper.convertResultToObject("sys.hosts.host.",hosts)
+hosts = content_helper.convertResultToObject("sys.hosts.host.",hosts)
 
 local datarows ={}
 local index = 1

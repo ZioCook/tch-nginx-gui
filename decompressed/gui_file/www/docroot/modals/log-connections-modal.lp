@@ -8,8 +8,7 @@ local proxy = require("datamodel")
 local ui_helper = require("web.ui_helper")
 local message_helper = require("web.uimessage_helper")
 local content_helper = require("web.content_helper")
-local format,find,sub = string.format, string.find, string.sub
-local floor = math.floor
+local format = string.format
 local table = table
 local logdata = ""
 local export_rpc_path = "rpc.system.log.conntrack."
@@ -90,7 +89,7 @@ local udp_ignore = {
     ["0.0.0.0"] = true,
 }
 logdata:gsub(pattern, function(proto, subString)
-  local srcAddr, srcPort, dstAddr, dstPort, state
+  local sport, dport, state
   local source, destination
   if proto == "tcp" then
     subString:gsub(tcpPattern,function(state_, srcAddr_, dstAddr_, srcPort_, dstPort_)
@@ -206,11 +205,6 @@ ngx.print(ui_helper.createMessages(message_helper.popMessages()))
 ngx.print('<legend>');  ngx.print( T"System Log - Active Connections" ); ngx.print('</legend>\
 ')
     -- add input filter for user searching
-    local filterclass = {
-        input = {
-            id = "searchInput",
-        }
-    }
     local exporting_alert = {
       alert = {
         class = "alert-info hide",

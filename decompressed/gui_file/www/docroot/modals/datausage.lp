@@ -393,7 +393,7 @@ end
   if page.datausage_interface then
     get_datausage_section(page.datausage_interface)
   else
-    ngx.print(ui_helper.createAlert({ class = "alert-warning" }, T"No WAN interface is available for data usage monitoring."))
+    ngx.print(ui_helper.createAlertBlock(T"No WAN interface is available for data usage monitoring.", { class = "alert-warning" }))
   end
       ngx.print('\
   </form>\

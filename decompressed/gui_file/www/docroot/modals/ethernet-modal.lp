@@ -47,7 +47,6 @@ local gVIC = post_helper.getValidateInCheckboxgroup
 local gVIES = post_helper.getValidateInEnumSelect
 local vNES = post_helper.validateNonEmptyString
 
-local session = ngx.ctx.session
 local tech = false
 if session:getrole() == "engineer" then
     tech = true
@@ -79,9 +78,12 @@ end
 
 hosts_mac[#hosts_mac+1] = {"custom",T"custom"}
 
+local dhcpDefaultExist
 if lfs.attributes("/www/lua/dhcpreset_helper.lua", "mode") == "file" then
    dhcpDefaultExist = require("dhcpreset_helper")
 end
+
+local isQtnGuestWiFi
 
 local function num2ipv4(ip)
     local ret = bit.band(ip, 255)
@@ -607,7 +609,7 @@ else
     mapValSFP.eth4_wanmode = vB
 end
 
-local content_sfp, helpmsg = post_helper.handleQuery(mapParSFP, mapValSFP)
+local content_sfp = post_helper.handleQuery(mapParSFP, mapValSFP)
 
 -- Standard parameters
 local mapParams = {
@@ -710,7 +712,7 @@ local function validateDNS(value, object, key)
     end
 end
 
-function isQtnGuestWiFi(intf)
+isQtnGuestWiFi = function(intf)
     if wireless_radio[untaint(intf)] then
         local radio = proxy.get(format("rpc.wireless.ssid.@%s.radio", intf))
         local isRemote = proxy.get(format("rpc.wireless.radio.@%s.remotely_managed", radio[1].value))
@@ -1508,7 +1510,7 @@ local switchDHCP = {
         off = "1"
     }
 }
-local html = {}
+html = {}
 html[#html + 1] = ui_helper.createSwitch(T"DHCP Server", "dhcpIgnore", content["dhcpIgnore"],switchDHCP)
 html[#html + 1] = ui_helper.createLabel(T"Network address", network, advanced_network)
 html[#html + 1] = ui_helper.createInputText(T"DHCP Start address", "dhcpStartAddress", ipstart, advanced, helpmsg["dhcpStart"])
@@ -1606,9 +1608,9 @@ $(function() {\
     var currentlanip = "');  ngx.print( content["localdevIP"] ); ngx.print('";\
     $("[name=\'localdevIP\']").on("change", function(){\
 	  var NewIp = $(this).val();\
-	  var StartDHCP = $("[name=\'dhcpStartAddress\']").val().replace(currentlanip.match(/[0-9]+\.[0-9]+\.[0-9]+\./g),\'\');\
-	  var EndDHCP = $("[name=\'dhcpEndAddress\']").val().replace(currentlanip.match(/[0-9]+\.[0-9]+\.[0-9]+\./g),\'\');\
-	  var NewIpBase = NewIp.match(/[0-9]+\.[0-9]+\.[0-9]+\./g);\
+	  var StartDHCP = $("[name=\'dhcpStartAddress\']").val().replace(currentlanip.match(/[0-9]+\\.[0-9]+\\.[0-9]+\\./g),\'\');\
+	  var EndDHCP = $("[name=\'dhcpEndAddress\']").val().replace(currentlanip.match(/[0-9]+\\.[0-9]+\\.[0-9]+\\./g),\'\');\
+	  var NewIpBase = NewIp.match(/[0-9]+\\.[0-9]+\\.[0-9]+\\./g);\
       if (currentlanip == $("[name=\'dnsServer\']").val()){\
           $("[name=\'dnsServer\']").val(NewIp);\
           currentlanip = NewIp;\

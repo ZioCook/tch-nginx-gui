@@ -10,7 +10,6 @@ end
 
 local format = string.format
 local tonumber = tonumber
-local table = table
 local ui_helper = require("web.ui_helper")
 local postHelper = require("web.post_helper")
 local content_helper = require("web.content_helper")
@@ -19,8 +18,6 @@ local variantHelper = nil
 if has_variant then
     variantHelper = postHelper.getVariant(variant_helper, "ExtenderPage", "extenderConfig")
 end
-local proxy = require("datamodel")
-local format, find, sub, match = string.format, string.find, string.sub, string.match
 
 local content = {
   count = "rpc.multiap.ExtenderNumberOfEntries",
@@ -40,7 +37,6 @@ if has_variant and postHelper.getVariantValue(variantHelper, "extenderInfo") the
 end
 
 local easyMeshText = getState and T"EasyMesh enabled" or T"EasyMesh disabled"
-local statusLed = getState and "light green" or "light off"
 local nExt = tonumber(content["count"]) or 0
 local modalPath = nil
 local switchName = nil

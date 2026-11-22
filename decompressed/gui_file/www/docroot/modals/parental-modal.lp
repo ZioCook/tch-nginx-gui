@@ -4,43 +4,38 @@
 --NG-101457 [TI] - Language Pack : [CTS-Workaround] Translation on Modal Parental Controle not taken into account
 gettext.textdomain('webui-parental')
 local proxy = require("datamodel")
-local content_helper = require("web.content_helper")
 local ui_helper = require("web.ui_helper")
 local message_helper = require("web.uimessage_helper")
 local post_helper = require("web.post_helper")
-local table, ipairs = table, ipairs
+local ipairs = ipairs
 local uinetwork = require("web.uinetwork_helper")
-local hosts_ac, hosts_ac_v6 = uinetwork.getAutocompleteHostsList()
-local match, format, gsub  = string.match, string.format, string.gsub
-local tonumber, tostring = tonumber, tostring
+local hosts_ac = uinetwork.getAutocompleteHostsList()
+local match, gsub, untaint = string.match, string.gsub, string.untaint
+local tonumber = tonumber
 local validateURL = post_helper.validateURL
 local session = ngx.ctx.session
 local uniqueKey = post_helper.getRandomKey()
-local proxy = require("datamodel")
 
 -- Shortcuts to validation helpers to make lines shorter
 local vB = post_helper.validateBoolean
-local vSII = post_helper.validateStringIsIP
 local vSIM = post_helper.validateStringIsMAC
 local gVSLIR = post_helper.getValidateStringLengthInRange
 
-local site = ""
-
-function siteFilter(site)
+local function siteFilter(url)
   --removes white space after the url
-  site = site and gsub(site, " ", "")
-  site = site and string.lower(site)
+  url = url and gsub(url, " ", "")
+  url = url and string.lower(url)
   --extract only domain part in URL
-  if site and site:match("://") then
-    site = site:match("//([^/]+)")
+  if url and url:match("://") then
+    url = url:match("//([^/]+)")
   end
   -- check the site has www then remove trailing path information from URL.
-  if site and site:match("www") then
-    site = site:match("%.(%S+)")
+  if url and url:match("www") then
+    url = url:match("%.(%S+)")
   end
   -- if site contains '/' then remove trailing path information from URL.
-  site = site and site:match("([^/]+)")
-  return site
+  url = url and url:match("([^/]+)")
+  return url
 end
 
 local function validateSiteAndDuplicateCheck(value,data,key)
@@ -87,7 +82,6 @@ end]]--
 -- uci.parental.@URLfilter[i].site
 -- uci.parental.@URLfilter[i].device
 
-local hostlist = {}
 local hosts_mac = {}
 for k, v in pairs(hosts_ac) do
   local mac = match(k, "%[(.*)%]")
@@ -111,7 +105,7 @@ local qry_data, qry_helpmsg = post_helper.handleQuery(qry_params, qry_valid)
 if ngx.req.get_method() == "POST" and not next(qry_helpmsg) then
     local post_args = ngx.req.get_post_args()
     if post_args["sites_enabled"] then
-        local enabled = (string.untaint(post_args["sites_enabled"]) == "1")
+        local enabled = (untaint(post_args["sites_enabled"]) == "1")
         if enabled then
             os.execute("[ -x /etc/init.d/weburl ] && { /etc/init.d/weburl enable; /etc/init.d/weburl start; }")
             os.execute("[ -x /etc/init.d/dnsfilter ] && { /etc/init.d/dnsfilter enable; /etc/init.d/dnsfilter start; }")
@@ -184,24 +178,6 @@ local entries_valid = {
     ["devices_mac"] = validateMAC,
 }
 
-local parental_filter = function(data)
-  local site = data["site"]
-  --removes extra space
-  site = gsub(site, " ", "")
-  --extract only domain part in URL
-  if site:match("://") then
-    site = site:match("//([^/]+)")
-  end
-  -- check the site has www then remove trailing path information from URL.
-  if site:match("www") then
-    site = site:match("%.(%S+)")
-  end
-  -- if site contains '/' then remove trailing path information from URL. 
-  site = site:match("([^/]+)")
-  data["site"] = site
-  return true
-end
-
 --keywords table
 local keywords_path = "uci.parental.filterkeyword.@."
 local keywords_columns = {
@@ -242,7 +218,7 @@ local exporting_alert = {
       }
 local text_mac
 if ngx.var.request_method == "POST" then
-  post_data = ngx.req.get_post_args()
+  local post_data = ngx.req.get_post_args()
   if (post_data.tableid == "URLfilter") and ( post_data.action == "TABLE-MODIFY" or  post_data.action == "TABLE-EDIT"  or  post_data.action == "TABLE-ADD") then
     local text_mac_index = tonumber(post_data.index)
     if  post_data.action == "TABLE-ADD" then
@@ -263,10 +239,10 @@ if ngx.var.request_method == "POST" then
         break
       end
     end
-    local function get_content_name(parental_options)
-      local objectname = parental_options.objectName
+    local function get_content_name(options)
+      local objectname = options.objectName
       if post_data.action == "TABLE-MODIFY" then
-        objectname = parental_options.changesessionindex
+        objectname = options.changesessionindex
       end
       return objectname
     end
@@ -288,10 +264,10 @@ if ngx.var.request_method == "POST" then
       proxy.apply()
     end
   end
-  local function get_content_name(parental_options)
-    local objectname = parental_options.objectName
+  local function get_content_name(options)
+    local objectname = options.objectName
     if post_data.action == "TABLE-MODIFY" then
-       objectname = parental_options.changesessionindex
+       objectname = options.changesessionindex
     end
     return objectname
   end
@@ -307,8 +283,6 @@ if ngx.var.request_method == "POST" then
   end
 end
 
-local uri = ngx.var.uri
-local help_link = { href="/help/index.html?anchor=" .. uri:match("/([^/]+)%.lp") }
   ngx.print('\
 \
 ');  ngx.print(ui_helper.createHeader(T"Parental Controls", false, false, nil) ); ngx.print('\

@@ -7,13 +7,12 @@ local proxy = require("datamodel")
 local ui_helper = require("web.ui_helper")
 local post_helper = require("web.post_helper")
 local content_helper = require("web.content_helper")
-local attributes = { span = { class = "span4" } }
 local message_helper = require("web.uimessage_helper")
 local lp = require("web.lp")
 local ngx = ngx
-local table, string = table, string
-local tonumber, tostring = tonumber, tostring
-local format, match = string.format, string.match
+local string = string
+local tostring = tostring
+local format, match, gmatch, untaint = string.format, string.match, string.gmatch, string.untaint
 local has_variant, variant_helper = pcall(require, "variant_helper")
 local variantHelper = nil
 if has_variant and variant_helper then
@@ -179,35 +178,35 @@ ngx.print(ui_helper.createHeader(T"EasyMesh", false, true))
             html[#html+1] = format('<legend>%s<br />'.. T'Connected Devices:'..'%s<br /></legend>', content.hostname, internalstanumber)
             html[#html+1] = ui_helper.createTable(devices_columns, newdevices_data, devices_options, nil, devices_helpmsg)
             ngx.print(html)
-            local html={}
+            html={}
             local MultiAP = content_helper.convertResultToObject("rpc.multiap.device.",proxy.get("rpc.multiap.device."))
             local staList = content_helper.convertResultToObject("rpc.multiap.sta.",proxy.get("rpc.multiap.sta."))
             if MultiAP then
               for k, v in ipairs(MultiAP) do
-                local agent_MAC = v.al_mac and tostring(string.untaint(v.al_mac)) or ""
-                local agent_name = v.device_name and string.untaint(v.device_name) or "Unknown_Name"
+                local agent_MAC = v.al_mac and tostring(untaint(v.al_mac)) or ""
+                local agent_name = v.device_name and untaint(v.device_name) or "Unknown_Name"
                 if post_helper.getVariantValue(variantHelper, "agentHostname") then
                   agent_name = T"Extender"
                 end
                 local sta_count = 0
-                local newdevices_data = {}
+                local agent_devices_data = {}
                 if agent_MAC ~= "" then
                   for key, value in pairs(v) do
                     if match(key, "^%S+.sta_list$") then
                       if value ~= "" then
-                        for sta_i in string.gmatch(value, '([^%s]+)') do
+                        for sta_i in gmatch(value, '([^%s]+)') do
                           sta_count = sta_count + 1
                           for _, sta_v in ipairs(staList) do
                             if sta_v.mac == sta_i then
                               local devicelinkrate = sta_v.dl_mac_rate and sta_v.dl_mac_rate ~= "" and sta_v.ul_mac_rate and sta_v.ul_mac_rate ~= "" and sta_v.dl_mac_rate/1000 .. "Mbps/" .. sta_v.ul_mac_rate/1000 .. "Mbps" or ""
                               local devicesignalstrength = sta_v.rssi and sta_v.rssi ~= "" and sta_v.rssi .. "dBm" or ""
                               local devicetraffic = sta_v.txbytes and sta_v.txbytes ~= "" and sta_v.rxbytes and sta_v.rxbytes ~= "" and sta_v.txbytes/1000 .. "Mbps/" .. sta_v.rxbytes/1000 .. "Mbps" or ""
-                              for i, v in pairs(devices_data) do
-                                if sta_v.mac == v[MACcolumnindex] and #v == 6 then
-                                  v[#v+1] = devicesignalstrength
-                                  v[#v+1] = devicelinkrate
-                                  v[#v+1] = devicetraffic
-                                  newdevices_data[#newdevices_data+1]=devices_data[i]
+                              for i, dev in pairs(devices_data) do
+                                if sta_v.mac == dev[MACcolumnindex] and #dev == 6 then
+                                  dev[#dev+1] = devicesignalstrength
+                                  dev[#dev+1] = devicelinkrate
+                                  dev[#dev+1] = devicetraffic
+                                  agent_devices_data[#agent_devices_data+1]=devices_data[i]
                                 end
                               end
                             end
@@ -218,7 +217,7 @@ ngx.print(ui_helper.createHeader(T"EasyMesh", false, true))
                   end
                 end
                 html[#html+1] = format('<span id=%s><legend>%s<br />'..T'Connected Devices:'..'%s<br /></legend></span>', agent_MAC, agent_name, sta_count)
-                html[#html+1] = ui_helper.createTable(devices_columns, newdevices_data, devices_options, nil, devices_helpmsg)
+                html[#html+1] = ui_helper.createTable(devices_columns, agent_devices_data, devices_options, nil, devices_helpmsg)
               end
             end
             ngx.print(html)

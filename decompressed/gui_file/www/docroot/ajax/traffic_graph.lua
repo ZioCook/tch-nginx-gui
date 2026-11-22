@@ -23,16 +23,28 @@ if ngx.req.get_method() == "POST" then
   interface = ngx.req.get_uri_args().interface
 end
 
+if interface ~= nil and (type(interface) ~= "string" or #interface > 15 or not match(interface, "^[a-zA-Z0-9][a-zA-Z0-9%._%-]*$") or interface:find("%.%.")) then
+  ngx.say("Invalid interface in args")
+  ngx.exit(ngx.HTTP_OK)
+end
+
 local int_rx = format("/sys/class/net/%s/statistics/rx_bytes",interface or "ptm0")
 local int_tx = format("/sys/class/net/%s/statistics/tx_bytes",interface or "ptm0")
 
-local file = io.open(int_rx,"r")
-local rx_traffic = file:read()
-file:close()
+local rx_traffic = old_rx_value or "0"
+local tx_traffic = old_tx_value or "0"
 
-local file = io.open(int_tx,"r")
-local tx_traffic = file:read()
-file:close()
+local file = io.open(int_rx,"r")
+if file then
+  rx_traffic = file:read() or rx_traffic
+  file:close()
+end
+
+file = io.open(int_tx,"r")
+if file then
+  tx_traffic = file:read() or tx_traffic
+  file:close()
+end
 
 local data = {
 	old_rx_traffic = old_rx_value,

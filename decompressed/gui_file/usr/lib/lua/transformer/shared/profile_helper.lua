@@ -601,12 +601,12 @@ function M.validateDigitMapString(dmstring)
                     break
                 end
                 if char == endPattern or patternIndex == #dmstring then
-                    endPatternIndex = patternIndex
-                    setString = string.sub(dmstring, index, endPatternIndex)
+                    local endPatternIndex = patternIndex
+                    local setString = string.sub(dmstring, index, endPatternIndex)
                     local setIndex = 1
                     local iserror = 0
                     while setIndex and setIndex <= #setString do
-                        setChar = sub(setString, setIndex, setIndex)
+                        local setChar = sub(setString, setIndex, setIndex)
                         if setChar == endPattern or endChar == endPattern then
                             iserror = 1
                         end

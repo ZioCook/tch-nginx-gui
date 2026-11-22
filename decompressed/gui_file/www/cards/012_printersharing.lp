@@ -1,7 +1,5 @@
 --pretranslated: do not change this file
  
-local istainted = string.istainted
-
 -- Enable localization
 gettext.textdomain('webui-printersharing')
 
@@ -11,7 +9,7 @@ local ui_helper = require("web.ui_helper")
 local attributes = {  }
 local content_helper = require("web.content_helper")
 local session = ngx.ctx.session
-local modalPath = nil
+local modalPath
 if session:hasAccess("/modals/printersharing-modal.lp") then
   modalPath = "/modals/printersharing-modal.lp"
 

@@ -133,8 +133,11 @@ if mac5g then
   end
 end
 
-local devices_data, devices_helpmsg =
-  post_helper.handleTableQuery(agent_devices_columns, agent_devices_options, devices_filter)
+local devices_data, devices_helpmsg = {}, {}
+if agent_devices_columns and agent_devices_options then
+  devices_data, devices_helpmsg =
+    post_helper.handleTableQuery(agent_devices_columns, agent_devices_options, devices_filter)
+end
 
 local content = {}
 if mac5g then
@@ -224,12 +227,15 @@ ngx.print(ui_helper.createHeader(T"EasyMesh Info", false, true))
         html[#html + 1] = ui_helper.createLabel(T"Transmit Power", content["Transmit_Power"] or "")
         html[#html + 1] = ui_helper.createLabel(T"No of BSS", content["No_of_BSS"] or "")
         ngx.print(html);
-        html={}
+        html = {}
+        if agent_devices_columns and agent_devices_options then
           ngx.print('\
         <legend>List of connected STA</legend>\
-        ');  
-        html[#html + 1] = ui_helper.createTable(agent_devices_columns, devices_data, agent_devices_options, nil, devices_helpmsg)
-        ngx.print(html);
+        ')
+          html[#html + 1] = ui_helper.createTable(agent_devices_columns, devices_data, agent_devices_options, nil, devices_helpmsg)
+          ngx.print(html)
+          html = {}
+        end
           ngx.print('\
       </div>\
     </div>\

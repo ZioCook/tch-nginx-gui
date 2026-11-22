@@ -6,12 +6,10 @@ gettext.textdomain('webui-core')
 local ngx = ngx
 local proxy = require("datamodel")
 local ui_helper = require("web.ui_helper")
-local post_helper = require("web.post_helper")
 local content_helper = require("web.content_helper")
 local lfs = require("lfs")
 local checkgpon = require("checkgponboard_helper")
 local gponboard = checkgpon.isGPONBoard()
-local pairs, table = pairs, table
 local format = string.format
 local numOfPings = "2"
 local refresh = 2
@@ -356,7 +354,7 @@ if string.match(content_uci["wan_devices"],"eth%d") ~= nil or not xdsl_exist the
     end
 else
     -- DSL status
-    local attributes = { span = { class = "span8" } }
+    local dsl_attributes = { span = { class = "span8" } }
     local statusIconDSL
 
     if xdsl_params["dsl_status"] == "Up" then
@@ -364,7 +362,7 @@ else
     else
         statusIconDSL = "<i class=\"icon-ban-circle icon-large red\"></i> "
     end
-    html[#html+1] = ui_helper.createLabel(T"DSL Status",format("%s %s",statusIconDSL, T(xdsl_params["dsl_status"])), attributes)
+    html[#html+1] = ui_helper.createLabel(T"DSL Status",format("%s %s",statusIconDSL, T(xdsl_params["dsl_status"])), dsl_attributes)
 
     --Check ATM ping and display the results if relevant
     if is_adsl then
@@ -403,11 +401,12 @@ else
             local xtm_intf_name = string.gsub(v["path"],"uci.wanatmf5loopback.@","")
             local vpi = proxy.get("uci.xtm.atmdevice.@"..xtm_intf_name.."vpi")[1].value
             local vci = proxy.get("uci.xtm.atmdevice.@"..xtm_intf_name.."vci")[1].value
-            html[#html+1] = ui_helper.createLabel(T"ATM Ping Test", format("%s PVC %s/%s %s", statusIconAtmPing[k], vpi, vci, explanationAtmPing[k], attributes))
+            html[#html+1] = ui_helper.createLabel(T"ATM Ping Test", format("%s PVC %s/%s %s", statusIconAtmPing[k], vpi, vci, explanationAtmPing[k], dsl_attributes))
         end
     end
 end
 if gponboard or is_gpon then
+	local statusIconGpon
 	if content_rpc_gpon["gpon_status"] == "OPERATION (O5)" or content_rpc_gpon["gpon_status"] == "Up" then
         statusIconGpon = "<i class=\"icon-ok icon-large green\"></i> "
     else

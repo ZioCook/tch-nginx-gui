@@ -16,7 +16,7 @@ local string, table = string, table
 local concat, insert = table.concat, table.insert
 local ipairs = ipairs
 local tonumber = tonumber
-local match, gmatch, format, find, untaint = string.match, string.gmatch, string.format, string.find, string.untaint
+local match, gmatch, format, untaint = string.match, string.gmatch, string.format, string.untaint
 
 local tod = parental_helper.getTodwifi()
 local tod_columns = tod.columns
@@ -35,8 +35,6 @@ local ap_status_map = setmetatable({
   ["1"] = T"On",
   ["-1"] = T"Error. Re-set the rule!"
 }, untaint_mt)
-
-local ap_list = { }
 
 local tod_timer_path = "uci.tod.timer."
 local tod_action_path = "uci.tod.action."
@@ -74,16 +72,6 @@ local function validateWeekdays(value)
     end
   end
   return true
-end
-
-local function daysOverlap(days1, days2)
-  days1 = concat(days1, " ")
-  for _, day in ipairs(days2) do
-    if find(days1, day) then
-      return true
-    end
-  end
-  return nil
 end
 
 local function validate_wifitod(postcontent, timer_data)
@@ -140,23 +128,6 @@ local function getWifiTodListFromIndex(index)
 	end
 	
 	return nil
-end
-
-local function checkApInConfig(apInConfig, apToCheck)
-	if not apInConfig then
-		return false
-	end
-  
-	for i,v in ipairs(apInConfig) do
-		local val = proxy.get(v.path.."value")
-		local ap_index = val and val[1] and val[1].value or ""
-		local ap = ap_index:match("(.*)_")
-		if ap == apToCheck then
-			return true
-		end
-	end
-		
-	return false
 end
 
 local function onAdd(success, content, onModify)
@@ -320,8 +291,6 @@ end
 
 local action_list = content_helper.convertResultToObject(tod_action_path, proxy.get(tod_action_path))
 local timer_list = content_helper.convertResultToObject(tod_timer_path, proxy.get(tod_timer_path))
-local wifitod_list = content_helper.convertResultToObject(tod_wifitod_path, proxy.get(tod_wifitod_path))
-local ap_list = content_helper.convertResultToObject(tod_ap_path, proxy.get(tod_ap_path))
 local timer_data = {}
 
 local function getApSelected(index)
@@ -431,7 +400,7 @@ ngx.print('\
 \
   <form class="form-horizontal" method="post" action="/modals/tod_wireless-modal.lp">\
     <legend>');  ngx.print( T"Time of day wireless control" ); ngx.print('</legend>\
-    ');  ngx.print(ui_helper.createTable(tod_columns, tod_data, tod_options, nil, tod_helpmsg)); ngx.print('\
+    ');  ngx.print(ui_helper.createTable(tod_columns, tod_data, tod_options, nil, nil)); ngx.print('\
     ');  if ngx.var.request_method == "POST" and (ngx.req.get_post_args().action == "TABLE-NEW" or ngx.req.get_post_args().action == "TABLE-EDIT") then  ngx.print('\
       <script type="text/javascript">\
         var warning = \'<div class="control-group"><div style="padding-top: 12px;" class="controls"><span class="alert">\'\

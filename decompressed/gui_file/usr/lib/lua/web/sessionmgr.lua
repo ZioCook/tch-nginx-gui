@@ -27,6 +27,64 @@ local function newSessionTracker()
   }
 end
 
+--- extract client tracking key (normalizes IPv6 /64 prefix)
+-- @param ip (string) The IP address
+-- @return (string) The client tracking key
+local function getClientKey(ip)
+  if not ip or type(ip) ~= "string" then return ip end
+  local s = ip:lower():gsub("%%.*$", "")
+
+  -- IPv4-mapped IPv6 in dotted-decimal format (::ffff:192.168.1.5 or 0:0:0:0:0:ffff:192.168.1.5)
+  local ipv4_mapped = s:match("^[0:]*ffff:(%d+%.%d+%.%d+%.%d+)$")
+  if ipv4_mapped then
+    return ipv4_mapped
+  end
+
+  -- Pure IPv4
+  if not s:find(":") then
+    return s
+  end
+
+  -- IPv6 address (expand :: and normalize to 8 hextets)
+  local parts = {}
+  if s:find("::") then
+    local left, right = s:match("^(.-)::(.*)$")
+    local lparts, rparts = {}, {}
+    for h in left:gmatch("[%x]+") do lparts[#lparts + 1] = h end
+    for h in right:gmatch("[%x]+") do rparts[#rparts + 1] = h end
+    local missing = 8 - (#lparts + #rparts)
+    for i = 1, #lparts do parts[#parts + 1] = lparts[i] end
+    for _ = 1, missing do parts[#parts + 1] = "0" end
+    for i = 1, #rparts do parts[#parts + 1] = rparts[i] end
+  else
+    for h in s:gmatch("[%x]+") do parts[#parts + 1] = h end
+  end
+
+  -- Check if expanded IPv6 is an IPv4-mapped IPv6 in pure hex format (0:0:0:0:0:ffff:c0a8:0105)
+  local is_mapped_hex = true
+  for i = 1, 5 do
+    if (tonumber(parts[i] or "0", 16) or 0) ~= 0 then
+      is_mapped_hex = false
+      break
+    end
+  end
+  if is_mapped_hex and (tonumber(parts[6] or "0", 16) or 0) == 0xffff and #parts == 8 then
+    local hi = tonumber(parts[7] or "0", 16) or 0
+    local lo = tonumber(parts[8] or "0", 16) or 0
+    local o1 = math.floor(hi / 256) % 256
+    local o2 = hi % 256
+    local o3 = math.floor(lo / 256) % 256
+    local o4 = lo % 256
+    return format("%d.%d.%d.%d", o1, o2, o3, o4)
+  end
+
+  local p1 = tonumber(parts[1] or "0", 16) or 0
+  local p2 = tonumber(parts[2] or "0", 16) or 0
+  local p3 = tonumber(parts[3] or "0", 16) or 0
+  local p4 = tonumber(parts[4] or "0", 16) or 0
+  return format("%x:%x:%x:%x::/64", p1, p2, p3, p4)
+end
+
 --- did we reach the session limit
 -- @param self (SessionMgr) The session manager
 -- @param remoteIP (string) The remote IP address
@@ -37,7 +95,8 @@ local function sessionLimitReached(self, remoteIP)
   if self.maxsessions<=self._session_tracker.count then
     return true
   end
-  local ipCount = self._session_tracker.ipcount[remoteIP] or 0
+  local key = getClientKey(remoteIP)
+  local ipCount = self._session_tracker.ipcount[key] or 0
   if self.maxsessions_per_ip<=ipCount then
     return true
   end
@@ -50,7 +109,9 @@ end
 local function adjustIPCount(self, remoteIP, delta)
   local ipcount = self._session_tracker.ipcount
   if remoteIP then
-    ipcount[remoteIP] = (ipcount[remoteIP] or 0) + delta
+    local key = getClientKey(remoteIP)
+    local v = (ipcount[key] or 0) + delta
+    ipcount[key] = (v > 0) and v or nil
   end
 end
 
@@ -277,9 +338,34 @@ local function getSessionAddress()
   }
 end
 
+local HEADROOM = 10
+local MAX_ANON_PER_IP = 10
+local ANON_IDLE = 20
+local ANON_MAX_LIFE = 180
+local MAX_SESSIONS_PER_USER = 5
+
+local function enforceAnonPerIp(mgr, ip)
+  local key = getClientKey(ip)
+  local ipCount = mgr._session_tracker.ipcount[key] or 0
+  local n, oldest, oldestTs = 0, nil, nil
+  for sid, s in pairs(mgr.sessions) do
+    local isAuth = (s:getusername() ~= "" and not s:isdefaultuser())
+    if getClientKey(s.remoteIP) == key and not isAuth then
+      n = n + 1
+      if not oldestTs or s.timestamp < oldestTs then
+        oldest, oldestTs = sid, s.timestamp
+      end
+    end
+  end
+  if (n >= MAX_ANON_PER_IP or ipCount >= mgr.maxsessions_per_ip) and oldest then
+    removeSession(mgr, oldest)
+  end
+end
+
 local function newSession(mgr, address)
   local session
   local sessionID
+  enforceAnonPerIp(mgr, address.remote)
   if sessionLimitReached(mgr, address.remote) then
     -- the maximum number of sessions has been exceeded.
 	ngx.log(ngx.ERR, "Session limit reached")
@@ -310,19 +396,31 @@ local function redirectIfServiceNotAvailable(session)
   end
 end
 
-
-local function cleanupIfNoSession(self , session)
-
-  if not session then
-	
-	--Remove every session inactive for 20 second
-	for sid, session in pairs(self.sessions) do
-		local expired = sessionExpired(self, session, sid, now, timeout)
-		if expired then
-			ngx.log(ngx.ERR,"Removed session "..sid)
-		end
-	end
-	
+local function cleanupIfNoSession(self, session)
+  if session then return end
+  local now = clock_gettime(CLOCK_MONOTONIC)
+  local evicted, idle = 0, {}
+  for sid, s in pairs(self.sessions) do
+    local isAuth = (s:getusername() ~= "" and not s:isdefaultuser())
+    if isAuth then
+      if sessionExpired(self, s, sid, now) then
+        evicted = evicted + 1
+      end
+    elseif now - (s.created or s.timestamp) > ANON_MAX_LIFE then
+      removeSession(self, sid)
+      evicted = evicted + 1
+    elseif now - s.timestamp >= ANON_IDLE then
+      idle[#idle + 1] = { sid = sid, age = now - s.timestamp }
+    end
+  end
+  table.sort(idle, function(a, b) return a.age > b.age end)
+  local needed = math.max(0, HEADROOM - evicted)
+  for i = 1, math.min(#idle, needed) do
+    removeSession(self, idle[i].sid)
+    evicted = evicted + 1
+  end
+  if evicted > 0 then
+    ngx.log(ngx.NOTICE, "cleanupIfNoSession: evicted " .. evicted .. " session(s)")
   end
 end
 
@@ -370,15 +468,38 @@ function SessionMgr:checkrequest(noActivityUpdate)
   --preventDNSRebind(address.http_host)
   checkProtocol(address,self.force_https)
   local session, sessionID = getSessionForRequest(self, address, noActivityUpdate)
-  cleanupIfNoSession(self,session)
+  if not session then
+    cleanupIfNoSession(self, session)
+    session, sessionID = getSessionForRequest(self, address, noActivityUpdate)
+  end
   redirectIfServiceNotAvailable(session)
   redirectIfNotAuthorized(self, session, sessionID)
   storeSessionInNginx(session)
 end
 
+local function enforceUserSessionLimit(mgr, username, currentSessionId)
+  local user_sessions = {}
+  for sid, s in pairs(mgr.sessions) do
+    if sid ~= currentSessionId and s:getusername() == username then
+      user_sessions[#user_sessions + 1] = { sid = sid, timestamp = s.timestamp or 0 }
+    end
+  end
+  if #user_sessions >= MAX_SESSIONS_PER_USER then
+    table.sort(user_sessions, function(a, b) return a.timestamp < b.timestamp end)
+    local to_remove = #user_sessions - MAX_SESSIONS_PER_USER + 1
+    for i = 1, to_remove do
+      removeSession(mgr, user_sessions[i].sid)
+      ngx.log(ngx.NOTICE, "Enforced user session limit for " .. username .. ": evicted session " .. user_sessions[i].sid)
+    end
+  end
+end
+
 local function login(mgr, session, username)
   local user = mgr.users[username]
   local id = session.sessionid
+  if user and user ~= mgr.default_user then
+    enforceUserSessionLimit(mgr, username, id)
+  end
   session:changeUser(user)
   sessionChanged(mgr, session, id)
 end
@@ -664,6 +785,7 @@ function SessionMgr:delUser(instancename)
   for _,v in pairs(self.users) do
     if v.sectionname == instancename then
       name = v.name
+      break
     end
   end
   if name then

@@ -81,7 +81,7 @@ local function get_proxy(s)
 end
 
 mt.__index = string
-mt.__tostring = function(o)
+mt.__tostring = function(_)
   return "tainted string"
 end
 mt.__tonumberstr = function(o)

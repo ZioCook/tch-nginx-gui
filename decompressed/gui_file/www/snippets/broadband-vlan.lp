@@ -23,7 +23,7 @@ if not proxy.get("uci.ethernet.port.@eth4.") and not proxy.get("sys.eth.port.@et
 	ethname = "eth3"
 end
 
-function getValidateNumberInRange(min, max, value)
+local function getValidateNumberInRange(min, max, value)
     local helptext = T"Input must be a number"
     if min and max then
         helptext = string.format(T"Input must be a number between %d and %d included", min, max)
@@ -58,6 +58,7 @@ local difname = ""
 local check = "devnot"
 local b = "ptm0"
 local intf_state = "disabled"
+local helpmes
 
 local function refresh_state()
 	local ifacedata = proxy.get(pathifname)
@@ -111,7 +112,8 @@ refresh_state()
 if ngx.var.request_method == "POST" and tech then
     local content = ngx.req.get_post_args()
 	if content["action"] == "SAVE" then
-		local range, helpmes = getValidateNumberInRange(2, 4094, content["intf_vlanid"])
+		local range
+		range, helpmes = getValidateNumberInRange(2, 4094, content["intf_vlanid"])
 		local vlan_enabled = (content["intf_vlan"] and content["intf_vlan"] ~= "" and content["intf_vlan"] ~= "0")
 		local new_ifname = connection
 		if vlan_enabled and range then
@@ -220,7 +222,7 @@ ngx.print('\
 \
   <legend>'); ngx.print( T"Internet channel" ); ngx.print('</legend>');
 
-	liste = {	{"devnot", T"Device &nbsp;"},
+	local liste = {	{"devnot", T"Device &nbsp;"},
 				{"dotnot", T"Dot"},
 			}
 	

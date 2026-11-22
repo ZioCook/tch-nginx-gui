@@ -11,6 +11,7 @@ local content_helper = require("web.content_helper")
 local user_path = "uci.web.user.@usr_admin."
 
 local gVSLIR = post_helper.getValidateStringLengthInRange
+local vNES = post_helper.validateNonEmptyString
 local match = string.match
 
 local mapParams = {

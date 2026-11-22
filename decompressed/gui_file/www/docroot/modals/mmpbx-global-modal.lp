@@ -3,7 +3,6 @@
 -- Enable localization
 gettext.textdomain('webui-voice')
 
-local tinsert = table.insert
 local ngx = ngx
 local proxy = require ("datamodel")
 local ui_helper = require("web.ui_helper")
@@ -12,7 +11,6 @@ local content_helper = require("web.content_helper")
 local uimessage_helper = require("web.uimessage_helper")
 local format, untaint = string.format, string.untaint
 local session = ngx.ctx.session
-local content_helper = require("web.content_helper")
 
 local uniqueKey = post_helper.getRandomKey()
 
@@ -30,20 +28,23 @@ local voip_password_profile_1 = "uci.mmpbxrvsipnet.profile.@sip_profile_0.passwo
 local voip_password_profile_2 = "uci.mmpbxrvsipnet.profile.@sip_profile_1.password"
 local voip_password_profile_3 = "uci.mmpbxrvsipnet.profile.@sip_profile_2.password"
 
-if proxy.get(voip_password_profile_1) and proxy.get(voip_password_profile_1)[1].value then
-    voip_password_profile_1 = proxy.get(voip_password_profile_1)[1].value
+local res_p1 = proxy.get(voip_password_profile_1)
+if res_p1 and res_p1[1].value then
+    voip_password_profile_1 = res_p1[1].value
 else
     voip_password_profile_1 = nil
 end
 
-if proxy.get(voip_password_profile_2) and proxy.get(voip_password_profile_2)[1].value then
-    voip_password_profile_2 = proxy.get(voip_password_profile_2)[1].value
+local res_p2 = proxy.get(voip_password_profile_2)
+if res_p2 and res_p2[1].value then
+    voip_password_profile_2 = res_p2[1].value
 else
     voip_password_profile_2 = nil
 end
 
-if proxy.get(voip_password_profile_3) and proxy.get(voip_password_profile_3)[1].value then
-    voip_password_profile_3 = proxy.get(voip_password_profile_3)[1].value
+local res_p3 = proxy.get(voip_password_profile_3)
+if res_p3 and res_p3[1].value then
+    voip_password_profile_3 = res_p3[1].value
 else
     voip_password_profile_3 = nil
 end
@@ -55,11 +56,12 @@ local emission_content = {
     emission_state = "rpc.mmpbx.dectemission.state",
 }
 content_helper.getExactContent(emission_content)
-emission_state = format("%s", emission_content.emission_state)
+local emission_state = format("%s", emission_content.emission_state)
 
 local function split(x, sep)
-    local sep, fields = sep or ":", {}
-    local pattern = string.format("([^%s]+)", sep)
+    sep = sep or ":"
+    local fields = {}
+    local pattern = format("([^%s]+)", sep)
     for field in x:gmatch(pattern) do
         fields[#fields+1] = field
     end
@@ -253,10 +255,10 @@ local sipnet_default = {
     --primary_registrar_port = "5060"
 }
 
-local function onAddVoice(current_section_index,content)
+local function onAddVoice(current_section_index,voice_content)
 
-	if not content.primaryProxy or ( untaint(content.primaryProxy) == "" ) then
-		proxy.set("uci.mmpbxrvsipnet.network.@"..current_section_index..".primary_proxy",untaint(content.primaryRegistrar))
+	if not voice_content.primaryProxy or ( untaint(voice_content.primaryProxy) == "" ) then
+		proxy.set("uci.mmpbxrvsipnet.network.@"..current_section_index..".primary_proxy",untaint(voice_content.primaryRegistrar))
 	end
 		
 	proxy.add("uci.mmpbx.network.",current_section_index)
@@ -281,9 +283,9 @@ end
 
 local function onDeleteVoice(current_section_index)
 
-	local function getIndex(path,current_section_index)
+	local function getIndex(path,section_index)
 		for _ , key in pairs(proxy.getPN(path, true)) do
-			if proxy.get(key.path.."value")[1].value == current_section_index then
+			if proxy.get(key.path.."value")[1].value == section_index then
 				return key.path
 			end
 		end

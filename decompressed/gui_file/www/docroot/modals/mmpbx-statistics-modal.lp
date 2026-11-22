@@ -5,11 +5,7 @@ gettext.textdomain('webui-voice')
 
 local proxy = require ("datamodel")
 local ui_helper = require("web.ui_helper")
-local content_helper = require("web.content_helper")
-local untaint_mt = require("web.taint").untaint_mt
-local setmetatable = setmetatable
 local post_helper = require("web.post_helper")
-local untaint = string.untaint
 
 
 -- This code will be triggered by post of the button
@@ -49,9 +45,6 @@ local historical_statistics_columns = {
     },
 }
 
-local profile = {}
-
-
 local historical_statistics_options = {
     basepath = "rpc.mmpbx.callstatistics.historical.",
     tableid = "historicalstatistics",
@@ -69,7 +62,7 @@ local statistics_filter = function(data)
 end
 
 
-local historical_statistics_data,historical_statistics_helpmsg = post_helper.handleTableQuery(historical_statistics_columns, historical_statistics_options, statistics_filter, nil, nil)
+local historical_statistics_data = post_helper.handleTableQuery(historical_statistics_columns, historical_statistics_options, statistics_filter, nil, nil)
 
 -- clear call log button
 local clear_call_log = {
@@ -114,7 +107,7 @@ local ongoing_statistics_options = {
     canDelete = false,
 }
 
-local ongoing_statistics_data,ongoing_statistics_helpmsg = post_helper.handleTableQuery(ongoing_statistics_columns, ongoing_statistics_options, nil, nil, nil)
+local ongoing_statistics_data = post_helper.handleTableQuery(ongoing_statistics_columns, ongoing_statistics_options, nil, nil, nil)
 
 local uri = ngx.var.uri
 if ngx.var.args and string.len(ngx.var.args) > 0 then

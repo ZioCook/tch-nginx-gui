@@ -200,17 +200,21 @@ local function differentSrpPassword(pswcfg, password)
 end
 
 local function updateConfig(assistant, new_config)
+    local changed = false
     if new_config then
         assistant._config_update = nil
         if (assistant._fromPort~=new_config.fromPort) or (assistant._toPort~=new_config.toPort) then
             assistant._fromPort = new_config.fromPort
             assistant._toPort = new_config.toPort
+            changed = true
         end
         if assistant._interface ~= new_config.interface then
           assistant._interface = new_config.interface
+          changed = true
         end
         if assistant._interface6 ~= new_config.interface6 then
           assistant._interface6 = new_config.interface6
+          changed = true
         end
     end
     return changed

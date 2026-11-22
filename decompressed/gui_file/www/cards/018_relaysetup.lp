@@ -53,7 +53,7 @@ local ppp_state_map = {
     connected = T"PPPoE Relay enabled",
 }
 
-  pppoerelay_state = "disabled"
+  local pppoerelay_state = "disabled"
 
 local wan_ifname = proxy.get("uci.network.interface.@wan.ifname")
 

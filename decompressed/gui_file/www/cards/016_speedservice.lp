@@ -1,19 +1,13 @@
 --pretranslated: do not change this file
  
-local istainted = string.istainted
-
 -- Enable localization
 gettext.textdomain('webui-core')
 
-local tinsert = table.insert
-local proxy = require("datamodel")
 local ui_helper = require("web.ui_helper")
-local attributes = { light = { } ,span = { class = "span4" } }
 local content_helper = require("web.content_helper")
-local format, find, sub, match = string.format, string.find, string.sub, string.match
 local session = ngx.ctx.session
 local modalPath = nil
-local status = nil
+local status
 if session:hasAccess("/modals/speedservice-modal.lp") then
     modalPath = "/modals/speedservice-modal.lp"
 end

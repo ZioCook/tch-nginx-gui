@@ -66,7 +66,7 @@ local ajax_attr_light = {
     }
 }
 
-function get_dhcp_state(wan_auto, wan_ppp, wan_error, ipaddr)
+local function get_dhcp_state(wan_auto, wan_ppp, wan_error, ipaddr)
     -- Figure out interface state
 	if wan_auto ~= "0" then
 	  -- WAN enabled
@@ -95,7 +95,7 @@ end
 
 local function split(str, ang)
 	local tab = {}
-	for vari in string.gfind(format("%s",str), ang) do
+	for vari in string.gmatch(format("%s",str), ang) do
 		table.insert(tab, vari)
 	end
 	return tab
@@ -224,10 +224,10 @@ local function validateNat(value, object, key)
   local valid, msg = post_helper.validateBoolean(value, object, key)
   if valid and zonenum ~= "" and value ~= proxy.get("uci.firewall.zone."..zonenum..".masq")[1].value then
     proxy.set("uci.firewall.zone."..zonenum..".conntrack", "1")
-    local key = "forwarding"..post_helper.getRandomKey()
+    local fwd_key = "forwarding"..post_helper.getRandomKey()
     if value == "1" then
       if forwdnum == "" then
-        forwdnum = proxy.add("uci.firewall.forwarding.", key)
+        forwdnum = proxy.add("uci.firewall.forwarding.", fwd_key)
         proxy.set(firewall_value)
         proxy.set("uci.firewall.forwarding.@"..forwdnum..".enabled", "0")
       else
@@ -235,7 +235,7 @@ local function validateNat(value, object, key)
       end
     else
       if forwdnum == "" then
-        forwdnum = proxy.add("uci.firewall.forwarding.", key)
+        forwdnum = proxy.add("uci.firewall.forwarding.", fwd_key)
         proxy.set(firewall_value)
         proxy.set("uci.firewall.forwarding.@"..forwdnum..".enabled", "1")
       else

@@ -9,10 +9,8 @@ local ui_helper = require("web.ui_helper")
 local message_helper = require("web.uimessage_helper")
 local content_helper = require("web.content_helper")
 local post_helper = require("web.post_helper")
-local format,find,sub, match, untaint = string.format, string.find, string.sub, string.match, string.untaint
+local format, find, untaint = string.format, string.find, string.untaint
 local vB = post_helper.validateBoolean
-local gOV = post_helper.getOrValidation
-local gAV = post_helper.getAndValidation
 local gOV = post_helper.getOptionalValidation
 
 local function wait_for_completion(base_path)
@@ -34,8 +32,8 @@ local function wait_for_completion(base_path)
   until (total_time >= max_time)
 end
 
-local function receive_file(filename, match)
-        local function do_receive(outfile, match)
+local function receive_file(filename, header_match)
+        local function do_receive(outfile, target_match)
                 local upload = require("web.fileupload")
                 local form, err = upload.fromstream()
                 if not form then
@@ -45,12 +43,12 @@ local function receive_file(filename, match)
                 local file
                 local discard = false
                 while true do
-                        local token, data, err = form:read()
+                        local token, data, read_err = form:read()
                         if not token then
-                                return false, 2, "read failed: " .. err
+                                return false, 2, "read failed: " .. read_err
                         end
                         if token == "header" then
-                                if not discard and not file and type(data) == "table" and data[2] and find(data[2], match, 1, true) then
+                                if not discard and not file and type(data) == "table" and data[2] and find(data[2], target_match, 1, true) then
                                         file = outfile
                                 end
                         elseif token == "body" then
@@ -76,12 +74,12 @@ local function receive_file(filename, match)
         local file = io.open(filename, "wb")
         local result, err_code, err_msg
         if file then
-                result, err_code, err_msg = do_receive(file, match)
+                result, err_code, err_msg = do_receive(file, header_match)
                 file:close()
         else
                 file = io.open("/dev/null", "wb")
                 if file then
-                        do_receive(file, match)
+                        do_receive(file, header_match)
                         file:close()
                 end
                 result = false
@@ -106,7 +104,7 @@ local function upgradeguifile()
         -- flush the web template cache
         lp.flush()
         local dl = "/tmp/GUI_upload.tar.bz2"
-        local rcv_ok, rcv_errno, rcv_errmsg = receive_file(dl, 'name="upgradefile"')
+        local rcv_ok, _, rcv_errmsg = receive_file(dl, 'name="upgradefile"')
         if rcv_ok then
                 os.execute("rm -f /tmp/GUI.tar.bz2 /tmp/GUI_dev.tar.bz2 /tmp/GUI_preview.tar.bz2 2>/dev/null && mv -f /tmp/GUI_upload.tar.bz2 /tmp/GUI.tar.bz2 && ln -sf /tmp/GUI.tar.bz2 /tmp/GUI_dev.tar.bz2 && ln -sf /tmp/GUI.tar.bz2 /tmp/GUI_preview.tar.bz2")
                 ngx.header.content_type = "text/html"
@@ -192,7 +190,7 @@ local function installspecificapp()
 
         local dl = untaint(fwupgrade_location) .. "upgrade-pack-specific" .. device .. ".tar.bz2"
 
-        local rcv_ok, rcv_errno, rcv_errmsg = receive_file(dl, 'name="specificapp_file"')
+        local rcv_ok, _, rcv_errmsg = receive_file(dl, 'name="specificapp_file"')
 
         if rcv_ok then
                 ngx.header.content_type = "text/html"
@@ -213,7 +211,7 @@ local function restoreFromSysupgradeBackup()
         -- flush the web template cache
         lp.flush()
 
-        local rcv_ok, rcv_errno, rcv_errmsg = receive_file(dl, 'name="sysupgrade_backup"')
+        local rcv_ok, _, rcv_errmsg = receive_file(dl, 'name="sysupgrade_backup"')
 
         if rcv_ok then
                 sendcmd("restoreSysupgradeBackup")
@@ -228,8 +226,8 @@ end
 local function genSysupgradeBackup()
 
         local hostname = proxy.get("uci.system.system.@system[0].hostname")
-        hostname = hostname and hostname[1].value or "Unknown"
-        hostname = tostring(hostname):gsub("[^%w%-]", "")
+        hostname = hostname and hostname[1] and hostname[1].value or "Unknown"
+        hostname = tostring(hostname):gsub("[^%w%-]", ""):gsub("^%-+", ""):gsub("%-+$", "")
         if hostname == "" then
             hostname = "gateway"
         end
@@ -280,7 +278,7 @@ if ngx.req.get_method() == "POST" then
         end
         -- now process non-file POSTs
         local post_args = ngx.req.get_post_args()
-        local action = post_args.action
+        action = post_args.action
         if action == "system_reset_gui" then
                 return sendcmd("resetgui")
         end
@@ -739,11 +737,6 @@ local reset_cwmp = {
         button = {
                 id = "btn-reset-cwmp",
                 class = "custom-handler"
-        }
-}
-local info_box = {
-        alert = {
-                class = "alert alert-info",
         }
 }
 local resetting = {

@@ -4,7 +4,6 @@
 gettext.textdomain('webui-core')
 
 local lp = require("web.lp")
-local proxy = require("datamodel")
 local format = string.format
 local content_helper = require("web.content_helper")
 local ui_helper = require("web.ui_helper")
@@ -14,13 +13,8 @@ local untaint_mt = require("web.taint").untaint_mt
 local imh = require("internetmode_helper")
 
 local mode_data = {}
-local mode_default = "" -- the default mode to use
-local mode_active = ""  -- the mode currently in use (mode_default if not set)
 for _,v in ipairs(imh) do
     mode_data[v.name] = v
-    if v.default == true then
-        mode_default = v.name
-    end
 end
 mode_data = setmetatable(mode_data, untaint_mt)
 
@@ -52,7 +46,7 @@ if content.wwan_up == "1" then
     elseif content_mobile.ip6addr ~= "" then
         mobile_ip = content_mobile.ip6addr
         local count = 0
-        mobile_ip = mobile_ip:gsub("(:)", function(str)
+        mobile_ip = mobile_ip:gsub("(:)", function(_)
             count = count + 1
             if count == 3 then
                 return "- :"

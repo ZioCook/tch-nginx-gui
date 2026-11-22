@@ -22,15 +22,15 @@ local mode_options = tabdata.options
 
 local vB = post_helper.validateBoolean
 
-mapParam = {
+local mapParam = {
 	wsens = "uci.wansensing.global.enable"
 }
 
-mapValid = {
+local mapValid = {
 	wsens = vB,
 }
 
-content, helpmsg = post_helper.handleQuery(mapParam, mapValid)
+local content, helpmsg = post_helper.handleQuery(mapParam, mapValid)
 
 if not tabdata.current.ajax then
 	-- only display if not doing an ajax request

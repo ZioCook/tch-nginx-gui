@@ -189,8 +189,8 @@ local function getTrafficData(dtype, name)
     local nline = 1
     local data = {}
 	local datatime = {}
-    filename = format("/tmp/trafficmon/%s_%s", name, dtype)
-    f = io.open(filename, "r")
+    local filename = format("/tmp/trafficmon/%s_%s", name, dtype)
+    local f = io.open(filename, "r")
     if f then
         for line in f:lines() do
             if (nline < 2 ) then

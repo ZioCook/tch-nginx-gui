@@ -4,11 +4,7 @@ gettext.textdomain('webui-core')
 --NG-100650 Set 4th Ethernet Port as WAN or LAN Port on GUI
 --NG-102545 GUI broadband is showing SFP Broadband GUI page when Ethernet 4 is connected
 local proxy = require("datamodel")
-local ui_helper = require("web.ui_helper")
-local content_helper = require("web.content_helper")
-local message_helper = require("web.uimessage_helper")
-local post_helper = require("web.post_helper")
-format, match = string.format, string.match
+local match = string.match
 
 local ok_sfp, sfp_module = pcall(require, "transformer.shared.sfp")
 local sfp
@@ -30,10 +26,11 @@ else
 end
 
 local function get_wansensing()
-	if proxy.get("uci.wansensing.global.enable") then
-		return proxy.get("uci.wansensing.global.enable")[1].value
-	end
-	return ""
+    local ws = proxy.get("uci.wansensing.global.enable")
+    if ws then
+        return ws[1].value
+    end
+    return ""
 end
 
 local function is_bridge_mode()
@@ -60,7 +57,7 @@ end
 
 -- find requested interface in the uci network file, device section
 local function findwan(interface)
-	for i,v in ipairs(proxy.getPN("uci.network.device.", true)) do
+	for _,v in ipairs(proxy.getPN("uci.network.device.", true)) do
 		local result = match(v.path, "uci%.network%.device%.@.*".. interface .. ".*%.")
 		if result then
 			return (result:gsub("uci%.network%.device%.",""):gsub("%.",""))
@@ -118,7 +115,7 @@ tablecontent[#tablecontent + 1] = {
             local difname = proxy.get("uci.network.device." .. interface .. ".ifname")
             if difname then
                 local dname = proxy.get("uci.network.device." .. interface .. ".name")[1].value
-                difname = proxy.get("uci.network.device." .. interface .. ".ifname")[1].value
+                difname = difname[1].value
                 if difname ~= "" and difname ~= nil then
                     proxy.set("uci.network.interface.@wan.ifname", dname)
                 else
@@ -171,7 +168,7 @@ tablecontent[#tablecontent + 1] = {
             local difname = proxy.get("uci.network.device." .. interface .. ".ifname")
             if difname then
                 local dname = proxy.get("uci.network.device." .. interface .. ".name")[1].value
-                difname = proxy.get("uci.network.device." .. interface .. ".ifname")[1].value
+                difname = difname[1].value
                 if difname ~= "" and difname ~= nil then
                     proxy.set("uci.network.interface.@wan.ifname", dname)
                 else
@@ -231,7 +228,7 @@ tablecontent[#tablecontent + 1] = {
             local difname = proxy.get("uci.network.device." .. interface .. ".ifname")
             if difname then
                 local dname = proxy.get("uci.network.device." .. interface .. ".name")[1].value
-                difname = proxy.get("uci.network.device." .. interface .. ".ifname")[1].value
+                difname = difname[1].value
                 if difname ~= "" and difname ~= nil then
                     proxy.set("uci.network.interface.@wan.ifname", dname)
                 else
@@ -268,7 +265,7 @@ if sfp == 1 then
             if get_wansensing() == "1" then
                 local L2 = proxy.get("uci.wansensing.global.l2type")[1].value
                 local gponState = proxy.get("rpc.optical.Interface.1.Status")
-                local gponState = gponState and gponState[1].value or ""
+                gponState = gponState and gponState[1].value or ""
                 if L2 == "SFP" or gponState == "Dormant" then
                     return true
                 end
@@ -292,7 +289,7 @@ if sfp == 1 then
             local difname = proxy.get("uci.network.device." .. interface .. ".ifname")
             if difname then
                 local dname = proxy.get("uci.network.device." .. interface .. ".name")[1].value
-                difname = proxy.get("uci.network.device." .. interface .. ".ifname")[1].value
+                difname = difname[1].value
                 if difname ~= "" and difname ~= nil then
                     proxy.set("uci.network.interface.@wan.ifname", dname)
                 else

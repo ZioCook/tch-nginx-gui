@@ -21,7 +21,7 @@ local mapValid = {
   printersharing_webui = post_helper.validateBoolean,
 }
 
-local content, helpmsg = post_helper.handleQuery(mapParams, mapValid)
+local content = post_helper.handleQuery(mapParams, mapValid)
 
 local content_samba = {
   samba_enabled   = "uci.samba.samba.enabled",
@@ -106,10 +106,10 @@ local function concatPrinter(printer_table, delimiter)
     return result
 end
 
-local function removeDuplicateEntry(usbpart_data)
+local function removeDuplicateEntry(part_data)
     local tableDict, duplicateIndices = {}, {}
     -- Converts all nested tables into string and also to find all duplicate indices
-    for i, t in ipairs(usbpart_data) do
+    for i, t in ipairs(part_data) do
       local key = concatPrinter(t, "|")
       if not tableDict[key] then
         tableDict[key] = true
@@ -119,9 +119,9 @@ local function removeDuplicateEntry(usbpart_data)
     end
     -- Iteration over duplicate indices from backwards and removed the value
     for i = #duplicateIndices, 1, -1 do
-      table.remove(usbpart_data, duplicateIndices[i])
+      table.remove(part_data, duplicateIndices[i])
     end
-    return usbpart_data
+    return part_data
 end
 
 local info_box = {
@@ -139,7 +139,7 @@ removeDuplicateEntry(usbpart_data)
   <form class="form-horizontal" method="post" action="modals/printersharing-modal.lp">\
     ');  ngx.print(ui_helper.createMessages(message_helper.popMessages())); ngx.print('\
     ');  
-      html = {}
+      local html = {}
       html[#html+1] = ui_helper.createSwitch(T"Enabled", "printersharing_enabled", content["printersharing_enabled"], attributes)
       html[#html+1] = ui_helper.createSwitch(T"Web Interface", "printersharing_webui", content["printersharing_webui"], attributes)
       html[#html+1] = ui_helper.createAlertBlock(format(T"CUPS Web Interface at <a href=\"http://%s:631\">http://%s:631</a> or <a href=\"http://%s:631\">http://%s:631</a>",content_samba.localdevIP,content_samba.localdevIP,content_samba.hostname,content_samba.hostname), info_box)
@@ -151,7 +151,7 @@ removeDuplicateEntry(usbpart_data)
           html[#html+1] = format("<div class=\"simple-desc span4\">"..T"SMB/CIFS is disabled".."</div>")
         end
       end
-      html[#html+1] = ui_helper.createTable(usbdev_columms, usbpart_data, usbdev_options, nil, usbdev_helpmsg)
+      html[#html+1] = ui_helper.createTable(usbdev_columms, usbpart_data, usbdev_options, nil, nil)
       html[#html+1] = "</fieldset>"
       ngx.print(html)
       ngx.print('\

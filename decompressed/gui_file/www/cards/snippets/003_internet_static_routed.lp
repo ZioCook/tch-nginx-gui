@@ -5,6 +5,7 @@ gettext.textdomain('webui-core')
 
 local content_helper = require("web.content_helper")
 local ui_helper = require("web.ui_helper")
+local post_helper = require("web.post_helper")
 local format = string.format
 
 local attributes = { light = { } ,span = {} }
@@ -13,6 +14,7 @@ local attributes = { light = { } ,span = {} }
 local content_rpc = {
     uci_wan_auto = "uci.network.interface.@wan.auto",
     ipaddr = "rpc.network.interface.@wan.ipaddr",
+    uptime = "rpc.network.interface.@wan.uptime",
 }
 
 content_helper.getExactContent(content_rpc)
@@ -49,7 +51,7 @@ ngx.print('\
   <p class="subinfos">')
 	 local WAN_IP_text = '<span data-bind="html: WAN_IP_text"></span>'
 	 local uptime_text = '<span data-bind="html: uptime_text"></span>'
-     if ppp_status == "connected" then
+     if static_state == "connected" then
        if content_rpc["ipaddr"] and content_rpc["ipaddr"]:len() > 0 then
 		 WAN_IP_text = '<span data-bind="html: WAN_IP_text">'..format(T'WAN IP is <strong>%s</strong>'..'<br/>', content_rpc["ipaddr"])..'</span>'
 	     if content_rpc["uptime"] then

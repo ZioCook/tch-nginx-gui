@@ -10,7 +10,7 @@ local ui_helper = require("web.ui_helper")
 local post_helper = require("web.post_helper")
 local content_helper = require("web.content_helper")
 local message_helper = require("web.uimessage_helper")
-local format, untaint, gmatch, match = string.format, string.untaint, string.gmatch, string.match
+local format, untaint, gmatch = string.format, string.untaint, string.gmatch
 local open = io.open
 local vB = post_helper.validateBoolean
 local vNES = post_helper.validateNonEmptyString
@@ -39,11 +39,6 @@ local tcpdumpValid = {
 }
 
 local tcpdump_intfs = {
-}
-
-local tcpdump_acc = {
-  { "1", "Enabled" },
-  { "0", "Disabled" },
 }
 
 local tcpdump_types = {
@@ -211,7 +206,7 @@ local tcpdump_data = {
 
 
 content_helper.getExactContent(tcpdump_data)
-s = untaint(tcpdump_data.intflist)
+local s = untaint(tcpdump_data.intflist)
 for w in gmatch(s, "%S+") do
   tcpdump_intfs[#tcpdump_intfs+1] = {w, w}
 end
@@ -256,7 +251,7 @@ ngx.print(ui_helper.createMessages(message_helper.popMessages()))
   </div>\
 </div>\
 ');  
-  local tcpdump_download = {
+  tcpdump_download = {
     button = {
       class = "tcpdump-download custom-handler"
     }
@@ -299,7 +294,7 @@ ngx.print(ui_helper.createMessages(message_helper.popMessages()))
     end
   end
 
-  html = {}
+  local html = {}
   if(tcpdump_data.state == "Complete" and tcpdump_data.saveonusb == "0") then
     if captureFileInfo(tcpdump_data.file) then
       html[#html + 1] = ui_helper.createButton(T"", T"Download", "icon-download-alt", tcpdump_download)
