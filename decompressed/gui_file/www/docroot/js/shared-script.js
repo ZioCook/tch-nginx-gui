@@ -5,7 +5,9 @@ var modgui=modgui||{};!function(module){function standardCloseAction(){tch.showP
 function postAction(action,logModal,customCloseAction,customTarget){var onClose=(typeof customCloseAction==="function")&&customCloseAction||function(){tch.showProgress(waitMsg);window.location.reload(true);}
 var target=customTarget?customTarget:$(".modal form").attr("action");$.post(target,{action:action,CSRFtoken:$("meta[name=CSRFtoken]").attr("content")},null,"json");if(logModal){clearKoInterval();$(window).on('shown.bs.modal',function(){$(".modal-backdrop").unbind();$("#close-config,.modal-action-close").unbind("click");$("#close-config,.modal-action-close").on("click",function(){onClose();});});tch.openModal("/modals/command-log-read-modal.lp?cmd_action="+encodeURIComponent(action||""));}
 return false;}
-var _syncCards={};var _syncTimer=null;var _syncInFlight=false;
+var _syncCards={};var _syncTimer=null;var _syncInFlight=false;var _syncPaused=false;
+function _stopSyncTimer(){if(_syncTimer){clearInterval(_syncTimer);_syncTimer=null;}}
+function _startSyncTimer(){if(!_syncTimer&&!document.hidden&&!_syncPaused&&Object.keys(_syncCards).length>0){_syncTimer=setInterval(_masterSync,4000);}}
 function _getSyncModule(link){
     if(!link)return null;
     if(link.indexOf("cpuload.lua")!==-1)return "gateway";
@@ -20,7 +22,8 @@ function _getSyncModule(link){
     return null;
 }
 function _masterSync(){
-    if(document.hidden||_syncInFlight)return;
+    if(document.hidden){_stopSyncTimer();return;}
+    if(_syncInFlight)return;
     var activeCards=[];var modulesSet={};
     for(var cardId in _syncCards){
         var card=_syncCards[cardId];
@@ -122,15 +125,20 @@ function createAjaxUpdateCard(CardIdRefresh,ajaxLink,IntervalVar,RefreshTime,Cus
             });
             observer.observe(element);
         }
-        if(!_syncTimer){
-            _syncTimer=setInterval(_masterSync,4000);
+        if(!window._syncVisBound){
+            window._syncVisBound=true;
+            document.addEventListener("visibilitychange",function(){
+                if(document.hidden){
+                    _stopSyncTimer();
+                }else if(!_syncPaused&&Object.keys(_syncCards).length>0){
+                    _startSyncTimer();
+                    _masterSync();
+                }
+            });
+        }
+        if(!_syncTimer&&!_syncPaused&&!document.hidden){
+            _startSyncTimer();
             setTimeout(_masterSync,100);
-            if(!window._syncVisBound){
-                window._syncVisBound=true;
-                document.addEventListener("visibilitychange",function(){
-                    if(!document.hidden){_masterSync();}
-                });
-            }
         }
         return;
     }
@@ -187,12 +195,14 @@ function createAjaxUpdateCard(CardIdRefresh,ajaxLink,IntervalVar,RefreshTime,Cus
 function linkCheckUpdate(){$(".check_update").on("click",function(e){e.stopPropagation();if(KoRequest.CheckVer)return;postAction("checkver",null,null,'/modals/modgui-modal.lp?auto_update=true');$(".check_update_spinner").addClass("fa-spin");KoRequest.CheckVer={interval:setInterval(function(){$.ajax({url:"/ajax/commandlogread.lua?auto_update=true",data:[tch.elementCSRFtoken()],type:"POST",dataType:"json",timeout:500,success:function(data){if(data.state=="Checking"){if(data.new_version_text){if(data.new_version_text=="Unknown"){$(".gui_version_status").removeClass("yellow").addClass("green");$(".gui_version_status_text").text(gui_var.gui_updated);$("#upgrade-alert").addClass("hide");$("#upgradebtn, .sub-upgrade").addClass("hide");}else{$(".gui_version_status").removeClass("green").addClass("yellow");$("#upgradebtn, .sub-upgrade").removeClass("hide");$(".gui_version_status_text").text(gui_var.gui_outdated);$("#upgrade-alert").removeClass("hide");var ver_tag=data.new_version_text.split(" ")[0];$("#new-version-text").html('<a target="_blank" href="https://github.com/ZioCook/tch-nginx-gui/releases/tag/'+ver_tag+'">'+data.new_version_text+'</a>');}}}else if(data.state=="Complete"){$(".gui_version_status_text").parent().fadeOut().fadeIn();$(".check_update_spinner").removeClass("fa-spin");clearInterval(KoRequest.CheckVer.interval);KoRequest.CheckVer=null;}}})},"500")}})};function freshStyle(stylesheet){$("#theme_skin").attr("href","/theme/"+stylesheet);}
 function scrollFunction(){if(document.body.scrollTop>60||document.documentElement.scrollTop>60){$("#scroll-up").removeClass("hide");$("#scroll-down").addClass("hide");}else{$("#scroll-up").addClass("hide");$("#scroll-down").removeClass("hide");}}
 function clearKoInterval(){
-    if(_syncTimer){clearInterval(_syncTimer);_syncTimer=null;}
+    _syncPaused=true;
+    _stopSyncTimer();
     Object.keys(KoRequest).forEach(function(interval){if(KoRequest[interval]&&KoRequest[interval].interval)clearInterval(KoRequest[interval].interval);});
 }
 function restartKoInterval(){
-    if(!_syncTimer&&Object.keys(_syncCards).length>0){
-        _syncTimer=setInterval(_masterSync,4000);
+    _syncPaused=false;
+    if(!_syncTimer&&!document.hidden&&Object.keys(_syncCards).length>0){
+        _startSyncTimer();
         _masterSync();
     }
     Object.keys(KoRequest).forEach(function(interval){if(KoRequest[interval]&&KoRequest[interval].function)KoRequest[interval].interval=setInterval(KoRequest[interval].function,KoRequest[interval].refreshTime,KoRequest[interval].binding);});
