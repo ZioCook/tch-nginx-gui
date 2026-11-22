@@ -30,12 +30,20 @@ local app_list = {
 	"dumaos",
 }
 
-local marketing_version = proxy.get("uci.version.version.@version[0].marketing_version")
-local cputype = proxy.get("rpc.system.modgui.CPUtype")[1].value
+local ok_hw, hw_cache = pcall(require, "web.hw_cache")
+local v_str
+local cputype
+if ok_hw then
+	v_str = hw_cache.get_marketing_version()
+	cputype = hw_cache.get_cpu_type()
+else
+	local marketing_version = proxy.get("uci.version.version.@version[0].marketing_version")
+	v_str = (marketing_version and marketing_version[1] and marketing_version[1].value) or ""
+	cputype = proxy.get("rpc.system.modgui.CPUtype")[1].value
+end
 local specific_app = proxy.get("uci.modgui.app.specific_app")[1].value or "0"
 local m_ver = 0
-if marketing_version and marketing_version[1] and marketing_version[1].value then
-	local v_str = marketing_version[1].value
+if v_str ~= "" then
 	local maj, min = v_str:match("^(%d+)%.(%d+)")
 	if maj and min then
 		m_ver = tonumber(maj .. "." .. min) or 0
@@ -197,6 +205,9 @@ local function append_extension_card(state_key, app, title, description, link, c
 end
 
 local function kernel_has_tun()
+	if ok_hw then
+		return hw_cache.kernel_has_tun()
+	end
 	if _G.__kernel_has_tun ~= nil then
 		return _G.__kernel_has_tun
 	end
@@ -218,6 +229,9 @@ local function kernel_has_tun()
 end
 
 local function tun_install_supported()
+	if ok_hw then
+		return hw_cache.tun_install_supported()
+	end
 	if kernel_has_tun() then return true end
 	if _G.__tun_install_supported ~= nil then
 		return _G.__tun_install_supported
