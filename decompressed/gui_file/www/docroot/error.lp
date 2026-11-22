@@ -64,6 +64,9 @@ ngx.print('\
 	<script src="/js/main-min-nojquery.js?version='); ngx.print(cui.gui_version); ngx.print('" ></script>\
 	<script async src="/js/srp-min.js?version='); ngx.print(cui.gui_version); ngx.print('" ></script>');
 	--ngx.print('<script src="/js/jquery-migrate.js?version='); ngx.print(cui.gui_version); ngx.print('" ></script>')  -- Usefull to debug deprecated function from jquery update
+	if cui.gui_skin == "Fritz" or cui.gui_skin == "dark-midnight_Fritz" or cui.gui_skin == "dark-white_Fritz" then
+		ngx.print('<link id="theme_base" rel="stylesheet" href="/theme/Fritz/base.css?v='); ngx.print(cui.gui_version); ngx.print('">')
+	end
 	ngx.print('<link rel="stylesheet" href="/theme/');  ngx.print( cui.gui_skin ); ngx.print('/style.css?v='); ngx.print(cui.gui_version); ngx.print('">');
 local script_file_presence = io.open(string.format("/www/docroot/theme/%s/script.js",cui.gui_skin),"r")
 if script_file_presence then
