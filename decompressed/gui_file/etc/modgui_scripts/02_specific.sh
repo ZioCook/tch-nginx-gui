@@ -471,3 +471,17 @@ tune_hw19() {
 }
 [ "$hw_ver" = "hw19" ] && tune_hw19
 
+ensure_os_release() {
+  if [ ! -f /etc/os-release ] && [ "$cpu_type" = "mips" ]; then
+    logecho "Generating missing /etc/os-release for legacy MIPS OpenWrt"
+    cat << 'EOF' > /etc/os-release
+NAME="OpenWrt"
+VERSION="15.05.1"
+ID="openwrt"
+PRETTY_NAME="OpenWrt 15.05.1"
+EOF
+  fi
+}
+ensure_os_release
+
+
