@@ -40,8 +40,14 @@ jobs:
 
       - name: Lint Lua syntax
         run: |
-          sudo apt-get update -qq && sudo apt-get install -y -qq lua5.1 lua-bitop
+          sudo apt-get update -qq && sudo apt-get install -y -qq lua5.1 lua-bitop luacheck shellcheck
           bash scripts/1-lint_lua_syntax.sh decompressed
+
+      - name: Lint Lua with luacheck
+        run: bash scripts/run_luacheck.sh
+
+      - name: Lint transformer shell scripts with shellcheck
+        run: shellcheck -s sh -S error decompressed/gui_file/usr/share/transformer/scripts/*.sh
 
       - name: Test release updates and archive verification
         run: python3 -m unittest discover -s tests -v

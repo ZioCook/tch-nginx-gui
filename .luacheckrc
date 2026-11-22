@@ -37,6 +37,46 @@ files["**/*.lp"] = {
   }
 }
 
+-- Globali legittimi del framework LuCI CBI (sottopacchetto luci_wireless)
+files["decompressed/luci_wireless/**"] = {
+  read_globals = {
+    "SimpleForm",
+    "translate",
+    "ListValue",
+    "Value",
+    "DummyValue",
+    "SimpleSection",
+    "FORM_VALID",
+    "bit",
+    "luci",
+    "nixio",
+    "uci",
+  }
+}
+
+-- Globali legittimi iniettati dal loader ledfw in stateMachines.lua
+files["decompressed/ledfw_support-specific*/**"] = {
+  read_globals = {
+    "timerLed",
+    "staticLed",
+    "netdevLed",
+    "netdevLedOWRT",
+    "runFunc",
+    "patternLed",
+    "uci",
+    "ubus",
+    "get_depending_led",
+    "is_WiFi_LED_on_if_NSC",
+    "is_show_remote_mgmt",
+    "xdsl_status",
+    "get_wl1_ifname",
+  },
+  globals = {
+    "patterns",
+    "stateMachines",
+  }
+}
+
 -- Non dichiarare qui le globali "sospette" (mapParam, remove, s, ...): devono
 -- continuare a comparire nel report.
 globals = {}
