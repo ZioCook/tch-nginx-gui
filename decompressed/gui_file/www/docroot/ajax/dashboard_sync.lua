@@ -2,12 +2,6 @@
 -- Batches polling data for Gateway, Internet, xDSL, Ports, Telephony, and Devices
 -- drastically reducing CPU context-switching, thread creation, and HTTP round-trips.
 
-if not _G.__gc_tuned then
-    _G.__gc_tuned = true
-    collectgarbage("setpause", 300)
-    collectgarbage("setstepmul", 200)
-end
-
 if gettext and gettext.textdomain then
     gettext.textdomain('webui-core')
 end
@@ -18,6 +12,8 @@ local proxy = require("datamodel")
 local content_helper = require("web.content_helper")
 local post_helper = require("web.post_helper")
 local ui_helper = require("web.ui_helper")
+local hw_cache = require("web.hw_cache")
+local sync_state = hw_cache.sync_state()
 local ngx = ngx
 local readfile = content_helper.readfile
 local floor = math.floor
@@ -129,10 +125,25 @@ local result = {}
 -- 1. GATEWAY (CPU, RAM, Uptime, Load, Connections)
 --------------------------------------------------------------------------------
 local function get_gateway()
-    local ram_data = proxy.get("sys.mem.RAMUsed")
-    local ram = (ram_data and ram_data[1] and tonumber(ram_data[1].value)) or 0
+    local ram = hw_cache.read_ram_used_kb()
+    if ram == nil then
+        local ram_data = proxy.get("sys.mem.RAMUsed")
+        ram = (ram_data and ram_data[1] and tonumber(ram_data[1].value)) or 0
+    end
+
+    local now
+    local up_f = io.open("/proc/uptime", "r")
+    if up_f then
+        now = up_f:read("*n")
+        up_f:close()
+    end
+    local uptime_sec = now and floor(now) or nil
+    if not now then
+        now = os.time()
+    end
 
     local cpu_usage = "0"
+    local cpu_measured = false
     local f = io.open("/proc/stat", "r")
     if f then
         local line = f:read("*l")
@@ -143,39 +154,27 @@ local function get_gateway()
                 local cur_idle = tonumber(idle) + tonumber(iowait)
                 local cur_total = cur_idle + tonumber(user) + tonumber(nice) + tonumber(sys) + tonumber(irq) + tonumber(softirq) + tonumber(steal)
 
-                local up_f = io.open("/proc/uptime", "r")
-                local now = up_f and up_f:read("*n")
-                if up_f then up_f:close() end
-                if not now then now = os.time() end
-
-                local prev_file = io.open("/tmp/.cpu_prev", "r")
-                if prev_file then
-                    local prev_total = prev_file:read("*n")
-                    local prev_idle = prev_file:read("*n")
-                    local prev_time = prev_file:read("*n")
-                    prev_file:close()
-                    if prev_total and prev_idle and cur_total > prev_total then
-                        local elapsed = (prev_time and (now - prev_time)) or 999
-                        if elapsed >= 1 and elapsed <= 12 then
-                            local dt = cur_total - prev_total
-                            local di = cur_idle - prev_idle
-                            if dt > 0 and di >= 0 and di <= dt then
-                                cpu_usage = tostring(floor(((dt - di) / dt) * 100))
-                            end
+                local prev = sync_state.cpu_prev
+                local elapsed = prev and (now - prev.ts) or nil
+                if prev and cur_total > prev.total then
+                    if elapsed >= 0.5 and elapsed <= 12 then
+                        local dt = cur_total - prev.total
+                        local di = cur_idle - prev.idle
+                        if dt > 0 and di >= 0 and di <= dt then
+                            cpu_usage = tostring(floor(((dt - di) / dt) * 100))
+                            cpu_measured = true
                         end
                     end
                 end
 
-                local out_file = io.open("/tmp/.cpu_prev", "w")
-                if out_file then
-                    out_file:write(format("%d %d %.2f\n", cur_total, cur_idle, now))
-                    out_file:close()
+                if not prev or elapsed >= 0.5 or elapsed < 0 then
+                    sync_state.cpu_prev = { total = cur_total, idle = cur_idle, ts = now }
                 end
             end
         end
     end
 
-    if cpu_usage == "0" then
+    if not cpu_measured then
         local c = proxy.get("sys.proc.CurrentCPUUsage")
         if c and c[1] and c[1].value and c[1].value ~= "" then
             cpu_usage = c[1].value
@@ -190,7 +189,7 @@ local function get_gateway()
     return {
         cpuusage = (cpu_usage or "0") .. "%",
         ram_used = floor(ram / 1024),
-        uptime = post_helper.secondsToTime(readfile("/proc/uptime", "number", floor)) or "",
+        uptime = (uptime_sec and post_helper.secondsToTime(uptime_sec)) or "",
         connection = readfile("/proc/sys/net/netfilter/nf_conntrack_count") or "",
         system_time = os.date("%d/%m/%Y %Hh:%Mm:%Ss", os.time()),
         cpuload = (readfile("/proc/loadavg", "string") or ""):sub(1, 14),
@@ -504,14 +503,10 @@ end
 -- 4. ETHERNET PORTS TABLE
 --------------------------------------------------------------------------------
 local function get_ports()
-    local ethname = "eth3"
-    local p4 = proxy.get("sys.eth.port.@eth4.status")
-    if p4 and p4[1] and p4[1].value then
-        ethname = "eth4"
-    end
+    local ethname = hw_cache.has_eth4() and "eth4" or "eth3"
 
-    local qtn = proxy.get("uci.env.var.qtn_eth_mac")
-    local quantenna_wifi = (qtn and qtn[1] and qtn[1].value ~= "")
+    local qtn_mac = hw_cache.get_qtn_eth_mac()
+    local quantenna_wifi = (qtn_mac ~= nil and qtn_mac ~= "")
 
     local port_columns = {
         { header = T"Type", name = "type", param = "paramindex", type = "text", readonly = true },
@@ -707,18 +702,24 @@ local function get_net()
     local rates, status = netrate.sample()
     rates = rates or {}
 
-    local wan_dev
-    local rpc_wan = proxy.get("rpc.network.interface.@wan.device")
-    if rpc_wan and rpc_wan[1] and rpc_wan[1].value ~= "" then
-        wan_dev = rpc_wan[1].value
-    end
-    if not wan_dev or wan_dev == "" then
-        for _, candidate in ipairs({ "ppp0", "eth4", "ptm0", "erouter0", "dsl0" }) do
-            if rates[candidate] then
-                wan_dev = candidate
-                break
+    local now_ts = os.time()
+    local wan_dev = sync_state.wan_dev
+    if not wan_dev or (now_ts - (sync_state.wan_dev_ts or 0)) >= 30 or not rates[wan_dev] then
+        wan_dev = nil
+        local rpc_wan = proxy.get("rpc.network.interface.@wan.device")
+        if rpc_wan and rpc_wan[1] and rpc_wan[1].value ~= "" then
+            wan_dev = untaint(rpc_wan[1].value)
+        end
+        if not wan_dev or wan_dev == "" then
+            for _, candidate in ipairs({ "ppp0", "eth4", "ptm0", "erouter0", "dsl0" }) do
+                if rates[candidate] then
+                    wan_dev = candidate
+                    break
+                end
             end
         end
+        sync_state.wan_dev = wan_dev
+        sync_state.wan_dev_ts = now_ts
     end
 
     local lan_dev = "br-lan"
@@ -777,19 +778,19 @@ local function encode_module_payload(data)
     return "{}"
 end
 
-local _jcache = _G._dashboard_jcache
-if not _jcache then
-    _jcache = {}
-    _G._dashboard_jcache = _jcache
-end
+local _jcache = sync_state.jcache
 
 local role_id = (session and session.getrole and tostring(untaint(session:getrole()))) or "default"
+local lang_id = (ngx and ngx.header and ngx.header["Content-Language"] and tostring(untaint(ngx.header["Content-Language"])))
+    or (gettext and gettext.language and tostring(gettext.language()))
+    or "en"
+local cache_key = role_id .. ":" .. lang_id
 
 local function module_json(name, ttl, builder)
-    local bucket = _jcache[role_id]
+    local bucket = _jcache[cache_key]
     if not bucket then
         bucket = {}
-        _jcache[role_id] = bucket
+        _jcache[cache_key] = bucket
     end
     local e = bucket[name]
     local now = os.time()
