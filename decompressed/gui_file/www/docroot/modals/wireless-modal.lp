@@ -170,12 +170,12 @@ if not wl_list then
 end
 local wls = {}
 local cur_ssid
+local cur_stb = "0"
 for i,v in ipairs(wl_list) do
   local path = "rpc.wireless.ssid.@" .. v.value
   local values = proxy.get(path .. ".radio" , path .. ".ssid",path .. ".stb", path .. ".ap_display_name")
   if values ~= nil then
     local ap_iso = proxy.get(v.path .. "ap_isolation")
-    local iface_state = proxy.get(path .. ".oper_state")
     local radio_val = values[1] and values[1].value or ""
     local ssid_val = values[2] and values[2].value or ""
     local stb_val = values[3] and values[3].value or "0"
@@ -187,13 +187,13 @@ for i,v in ipairs(wl_list) do
             stb = stb_val,
             ap_display_name = ap_name,
             ap_isolation = ap_iso and ap_iso[1] and ap_iso[1].value or "0",
-            oper_state = iface_state and iface_state[1] and iface_state[1].value or "0",
         }
     if (v.value == getiface) or (not getiface and v.value == curiface) then
         curiface = v.value
         curap = match(v.path, "rpc%.wireless%.ap%.@([^%.]+)%.")
         isguest = ap_iso and ap_iso[1] and ap_iso[1].value or "0"
         cur_ssid = ssid_val
+        cur_stb = stb_val
         if radio_val ~= "" and not getradio then
             curradio = radio_val
         end
@@ -626,18 +626,19 @@ local pathradius = format("uci.wireless.wifi-radius-server.@%s_", curap)
 local bspeerap = nil
 local pap = "uci.wireless.wifi-ap."
 local bandsteeriface = bandsteer_helper.getBandSteerPeerIface(curiface)
-local aap = content_helper.convertResultToObject(pap .. "@.", proxy.get(pap))
 local radius_account = proxy.get(pathradius .. "acct0.")
 local radius_authent = proxy.get(pathradius .. "auth0.")
-for i,v in ipairs(aap) do
-    if bandsteeriface and v.iface == bandsteeriface then
-        bspeerap = v.paramindex
+if bandsteeriface then
+    local aap = content_helper.convertResultToObject(pap .. "@.", proxy.get(pap))
+    for _, v in ipairs(aap) do
+        if v.iface == bandsteeriface then
+            bspeerap = v.paramindex
+        end
     end
 end
 
 -- If this AP connects to STB, "engineer" role has full access, other roles only have simple stats
-local stb_data = proxy.get(pathiface .. "stb")
-if stb_data and stb_data[1] and stb_data[1].value == "1" then
+if cur_stb == "1" then
     if ngx.ctx.session:getrole() ~= "engineer" then
         stbLimit = true
     end
@@ -1032,21 +1033,22 @@ end
     content["wps_ap_setup_locked"] = content_val[5] and content_val[5].value or "0"
   end
 
+local radion_data = proxy.get(pathradio)
 param = {
-	driver_version = pathradio .. "driver_version",
-    allowed_channels = pathradio .. "allowed_channels",
+    driver_version = "",
+    allowed_channels = "",
 }
-content_helper.getExactContent(param)
+for _, v in pairs(radion_data or {}) do
+    if v.param == "driver_version" or v.param == "allowed_channels" then
+        param[v.param] = v.value or ""
+    end
+    if not content[v.param] then
+        content[v.param] = v.value
+    end
+end
 allowed_channels = { {"auto", T"Auto"} }
 for i in string.gmatch(param["allowed_channels"], "%S+") do
     allowed_channels[#allowed_channels + 1] = {i, i}
-end
-
-local radion_data=proxy.get(pathradio)
-for _, v in pairs(radion_data or {}) do
-    if not content[v.param] then
-        content[v.param]=v.value
-    end
 end
 
 -- Ensure Channel and Current channel are the same value after clicking Save
