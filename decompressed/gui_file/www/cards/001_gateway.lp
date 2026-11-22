@@ -44,11 +44,7 @@ ngx.print('\
 	  ngx.print('<span class="subinfos">' ..  T"CPU Usage"..": " ); ngx.print('\
 					<strong data-bind="text: cpuusage">'); ngx.print(initial_cpu); ngx.print('</strong></span>\
       <div data-remote="/modals/gateway-modal.lp" data-id="gateway-modal" style="text-align: center;">\
-	    <picture>\
-		    <source srcset="/img/gateway_'); ngx.print(content.model); ngx.print('.webp" type="image/webp">\
-		    <source srcset="/img/gateway_'); ngx.print(content.model); ngx.print('.png" type="image/png">\
-        <img class="someInfos" href="#" rel="tooltip" data-placement="top" data-original-title="');  ngx.print( T"Your Gateway" ); ngx.print('" src="/img/gateway_'); ngx.print(content.model); ngx.print('.png" alt="'); ngx.print(content.model); ngx.print('">\
-		</picture>\
+        <img class="someInfos" href="#" rel="tooltip" data-placement="top" data-original-title="');  ngx.print( T"Your Gateway" ); ngx.print('" src="/img/gateway_'); ngx.print(content.model); ngx.print('.webp" alt="'); ngx.print(content.model); ngx.print('">\
 		</div>\
       </div>\
     </div>\

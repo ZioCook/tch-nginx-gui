@@ -302,7 +302,7 @@ ngx.print( ui_helper.createHeader(T"Telephony", false, true, autorefresh) ); ngx
 </div>\
 \
 <div id="spinner" class="spinner hide">\
-<img id="img-spinner" src="../img/spinner.gif" alt="Pairing" style="margin-left: 10px; margin-right: 10px; margin-top: 10px; margin-bottom: 10px; width:128px; height:128px"/>\
+<div class="spinner3" style="margin: 56px auto;"><div class="rect1"></div><div class="rect2"></div><div class="rect3"></div><div class="rect4"></div><div class="rect5"></div></div>\
 </div>\
 <script>\
 (function() {\

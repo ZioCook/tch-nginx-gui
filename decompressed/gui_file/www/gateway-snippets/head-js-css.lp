@@ -41,8 +41,9 @@ ngx.print('\
 	ngx.print('\
 	');
 	--ngx.print('<script src="/js/jquery-migrate.js?version='); ngx.print(cui.gui_version); ngx.print('" ></script>')  -- Usefull to debug deprecated function from jquery update
-	if content_helper.themeHasScript(cui.gui_skin) then
-		ngx.print('<script src="/theme/');  ngx.print( cui.gui_skin ); ngx.print('/script.js?version='); ngx.print(cui.gui_version); ngx.print('"></script>');
+	local script_skin = (cui.gui_skin == "dark-midnight_Fritz" or cui.gui_skin == "dark-white_Fritz") and "Fritz" or cui.gui_skin
+	if content_helper.themeHasScript(script_skin) then
+		ngx.print('<script src="/theme/');  ngx.print( script_skin ); ngx.print('/script.js?version='); ngx.print(cui.gui_version); ngx.print('"></script>');
 	end
 ngx.print('\
   </head>\

@@ -113,7 +113,7 @@ $(document).ready(
   
 	//
 	$("#switchViewButton").on("switchcard", function() {
-		setTimeout(themescript, 3000);
+		themescript();
 	});
 });
 

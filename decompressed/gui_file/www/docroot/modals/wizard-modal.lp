@@ -17,7 +17,7 @@ end
 
 ngx.print('\
 ');ngx.print( ui_helper.createHeader(T"Setup Wizard") ); ngx.print('\
-<div class="loading-wrapper hide"><img src="/img/spinner.gif"></div>\
+<div class="loading-wrapper hide"><div class="spinner3" style="position:fixed;top:40%;left:50%;margin:-15px 0 0 -25px;"><div class="rect1"></div><div class="rect2"></div><div class="rect3"></div><div class="rect4"></div><div class="rect5"></div></div></div>\
 <div class="modal-body update">\
 	<form class="form-horizontal" method="post" action="modals/wizard-modal.lp">\
 		')
