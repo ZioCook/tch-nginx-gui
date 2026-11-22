@@ -51,32 +51,30 @@ end
 
 local variant = proxy.get("uci.env.var.prod_friendly_name")[1].value or ""
 
--- Retrieving emission state
-local emission_content = {
-    emission_state = "rpc.mmpbx.dectemission.state",
-}
-content_helper.getExactContent(emission_content)
-local emission_state = format("%s", emission_content.emission_state)
-
-local function split(x, sep)
-    sep = sep or ":"
-    local fields = {}
-    local pattern = format("([^%s]+)", sep)
-    for field in x:gmatch(pattern) do
-        fields[#fields+1] = field
-    end
-    return fields
+-- Retrieving emission state only on models with DECT emission control when mmpbx is enabled
+local emission_state = "0"
+if content and content["mmpbx_enabled"] == "1" and (variant == "Technicolor TG800vac" or variant == "Technicolor TG799vac") then
+    local emission_content = {
+        emission_state = "rpc.mmpbx.dectemission.state",
+    }
+    content_helper.getExactContent(emission_content)
+    emission_state = format("%s", emission_content.emission_state)
 end
 
-local network_rpc_path = "rpc.network.interface."
-local network_rpc_content = content_helper.getMatchedContent (network_rpc_path)
-
 local wan_intfs = {}
-for _, v in ipairs (network_rpc_content) do
-    local path = split(split(format("%s",v.path),"@")[2],".")
-    if v.type == "wan" or v.type == "lan" then
-        if v.proto ~= "dhcpv6" and v.proto ~= "6rd" then
-            wan_intfs[#wan_intfs+1] = { path[1], T(path[1]) }
+if (content and content["mmpbx_enabled"] == "1") or ngx.req.get_method() == "POST" then
+    for _, entry in ipairs(proxy.getPN("rpc.network.interface.", true) or {}) do
+        local ifname = entry.path:match("rpc%.network%.interface%.@([^%.]+)%.")
+        if ifname then
+            local t = proxy.get(entry.path .. "type")
+            local itype = t and t[1] and t[1].value
+            if itype == "wan" or itype == "lan" then
+                local p = proxy.get(entry.path .. "proto")
+                local iproto = p and p[1] and p[1].value
+                if iproto ~= "dhcpv6" and iproto ~= "6rd" then
+                    wan_intfs[#wan_intfs+1] = { ifname, T(ifname) }
+                end
+            end
         end
     end
 end
@@ -314,7 +312,10 @@ local sipnet_options = {
     maxEntries = 2,
 }
 
-local sipnet_data, sipnet_helpmsg = post_helper.handleTableQuery(sipnet_columns, sipnet_options, nil, sipnet_default, sipnet_valid)
+local sipnet_data, sipnet_helpmsg = {}, {}
+if (content and content["mmpbx_enabled"] == "1") or ngx.req.get_method() == "POST" then
+    sipnet_data, sipnet_helpmsg = post_helper.handleTableQuery(sipnet_columns, sipnet_options, nil, sipnet_default, sipnet_valid)
+end
 
 local uri = ngx.var.uri
 if ngx.var.args and string.len(ngx.var.args) > 0 then
