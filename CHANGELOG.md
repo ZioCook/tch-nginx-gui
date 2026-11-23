@@ -1,5 +1,21 @@
 
-9.11.60 (Current Release Series)
+9.11.62 (Current Release Series)
+---------------------------------------------------------------------------
+- (Ottimizzazioni & Prestazioni GUI)
+  - Cache in memoria delle proprietà hardware e aggiornamento dashboard più rapido con sospensione automatica del polling quando la scheda del browser è in background.
+  - Netta riduzione dei tempi di apertura dei modali pesanti (Relay, Bridge Grouping, Telefonia/MMpbx, Ethernet/LAN e Wireless).
+  - Caricamento pagina più leggero grazie al caricamento on-demand delle librerie secondarie (Knockout/SRP), estrazione degli script dei modali principali in moduli statici cachabili, consolidamento dei temi Fritz tramite variabili CSS e rimozione di asset ridondanti (font `.woff` legacy, `spinner.gif`, duplicati script Fritz e PNG sostituiti da WebP).
+- (Bug Fix)
+  - Corretto il calcolo della RAM utilizzata sui router con kernel 3.4 (TG789vac v2).
+  - Ripristinata la cache HTTP degli asset CSS rimuovendo il timestamp dinamico dagli URL, corrette le risposte `404` su download profili WireGuard/OpenVPN, sistemata la gestione `503` e l'azione di upgrade nel log comandi, l'esecuzione degli script di stato VPN, il rilevamento delle interfacce `eth`/`moca` e l'indicatore di robustezza password in Gestione Utenti.
+- (Sicurezza)
+  - Validazione rigorosa dell'indirizzo MAC/OUI nella ricerca vendor con cache locale in Lua, preservazione degli header HTTP di sicurezza anche sugli asset statici e aggiunta dell'header `Content-Security-Policy-Report-Only` in Nginx.
+- (Dispositivi Testati)
+  - DGA4331 (VCNT-3)
+  - DGA4132 (VBNT-S)
+  - TG789vac v2 (VANT-6)
+
+9.11.60
 ---------------------------------------------------------------------------
 - (Ottimizzazioni & Prestazioni GUI)
   - Interfaccia web più reattiva grazie alla riduzione delle chiamate interne superflue (in particolare nella scheda Dispositivi) e al minore utilizzo di memoria nello strato Lua.
