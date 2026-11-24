@@ -1,5 +1,18 @@
 
-9.11.62 (Current Release Series)
+9.11.64 (Current Release Series)
+---------------------------------------------------------------------------
+- (Wi-Fi & Ottimizzazioni Hardware)
+  - Ottimizzazione nativa DGA4331 (VCNT-3): separazione persistente degli interrupt PCIe/DHD Wi-Fi sui due core (`2.4 GHz` su Core 0 e `5 GHz` su Core 1 allineati ai thread `wfd0`/`wfd1`), abilitazione automatica dell'Airtime Fairness (`atf=1`) su `wl0`, rimozione del reset forzato di `pmf='optional'` a `'disabled'`, correzione del formato UCI `20/40/80MHz` e supporto opzionale a `dtim_override` su 2.4 GHz (senza interruzioni DFS sul 5 GHz).
+  - Sblocco EasyMesh nativo su DGA4132 (VBNT-S): ripristino automatico della configurazione EasyMesh da ROM (disabilitata di default finché non viene attivata dall'utente) con allineamento dei mapping Transformer (`wireless.map`) per `fronthaul`/`backhaul`, credenziali `wifi-ap-credential` e visibilità della scheda e modale EasyMesh nella GUI.
+  - Aggiornata la modale Diagnostica Kernel per mostrare correttamente l'affinità IRQ separata per entrambe le radio (`2.4G` / `5G Split`) sui dispositivi dual-band con interrupt divisi, con relative traduzioni IT/DE.
+- (Bug Fix & Stabilità Upgrade)
+  - Eliminati i riavvii superflui di Nginx e i falsi allarmi del Rescue Watchdog su porta `8088` durante la finestra di manutenzione programmata `HTTP 503` (`/var/run/gui_maintenance` con TTL 600 s e pulizia automatica dei flag scaduti).
+  - Reso indipendente dai permessi di estrazione il richiamo di `checkver` in `upgradegui` e garantito il ripristino di `+x` in fase di finalizzazione.
+- (Dispositivi Testati)
+  - DGA4331 (VCNT-3)
+  - DGA4132 (VBNT-S)
+
+9.11.62
 ---------------------------------------------------------------------------
 - (Ottimizzazioni & Prestazioni GUI)
   - Cache in memoria delle proprietà hardware e aggiornamento dashboard più rapido con sospensione automatica del polling quando la scheda del browser è in background.
