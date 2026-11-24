@@ -486,7 +486,7 @@ gui_maint_begin 0 download "Avvio download pacchetto GUI..."
 
 case "$1" in
 AutoUpgrade)
-  /usr/share/transformer/scripts/checkver || logecho "WARNING: checkver exited with status $?"
+  sh /usr/share/transformer/scripts/checkver || logecho "WARNING: checkver exited with status $?"
   uci -q commit modgui
   if [ "$(uci -q get modgui.gui.outdated_ver)" = "0" ]; then
     logecho "Already at latest version. Aborting upgrade."
@@ -542,7 +542,7 @@ if [ ! -f "$WORKING_DIR/$FILE_NAME" ]; then #Check if file exist as offline uplo
   channel=${update_branch#_}
   [ -n "$channel" ] || channel=stable
 
-  dev_version="$(/usr/share/transformer/scripts/checkver ReleaseVersion "$channel")" ||
+  dev_version="$(sh /usr/share/transformer/scripts/checkver ReleaseVersion "$channel")" ||
     fail "Can't resolve latest $channel release"
   [ -n "$dev_version" ] || fail "Empty release version for channel $channel"
 
@@ -550,7 +550,7 @@ if [ ! -f "$WORKING_DIR/$FILE_NAME" ]; then #Check if file exist as offline uplo
   logecho "Downloaded GUI with hash: $LAST_HASH"
 
   if [ "$update_branch" ]; then
-    stable_version="$(/usr/share/transformer/scripts/checkver ReleaseVersion stable)"
+    stable_version="$(sh /usr/share/transformer/scripts/checkver ReleaseVersion stable)"
     stable_lookup_status=$?
     if [ "$stable_lookup_status" -eq 3 ]; then
       logecho "Stable channel not published. Continuing with verified $update_branch GUI."

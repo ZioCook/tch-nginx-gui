@@ -111,14 +111,19 @@
     end
   end
 
+  local bothBandsVal = "radio_2G,radio_5Gl,radio_5Gu"
+  local curCred0Bands = proxy.get("uci.multiap.controller_credentials.@cred0.frequency_bands")
+  if curCred0Bands and curCred0Bands[1] and curCred0Bands[1].value == "radio_2G,radio_5Gu,radio_5Gl" then
+    bothBandsVal = "radio_2G,radio_5Gu,radio_5Gl"
+  end
   local preferredInterface = {
-    {"radio_2G,radio_5Gu,radio_5Gl", T"Both"}
+    {bothBandsVal, T"Both"}
   }
   if post_helper.getVariantValue(variantHelper, "frequencySelection") then
     preferredInterface = {
       {"radio_2G", T"2.4GHz"},
-      {"radio_5Gu,radio_5Gl", T"5GHz"},
-      {"radio_2G,radio_5Gu,radio_5Gl", T"Both"}
+      {"radio_5Gl,radio_5Gu", T"5GHz"},
+      {bothBandsVal, T"Both"}
     }
   end
 

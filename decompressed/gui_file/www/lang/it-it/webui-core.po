@@ -5071,6 +5071,9 @@ msgstr "Core 1 (Offload)"
 msgid "Core 0 & Core 1 (Shared)"
 msgstr "Core 0 & Core 1 (Condiviso)"
 
+msgid "Split"
+msgstr "Separato"
+
 msgid "EasyMesh enabled"
 msgstr "EasyMesh abilitato"
 

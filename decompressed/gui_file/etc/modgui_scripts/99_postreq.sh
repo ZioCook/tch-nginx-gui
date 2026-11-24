@@ -29,7 +29,15 @@ start_stop_nginx() {
 	done
 
 	nginx_count=0
-	while [ "$(curl 127.0.0.1 --max-time 20 -I -s | head -n 1 | cut -d' ' -f2)" != "200" ] && [ $nginx_count -lt 5 ]; do
+	while [ $nginx_count -lt 5 ]; do
+		http_code=$(curl 127.0.0.1 --max-time 20 -I -s | head -n 1 | cut -d' ' -f2)
+		if [ "$http_code" = "200" ]; then
+			break
+		fi
+		if [ "$http_code" = "503" ] && [ -f /var/run/gui_maintenance ]; then
+			logecho "Nginx is running in maintenance mode (HTTP 503)."
+			break
+		fi
 		if [ $nginx_count -gt 3 ]; then
 			if [ -f /var/run/nginx.pid ]; then
 				kill -KILL "$(cat /var/run/nginx.pid)"
@@ -62,6 +70,7 @@ chmod 755 /etc/hotplug.d/button/50-safe-poweroff 2>/dev/null
 chmod 755 /usr/bin/rescue-usb.sh /usr/bin/rescue-watchdog.sh /www/lua/rescue_server.lua /etc/init.d/rescue-server 2>/dev/null
 chmod 755 /usr/share/transformer/scripts/toggle_qos.sh 2>/dev/null
 chmod 755 /usr/share/transformer/scripts/gui_progress.sh 2>/dev/null
+chmod 755 /usr/share/transformer/scripts/checkver 2>/dev/null
 chmod 4755 /usr/bin/sudo 2>/dev/null
 chmod 0440 /etc/sudoers.d/* 2>/dev/null
 chown root:root /etc/sudoers.d/nobody /usr/bin/safe-poweroff.sh /usr/share/transformer/scripts/toggle_qos.sh 2>/dev/null

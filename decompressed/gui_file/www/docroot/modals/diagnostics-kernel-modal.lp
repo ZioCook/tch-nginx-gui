@@ -53,30 +53,47 @@ if qdisc == "" then
 end
 
 -- Dynamic Wi-Fi IRQ affinity detection from /proc/interrupts
+local function fmt_aff(aff_raw)
+  if aff_raw == "1" then
+    return T"Core 0"
+  elseif aff_raw == "2" then
+    return T"Core 1"
+  elseif aff_raw == "3" then
+    return T"Core 0 & 1"
+  elseif aff_raw ~= "" then
+    return "Mask " .. aff_raw
+  end
+  return nil
+end
+
 local irq_str = "N/A"
 local f_irq = io.open("/proc/interrupts", "r")
 if f_irq then
-  local wifi_irq = nil
+  local irq_wl0, irq_wl1 = nil, nil
   for line in f_irq:lines() do
-    local num = line:match("^%s*(%d+):.*wl0")
-    if num then
-      wifi_irq = num
-      break
-    end
+    local num0 = line:match("^%s*(%d+):.*wl0")
+    if num0 and not irq_wl0 then irq_wl0 = num0 end
+    local num1 = line:match("^%s*(%d+):.*wl1")
+    if num1 and not irq_wl1 then irq_wl1 = num1 end
   end
   f_irq:close()
 
-  if wifi_irq then
-    local aff_raw = trim_val(content_helper.readfile("/proc/irq/" .. wifi_irq .. "/smp_affinity"))
-    if aff_raw == "1" then
+  local aff0 = irq_wl0 and trim_val(content_helper.readfile("/proc/irq/" .. irq_wl0 .. "/smp_affinity")) or ""
+  local aff1 = irq_wl1 and trim_val(content_helper.readfile("/proc/irq/" .. irq_wl1 .. "/smp_affinity")) or ""
+  if aff0 ~= "" and aff1 ~= "" and aff0 ~= aff1 then
+    irq_str = "2.4G: " .. (fmt_aff(aff0) or aff0) .. " / 5G: " .. (fmt_aff(aff1) or aff1) .. " (" .. T"Split" .. ")"
+  elseif aff0 ~= "" then
+    if aff0 == "1" then
       irq_str = T"Core 0 (Default)"
-    elseif aff_raw == "2" then
+    elseif aff0 == "2" then
       irq_str = T"Core 1 (Offloaded)"
-    elseif aff_raw == "3" then
+    elseif aff0 == "3" then
       irq_str = T"Core 0 & Core 1 (Shared)"
-    elseif aff_raw ~= "" then
-      irq_str = "Mask: " .. aff_raw
+    else
+      irq_str = "Mask: " .. aff0
     end
+  elseif aff1 ~= "" then
+    irq_str = "5G: " .. (fmt_aff(aff1) or aff1)
   end
 end
 

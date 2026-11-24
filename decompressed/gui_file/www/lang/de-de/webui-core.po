@@ -5050,6 +5050,9 @@ msgstr "Kern 1 (Ausgelagert)"
 msgid "Core 0 & Core 1 (Shared)"
 msgstr "Kern 0 & Kern 1 (Geteilt)"
 
+msgid "Split"
+msgstr "Aufgeteilt"
+
 msgid "EasyMesh enabled"
 msgstr "EasyMesh aktiviert"
 

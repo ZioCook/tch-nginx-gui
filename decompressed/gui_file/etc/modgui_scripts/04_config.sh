@@ -980,8 +980,65 @@ fi
 
 logecho "TCP/VM tuning applied."
 
+# Unlock native EasyMesh stack on Homeware 19.4 boards where Technicolor ships all
+# multiap binaries/mappings in ROM but removes /etc/config/multiap in uci-defaults
+# (e.g. DGA4132 / VBNT-S). Kept disabled by default until enabled by the user in GUI.
+if [ ! -f /etc/config/multiap ] && [ -f /rom/etc/config/multiap ] && \
+   [ -x /usr/bin/multiap_controller ] && [ -x /usr/bin/multiap_agent ]; then
+    logecho "Restoring ROM EasyMesh configuration (disabled by default)..."
+    cp -a /rom/etc/config/multiap /etc/config/multiap
+    uci set multiap.agent.enabled='0'
+    uci set multiap.controller.enabled='0'
+
+    em_ssid_2g=$(uci -q get wireless.wl0.ssid)
+    [ -z "$em_ssid_2g" ] && em_ssid_2g="$(uci -q get env.var.ssid_prefix)$(uci -q get env.var.ssid_mac_postfix_r0)"
+    em_ssid_5g=$(uci -q get wireless.wl1.ssid)
+    [ -z "$em_ssid_5g" ] && em_ssid_5g="$em_ssid_2g"
+    em_key_2g=$(uci -q get wireless.ap0.wpa_psk_key)
+    [ -z "$em_key_2g" ] && em_key_2g=$(uci -q get env.var.default_key_r0_s0)
+    em_key_5g=$(uci -q get wireless.ap1.wpa_psk_key)
+    [ -z "$em_key_5g" ] && em_key_5g="$em_key_2g"
+    em_bh_post=$(uci -q get env.var.ssid_mac_postfix_r0)
+    [ -z "$em_bh_post" ] && em_bh_post="MESH"
+    em_bh_key=$(uci -q get env.var.default_key_r0_s1)
+    [ -z "$em_bh_key" ] && em_bh_key="$em_key_5g"
+
+    [ -n "$em_ssid_2g" ] && uci set multiap.cred0.ssid="$em_ssid_2g"
+    [ -n "$em_ssid_5g" ] && uci set multiap.cred1.ssid="$em_ssid_5g"
+    [ -n "$em_key_2g" ] && uci set multiap.cred0.wpa_psk_key="$em_key_2g"
+    [ -n "$em_key_5g" ] && uci set multiap.cred1.wpa_psk_key="$em_key_5g"
+    uci set multiap.cred0.frequency_bands='radio_2G,radio_5Gl,radio_5Gu'
+    uci set multiap.cred1.state='0'
+    uci set multiap.cred1.operational_state='0'
+    uci set multiap.cred2.ssid="BH-${em_bh_post}"
+    [ -n "$em_bh_key" ] && uci set multiap.cred2.wpa_psk_key="$em_bh_key"
+
+    em_eth_mac=$(uci -q get env.var.local_eth_mac | tr -d ':')
+    em_wifi_mac=$(uci -q get env.var.local_wifi_mac | tr -d ':')
+    em_rand=$(tr -dc 'A-Za-z0-9' </dev/urandom 2>/dev/null | head -c 4)
+    [ -z "$em_rand" ] && em_rand="0001"
+    [ -n "$em_eth_mac" ] && uci set multiap.controller.de_controllerid="${em_eth_mac}-${em_rand}"
+    [ -n "$em_wifi_mac" ] && uci set multiap.controller.de_networkid="${em_wifi_mac}-${em_rand}"
+
+    uci commit multiap
+    [ -x /etc/init.d/multiap_controller ] && /etc/init.d/multiap_controller enable 2>/dev/null || true
+    [ -x /etc/init.d/multiap_agent ] && /etc/init.d/multiap_agent enable 2>/dev/null || true
+fi
+
 # Add EasyMesh rules and card only if supported
 if [ -f /etc/config/multiap ] && [ -n "$(uci -q get multiap.controller || uci -q get multiap.agent)" ]; then
+    # Ensure wl0/wl1 expose fronthaul option for multiap_agent Transformer reads
+    em_wl_changed=0
+    if [ -n "$(uci -q get wireless.wl0)" ] && [ -z "$(uci -q get wireless.wl0.fronthaul)" ]; then
+        uci set wireless.wl0.fronthaul='0'
+        em_wl_changed=1
+    fi
+    if [ -n "$(uci -q get wireless.wl1)" ] && [ -z "$(uci -q get wireless.wl1.fronthaul)" ]; then
+        uci set wireless.wl1.fronthaul='0'
+        em_wl_changed=1
+    fi
+    [ "$em_wl_changed" = "1" ] && uci commit wireless
+
     if [ -z "$(uci -q get web.easyMeshConfiguration)" ]; then
         uci set web.easyMeshConfiguration=rule
         uci set web.easyMeshConfiguration.target="/modals/easy-mesh-configuration.lp"
@@ -1034,6 +1091,9 @@ if [ -f /etc/config/multiap ] && [ -n "$(uci -q get multiap.controller || uci -q
     if [ -z "$(uci -q get web.wifiextender_card)" ]; then
         uci set web.wifiextender_card=card
         uci set web.wifiextender_card.card="020_wifiExtender.lp"
+        uci set web.wifiextender_card.modal="easyMeshConfiguration"
+        uci set web.wifiextender_card.hide="0"
+    else
         uci set web.wifiextender_card.modal="easyMeshConfiguration"
         uci set web.wifiextender_card.hide="0"
     fi

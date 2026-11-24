@@ -397,13 +397,15 @@ if [ -f "/tmp/upgrade-pack-${hw_ver}.tar.bz2" ]; then
   extract_with_check "/tmp/upgrade-pack-${hw_ver}.tar.bz2"
 fi
 
-# IRQ Affinity tuning (HW19 / Kernel 4.1 dual-core only)
+# IRQ Affinity & Wi-Fi tuning (HW19 / Kernel 4.1 dual-core only)
 # On DGA4132 (VBNT), WiFi traffic (wl0) is pinned to Core 0 by default,
 # starving Nginx/Transformer. Moving it to Core 1 (bitmask 0x2)
 # leaves Core 0 free for latency-sensitive GUI and routing tasks.
-# IMPORTANT: On DGA4331 (VCNT-3 / BCM43684 FullMAC DHD), PCIe interrupts are tightly
-# coupled with Broadcom Runner/HWA packet flow acceleration on Core 0. Migrating
-# dhdpcie IRQ 92/93 away from Core 0 causes flow ring desynchronization and fatal dongle traps!
+# On DGA4331 (VCNT-3 / dual BCM43684 B0 FullMAC DHD), brcm_kthrd_prios pins
+# wfd0-thrd (2.4G) to CPU0 and wfd1-thrd (5G) to CPU1, while leaving PCIe/DHD
+# IRQs on CPU0. Splitting wl0/dhd_80 -> CPU0 (mask 1) and wl1/dhd_81 -> CPU1
+# (mask 2) aligns each radio's IRQ with its own WFD thread without cross-core
+# cache bouncing, and enabling wl0 ATF matches init_broadcom.sh's wl1 ATF=1.
 tune_hw19() {
   local board_m="$(uci get -q env.rip.board_mnemonic)"
   local prod_name="$(uci get -q env.var.prod_friendly_name)"
@@ -416,12 +418,46 @@ tune_hw19() {
       fi
     done
   else
-    for iface in wl0 wl1; do
-      wifi_irq=$(awk "/$iface/{print \$1}" /proc/interrupts 2>/dev/null | tr -d ':' | head -1)
-      if [ -n "$wifi_irq" ] && [ -f "/proc/irq/$wifi_irq/smp_affinity" ]; then
-        echo 1 > "/proc/irq/$wifi_irq/smp_affinity" 2>/dev/null
-      fi
+    # Clean up legacy conflicting init script if present
+    if [ -f /etc/init.d/wifi_irq_tune ]; then
+      /etc/init.d/wifi_irq_tune disable 2>/dev/null || true
+      rm -f /etc/init.d/wifi_irq_tune /etc/rc.d/S*wifi_irq_tune
+    fi
+
+    # Install persistent dual-core Wi-Fi IRQ split & wl0 ATF init script
+    cat <<'EOF' > /etc/init.d/wifi-tuning
+#!/bin/sh /etc/rc.common
+START=99
+
+start() {
+    # Split Wi-Fi PCIe/DHD IRQs across both cores aligned with wfd0-thrd (CPU0) / wfd1-thrd (CPU1)
+    for name in 80070000.pcie brcm_dhd_80; do
+        irq=$(awk -v n="$name" '$0 ~ n { gsub(/:/, "", $1); print $1; exit }' /proc/interrupts)
+        [ -n "$irq" ] && [ -w "/proc/irq/$irq/smp_affinity" ] && echo 1 > "/proc/irq/$irq/smp_affinity"
     done
+    for name in 80060000.pcie brcm_dhd_81; do
+        irq=$(awk -v n="$name" '$0 ~ n { gsub(/:/, "", $1); print $1; exit }' /proc/interrupts)
+        [ -n "$irq" ] && [ -w "/proc/irq/$irq/smp_affinity" ] && echo 2 > "/proc/irq/$irq/smp_affinity"
+    done
+
+    if command -v wl >/dev/null 2>&1; then
+        # Optional user-configured DTIM override on wl0 only (2.4 GHz, no DFS; never bounce wl1)
+        dtim_2g=$(uci -q get wireless.radio_2G.dtim_override 2>/dev/null)
+        case "$dtim_2g" in
+            [1-9]|10)
+                if [ "$(wl -i wl0 isup 2>/dev/null)" = "1" ] && [ "$(wl -i wl0 dtim 2>/dev/null)" != "$dtim_2g" ]; then
+                    wl -i wl0 down 2>/dev/null && wl -i wl0 dtim "$dtim_2g" 2>/dev/null && wl -i wl0 up 2>/dev/null || true
+                fi
+                ;;
+        esac
+        # Enable Airtime Fairness on wl0 (init_broadcom.sh enables it on wl1 only)
+        wl -i wl0 atf 1 2>/dev/null || true
+    fi
+}
+EOF
+    chmod 755 /etc/init.d/wifi-tuning
+    /etc/init.d/wifi-tuning enable 2>/dev/null || true
+    /etc/init.d/wifi-tuning start 2>/dev/null || true
 
     # Patch Broadcom hostapd on DGA4331 to prevent FullMAC country & radio abort traps
     local hapd_bin="/usr/sbin/hostapd"
@@ -440,18 +476,15 @@ tune_hw19() {
       fi
     fi
 
-    # Fix invalid PMF values and ensure safe initial 5GHz channel if set to auto
+    # Ensure safe initial 5GHz channel & valid UCI channelwidth if set to auto
     local uci_changed=0
-    for ap in ap0 ap1; do
-      if [ "$(uci get -q wireless.$ap.pmf)" = "optional" ]; then
-        uci set wireless.$ap.pmf='disabled'
-        uci_changed=1
-      fi
-    done
     if [ "$(uci get -q wireless.radio_5G.channel)" = "auto" ]; then
       uci set wireless.radio_5G.channel='36'
-      uci set wireless.radio_5G.channelwidth='20/40/80'
+      uci set wireless.radio_5G.channelwidth='20/40/80MHz'
       uci set wireless.radio_5G.acs_state='disabled'
+      uci_changed=1
+    elif [ "$(uci get -q wireless.radio_5G.channelwidth)" = "20/40/80" ]; then
+      uci set wireless.radio_5G.channelwidth='20/40/80MHz'
       uci_changed=1
     fi
     if [ "$uci_changed" = "1" ]; then

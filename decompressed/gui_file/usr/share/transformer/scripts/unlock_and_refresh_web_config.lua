@@ -270,6 +270,9 @@ for _ , elem in pairs(card_check_rule) do
 	elseif elem.name == 'wifiextender_card' and not easymesh_supported and uci:get('web', elem.name, 'hide') ~= '1' then
 		uci:set('web', elem.name, 'hide', '1')
 		new_rule = true
+	elseif elem.name == 'wifiextender_card' and easymesh_supported and uci:get('web', elem.name, 'hide') == '1' then
+		uci:set('web', elem.name, 'hide', '0')
+		new_rule = true
 	end
 end
 

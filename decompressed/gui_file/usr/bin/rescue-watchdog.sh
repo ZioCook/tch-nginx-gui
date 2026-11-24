@@ -126,17 +126,44 @@ port_holder() {
 # ---------------------------------------------------------------------------
 # Health probe
 # ---------------------------------------------------------------------------
+# Check if planned GUI upgrade maintenance is active (< 600s TTL matching nginx.conf)
+is_gui_maint_active() {
+    [ -d /tmp/upgradegui.lock ] && return 0
+    [ -f /var/run/gui_maintenance ] || return 1
+    local ts now
+    ts=$(head -n 1 /var/run/gui_maintenance 2>/dev/null | tr -cd '0-9')
+    now=$(date +%s 2>/dev/null)
+    case "$ts:$now" in
+        :[0-9]*|[0-9]*:|:) return 1 ;;
+    esac
+    if [ $((now - ts)) -lt 600 ]; then
+        return 0
+    fi
+    # Clean up expired maintenance flag (>600s) left by an interrupted upgrade
+    rm -f /var/run/gui_maintenance 2>/dev/null
+    return 1
+}
+
 http_probe() {
     local code=""
     if command -v curl >/dev/null 2>&1; then
         code=$(curl -s -m "$PROBE_TIMEOUT" --connect-timeout 3 -o /dev/null -w "%{http_code}" "$NGINX_URL" 2>/dev/null)
         case "$code" in
             2??|3??) return 0 ;;
+            503)
+                is_gui_maint_active && return 0
+                ;;
         esac
         return 1
     fi
     # Fallback: BusyBox wget exits 0 on a 2xx answer (redirects are followed)
-    wget -q -T "$PROBE_TIMEOUT" -O /dev/null "$NGINX_URL" >/dev/null 2>&1
+    if wget -q -T "$PROBE_TIMEOUT" -O /dev/null "$NGINX_URL" >/dev/null 2>&1; then
+        return 0
+    fi
+    if is_gui_maint_active; then
+        wget -S --spider -T "$PROBE_TIMEOUT" "$NGINX_URL" 2>&1 | grep -q " 503 " && return 0
+    fi
+    return 1
 }
 
 check_nginx() {

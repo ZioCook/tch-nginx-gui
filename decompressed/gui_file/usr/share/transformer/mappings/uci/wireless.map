@@ -14,7 +14,7 @@ local wireless_wifidevice = {
               "acs_trace_level", "acs_rescan_period", "acs_rescan_delay_policy", "acs_allowed_channels", "frame_bursting",
               "stbc", "cdd", "tx_power_adjust", "tx_power_overrule_reg", "wifi_button_enable", "encryptiontype",
               "allowed_channels", "sta_minimum_mode", "txbf", "mumimo", "ldpc", "advanced_qam",
-              "amsdu", "rx_amsdu_in_ampdu", "mcs", "fragmentation_threshold",
+              "amsdu", "rx_amsdu_in_ampdu", "mcs", "fragmentation_threshold", "dtim_override",
  }
 }
 
@@ -24,7 +24,9 @@ mapper("uci_1to1").registerNamedMultiMap(wireless_wifidevice)
 local wireless_wifiiface = {
   config = config_wireless,
   type = "wifi-iface",
-  options = { "device", "ssid", "network", "state", "mode", "uapsd", "ap_display_name", "stb", "upload_rate", "download_rate", "rate_control_enabled" }
+  options = { "device", "ssid", "network", "state", "mode", "uapsd", "ap_display_name", "stb",
+              "upload_rate", "download_rate", "rate_control_enabled",
+              "qos_prio_override", "fronthaul", "backhaul", "multiap_profile" }
 }
 
 mapper("uci_1to1").registerNamedMultiMap(wireless_wifiiface)
@@ -33,7 +35,7 @@ mapper("uci_1to1").registerNamedMultiMap(wireless_wifiiface)
 local wireless_wifibandsteer = {
   config = config_wireless,
   type = "wifi-bandsteer",
-  options = { "policy_mode", "rssi_threshold", "rssi_5g_threshold", "sta_comeback_to", "monitor_window", },
+  options = { "policy_mode", "rssi_threshold", "rssi_5g_threshold", "sta_comeback_to", "monitor_window", "state", },
 }
 
 mapper("uci_1to1").registerNamedMultiMap(wireless_wifibandsteer)
@@ -60,6 +62,15 @@ local wireless_wifiradiusserver = {
 }
 
 mapper("uci_1to1").registerNamedMultiMap(wireless_wifiradiusserver)
+
+-- uci.wireless.wifi-ap-credential
+local wireless_wifi_ap_credential = {
+  config = config_wireless,
+  type = "wifi-ap-credential",
+  options = { "state", "passphrase" }
+}
+
+mapper("uci_1to1").registerNamedMultiMap(wireless_wifi_ap_credential)
 
 -- uci.wireless.wifi
 local wireless_wifiglobal = {
