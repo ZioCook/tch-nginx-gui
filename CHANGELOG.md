@@ -1,5 +1,14 @@
 
-9.11.64 (Current Release Series)
+9.11.66 (Current Release Series)
+---------------------------------------------------------------------------
+- (EasyMesh & Compatibilità Hardware)
+  - Disabilitato automaticamente il backhaul wireless (`cred2`, `configure_BH_STA`, `backhaul_list`/`bh_list`, `wee_bhs`) sui dispositivi con radio `5 GHz` Quantenna come DGA4132 (VBNT-S), mantenendo EasyMesh pienamente attivo tramite backhaul cablato Ethernet (`IEEE 1905.1`).
+  - Aggiunto avviso informativo dedicato nella modale EasyMesh (`Solo Backhaul Cablato`, con traduzioni IT/DE) quando viene rilevata una radio `5 GHz` Quantenna e rafforzato l'untaint nella lettura UCI della modale.
+- (Dispositivi Testati)
+  - DGA4331 (VCNT-3)
+  - DGA4132 (VBNT-S)
+
+9.11.64
 ---------------------------------------------------------------------------
 - (Wi-Fi & Ottimizzazioni Hardware)
   - Ottimizzazione nativa DGA4331 (VCNT-3): separazione persistente degli interrupt PCIe/DHD Wi-Fi sui due core (`2.4 GHz` su Core 0 e `5 GHz` su Core 1 allineati ai thread `wfd0`/`wfd1`), abilitazione automatica dell'Airtime Fairness (`atf=1`) su `wl0`, rimozione del reset forzato di `pmf='optional'` a `'disabled'`, correzione del formato UCI `20/40/80MHz` e supporto opzionale a `dtim_override` su 2.4 GHz (senza interruzioni DFS sul 5 GHz).
