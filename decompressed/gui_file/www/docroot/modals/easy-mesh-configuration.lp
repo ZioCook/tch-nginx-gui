@@ -24,6 +24,11 @@
     variantHelper = post_helper.getVariant(variant_helper, "ExtenderPage", "extenderConfig")
   end
   local backhaulDetails = post_helper.getVariantValue(variantHelper, "backhaulDetails")
+  local raw_r5g_type = proxy.get("uci.wireless.wifi-device.@radio_5G.type")
+  local isQuantenna5G = (type(raw_r5g_type) == "table" and raw_r5g_type[1] and untaint(raw_r5g_type[1].value) == "quantenna") or false
+  if isQuantenna5G then
+    backhaulDetails = false
+  end
   local easyMeshButton = post_helper.getVariantValue(variantHelper, "easyMeshButton")
   if easyMeshButton == nil then
     easyMeshButton = true
@@ -113,7 +118,7 @@
 
   local bothBandsVal = "radio_2G,radio_5Gl,radio_5Gu"
   local curCred0Bands = proxy.get("uci.multiap.controller_credentials.@cred0.frequency_bands")
-  if curCred0Bands and curCred0Bands[1] and curCred0Bands[1].value == "radio_2G,radio_5Gu,radio_5Gl" then
+  if curCred0Bands and curCred0Bands[1] and untaint(curCred0Bands[1].value) == "radio_2G,radio_5Gu,radio_5Gl" then
     bothBandsVal = "radio_2G,radio_5Gu,radio_5Gl"
   end
   local preferredInterface = {
@@ -277,6 +282,14 @@
   ngx.print('\
   </div>\
 ')
+  if isQuantenna5G then
+    ngx.print('\
+  <div class="alert alert-warning" style="margin-bottom: 20px;">\
+    <i class="icon-warning-sign" style="margin-right: 6px;"></i>\
+    <strong>' .. T"Wired Backhaul Only:" .. '</strong> ' .. T"Wireless backhaul is disabled on this device (Quantenna 5 GHz radio). EasyMesh is supported over a wired Ethernet connection." .. '\
+  </div>\
+')
+  end
   ngx.print(ui_helper.createMessages(message_helper.popMessages()))
   ngx.print('\
   <fieldset id="easy-mesh-configuration-tab">\

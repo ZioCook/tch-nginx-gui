@@ -5074,6 +5074,12 @@ msgstr "Core 0 & Core 1 (Condiviso)"
 msgid "Split"
 msgstr "Separato"
 
+msgid "Wired Backhaul Only:"
+msgstr "Solo Backhaul Cablato:"
+
+msgid "Wireless backhaul is disabled on this device (Quantenna 5 GHz radio). EasyMesh is supported over a wired Ethernet connection."
+msgstr "Il backhaul wireless è disabilitato su questo dispositivo (radio 5 GHz Quantenna). EasyMesh è supportato tramite collegamento cablato Ethernet."
+
 msgid "EasyMesh enabled"
 msgstr "EasyMesh abilitato"
 

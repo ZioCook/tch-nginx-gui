@@ -1039,6 +1039,25 @@ if [ -f /etc/config/multiap ] && [ -n "$(uci -q get multiap.controller || uci -q
     fi
     [ "$em_wl_changed" = "1" ] && uci commit wireless
 
+    # On boards with Quantenna 5 GHz radio (e.g. DGA4132 / VBNT-S), disable wireless
+    # backhaul so EasyMesh runs cleanly over wired Ethernet backhaul (IEEE 1905.1).
+    if [ "$(uci -q get wireless.radio_5G.type)" = "quantenna" ]; then
+        em_bh_changed=0
+        if [ -n "$(uci -q get multiap.cred2)" ]; then
+            [ "$(uci -q get multiap.cred2.state)" != "0" ] && uci set multiap.cred2.state='0' && em_bh_changed=1
+            [ "$(uci -q get multiap.cred2.operational_state)" != "0" ] && uci set multiap.cred2.operational_state='0' && em_bh_changed=1
+            [ "$(uci -q get multiap.cred2.backhaul)" != "0" ] && uci set multiap.cred2.backhaul='0' && em_bh_changed=1
+        fi
+        [ "$(uci -q get multiap.controller.configure_BH_STA)" != "0" ] && uci set multiap.controller.configure_BH_STA='0' && em_bh_changed=1
+        [ -n "$(uci -q get multiap.agent.backhaul_list)" ] && uci set multiap.agent.backhaul_list='' && em_bh_changed=1
+        [ -n "$(uci -q get multiap.agent.bh_list)" ] && uci set multiap.agent.bh_list='' && em_bh_changed=1
+        if [ -n "$(uci -q get multiap.wee_bhs)" ] && [ "$(uci -q get multiap.wee_bhs.enabled)" != "0" ]; then
+            uci set multiap.wee_bhs.enabled='0'
+            em_bh_changed=1
+        fi
+        [ "$em_bh_changed" = "1" ] && uci commit multiap
+    fi
+
     if [ -z "$(uci -q get web.easyMeshConfiguration)" ]; then
         uci set web.easyMeshConfiguration=rule
         uci set web.easyMeshConfiguration.target="/modals/easy-mesh-configuration.lp"
